@@ -139,10 +139,10 @@ def patch_all_tool_schemas_for_cohere():
     
     for tool_name, tool in tools.items():
         try:
-        if hasattr(tool, 'function_schema') and hasattr(tool.function_schema, 'parameters_json_schema'):
-            orig_schema = tool.function_schema.parameters_json_schema
-            patched_schema = patch_schema_for_cohere(copy.deepcopy(orig_schema))
-            tool.function_schema.parameters_json_schema = patched_schema
+            if hasattr(tool, 'function_schema') and hasattr(tool.function_schema, 'parameters_json_schema'):
+                orig_schema = tool.function_schema.parameters_json_schema
+                patched_schema = patch_schema_for_cohere(copy.deepcopy(orig_schema))
+                tool.function_schema.parameters_json_schema = patched_schema
                 logger.debug(f"Patched schema for tool: {tool_name}")
         except Exception as e:
             logger.warning(f"Failed to patch tool {tool_name}: {e}")
