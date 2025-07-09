@@ -31,7 +31,11 @@ from .tools import (
     DocumentInput,
     DocumentListInput,
     EntityRelationshipInput,
-    EntityTimelineInput
+    EntityTimelineInput,
+    web_search_tool,  # <-- Import the tool
+    WebSearchInput,    # <-- Import the input model
+    compose_email_tool, # <-- Import the email tool
+    EmailComposeInput   # <-- Import the email input model
 )
 
 # Load environment variables
@@ -472,3 +476,67 @@ async def get_entity_timeline(
     )
     
     return await get_entity_timeline_tool(input_data)
+
+
+@rag_agent.tool
+async def web_search(
+    ctx: RunContext[AgentDependencies],
+    query: str,
+    max_results: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Search the web for current information when local knowledge is insufficient.
+    This tool performs web searches to find up-to-date information that may not be
+    available in the local knowledge base. Use this when you need recent information
+    or when local search results are insufficient.
+    Args:
+        query: Search query for web search
+        max_results: Maximum number of results to return (1-10)
+    Returns:
+        List of web search results with titles, content, and URLs
+    """
+    logger.debug("Web search tool called with query: '%s', max_results: %d", query, max_results)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    input_data = WebSearchInput(
+        query=query,
+        max_results=max_results
+    )
+    logger.debug("Calling web_search_tool with input: %s", input_data)
+    start_time = datetime.now()
+    try:
+        results = await web_search_tool(input_data)
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds() * 1000
+        logger.debug("Web search completed in %.2f ms, found %d results", duration, len(results))
+        return results
+    except Exception as e:
+        logger.error("Web search failed: %s", e)
+        logger.debug("Web search error details", exc_info=True)
+        return []
+
+
+@rag_agent.tool
+async def compose_email(
+    ctx: RunContext[AgentDependencies],
+    to: str,
+    subject: str,
+    body: str
+) -> Dict[str, Any]:
+    """
+    Compose and send an email using Gmail.
+    This tool allows you to send an email to any recipient with a subject and body.
+    Args:
+        to: Recipient email address
+        subject: Email subject
+        body: Email body text
+    Returns:
+        Status and message ID or error
+    """
+    logger.debug("Compose email tool called with to: '%s', subject: '%s'", to, subject)
+    input_data = EmailComposeInput(to=to, subject=subject, body=body)
+    try:
+        result = await compose_email_tool(input_data)
+        return result
+    except Exception as e:
+        logger.error("Compose email failed: %s", e)
+        return {"status": "error", "error": str(e)}

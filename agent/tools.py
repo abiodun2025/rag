@@ -26,6 +26,8 @@ from .graph_utils import (
 from .models import ChunkResult, GraphSearchResult, DocumentMetadata
 from .providers import get_embedding_client, get_embedding_model
 from .schemas import ProviderType, convert_to_provider_format, convert_from_provider_format
+from duckduckgo_search import DDGS  # <-- Add this import
+from agent.email_tools import compose_and_send_email
 
 # Load environment variables
 load_dotenv()
@@ -109,6 +111,18 @@ class EntityTimelineInput(BaseModel):
     entity_name: str = Field(..., description="Name of the entity")
     start_date: str = Field("", description="Start date (ISO format)")
     end_date: str = Field("", description="End date (ISO format)")
+
+
+class WebSearchInput(BaseModel):
+    """Input for web search tool."""
+    query: str = Field(..., description="Search query for web search")
+    max_results: int = Field(default=5, description="Maximum number of results to return")
+
+
+class EmailComposeInput(BaseModel):
+    to: str = Field(..., description="Recipient email address")
+    subject: str = Field(..., description="Email subject")
+    body: str = Field(..., description="Email body text")
 
 
 # Tool Implementation Functions
@@ -272,6 +286,53 @@ async def hybrid_search_tool(input_data: HybridSearchInput) -> List[ChunkResult]
         logger.error("Hybrid search failed: %s", e)
         logger.debug("Hybrid search error details", exc_info=True)
         return []
+
+
+async def web_search_tool(input_data: WebSearchInput) -> List[Dict[str, Any]]:
+    """
+    Perform web search using DuckDuckGo as a fallback when local knowledge is insufficient.
+    Args:
+        input_data: Web search parameters
+    Returns:
+        List of web search results
+    """
+    logger.debug("Web search tool called with input: %s", input_data)
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(
+                input_data.query,
+                max_results=input_data.max_results
+            ))
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                "title": result.get("title", ""),
+                "content": result.get("body", ""),
+                "url": result.get("href", result.get("url", "")),
+                "source": "web_search",
+                "search_query": input_data.query
+            })
+        logger.debug("Web search completed, found %d results", len(formatted_results))
+        return formatted_results
+    except Exception as e:
+        logger.error("Web search failed: %s", e)
+        logger.debug("Web search error details", exc_info=True)
+        return []
+
+
+async def compose_email_tool(input_data: EmailComposeInput) -> Dict[str, Any]:
+    """
+    Compose and send an email using Gmail.
+    Args:
+        input_data: Email parameters (to, subject, body)
+    Returns:
+        Status and message ID
+    """
+    try:
+        result = compose_and_send_email(input_data.to, input_data.subject, input_data.body)
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 
 async def get_document_tool(input_data: DocumentInput) -> Optional[Dict[str, Any]]:
