@@ -35,7 +35,39 @@ from .tools import (
     web_search_tool,  # <-- Import the tool
     WebSearchInput,    # <-- Import the input model
     compose_email_tool, # <-- Import the email tool
-    EmailComposeInput   # <-- Import the email input model
+    EmailComposeInput,   # <-- Import the email input model
+    save_message_tool,   # <-- Import the message save tool
+    save_conversation_tool, # <-- Import the conversation save tool
+    list_messages_tool,  # <-- Import the message list tool
+    SaveMessageInput,    # <-- Import the message save input model
+    SaveConversationInput, # <-- Import the conversation save input model
+    ListMessagesInput,    # <-- Import the message list input model
+    list_emails_tool,
+    read_email_tool,
+    search_emails_tool,
+    save_desktop_message_tool,  # <-- Import the desktop message save tool
+    save_desktop_conversation_tool, # <-- Import the desktop conversation save tool
+    list_desktop_messages_tool  # <-- Import the desktop message list tool
+)
+from .mcp_tools import (
+    count_r_tool,
+    list_desktop_contents_tool,
+    get_desktop_path_tool,
+    open_gmail_tool,
+    open_gmail_compose_tool,
+    sendmail_tool,
+    sendmail_simple_tool,
+    generic_mcp_tool,
+    list_mcp_tools,
+    CountRInput,
+    DesktopContentsInput,
+    DesktopPathInput,
+    OpenGmailInput,
+    OpenGmailComposeInput,
+    SendmailInput,
+    SendmailSimpleInput,
+    MCPToolInput,
+    mcp_client
 )
 
 # Load environment variables
@@ -539,4 +571,758 @@ async def compose_email(
         return result
     except Exception as e:
         logger.error("Compose email failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def save_message(
+    ctx: RunContext[AgentDependencies],
+    message: str,
+    message_type: str = "user_message",
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a message to the storage directory.
+    
+    This tool saves messages to a local directory with metadata including
+    timestamps, user information, and message types. Messages are organized
+    by date for easy retrieval.
+    
+    Args:
+        message: The message content to save
+        message_type: Type of message (user_message, agent_response, etc.)
+        metadata: Additional metadata to store with the message
+    
+    Returns:
+        Save status and file path information
+    """
+    logger.debug("Save message tool called with message type: '%s'", message_type)
+    input_data = SaveMessageInput(
+        message=message,
+        message_type=message_type,
+        metadata=metadata or {}
+    )
+    try:
+        result = await save_message_tool(input_data)
+        return result
+    except Exception as e:
+        logger.error("Save message failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def save_conversation(
+    ctx: RunContext[AgentDependencies],
+    user_message: str,
+    agent_response: str,
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a complete conversation (user message + agent response).
+    
+    This tool saves both the user's message and the agent's response together
+    as a conversation pair. This is useful for maintaining conversation history
+    and analyzing interaction patterns.
+    
+    Args:
+        user_message: The user's message
+        agent_response: The agent's response
+        metadata: Additional metadata to store with the conversation
+    
+    Returns:
+        Save status and file path information
+    """
+    logger.debug("Save conversation tool called")
+    input_data = SaveConversationInput(
+        user_message=user_message,
+        agent_response=agent_response,
+        metadata=metadata or {}
+    )
+    try:
+        result = await save_conversation_tool(input_data)
+        return result
+    except Exception as e:
+        logger.error("Save conversation failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def list_messages(
+    ctx: RunContext[AgentDependencies],
+    user_id: str = "",
+    message_type: str = "",
+    limit: int = 50
+) -> Dict[str, Any]:
+    """
+    List saved messages with optional filtering.
+    
+    This tool retrieves previously saved messages with optional filtering
+    by user ID or message type. Useful for reviewing conversation history
+    or analyzing message patterns.
+    
+    Args:
+        user_id: Filter by user ID (optional)
+        message_type: Filter by message type (optional)
+        limit: Maximum number of results to return (1-100)
+    
+    Returns:
+        List of messages with metadata and file paths
+    """
+    logger.debug("List messages tool called with filters: user_id='%s', message_type='%s', limit=%d", 
+                user_id, message_type, limit)
+    input_data = ListMessagesInput(
+        user_id=user_id or "",
+        message_type=message_type or "",
+        limit=limit
+    )
+    try:
+        result = await list_messages_tool(input_data)
+        return result
+    except Exception as e:
+        logger.error("List messages failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def list_emails(
+    ctx: RunContext[AgentDependencies],
+    max_results: int = 10,
+    query: str = ""
+) -> List[Dict[str, Any]]:
+    """
+    List recent emails from Gmail inbox.
+    This tool retrieves the latest emails from your Gmail inbox.
+    Args:
+        max_results: Maximum number of emails to return (1-100)
+        query: Optional Gmail search query (e.g., 'from:someone@example.com', 'subject:meeting')
+    Returns:
+        List of email summaries with IDs and metadata
+    """
+    logger.debug("List emails tool called with max_results: %d, query: '%s'", max_results, query)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    input_data = list_emails_tool(max_results=max_results, query=query)
+    try:
+        results = await list_emails_tool(input_data)
+        return results
+    except Exception as e:
+        logger.error("List emails failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def read_email(
+    ctx: RunContext[AgentDependencies],
+    email_id: str
+) -> Dict[str, Any]:
+    """
+    Read a specific email by ID.
+    This tool retrieves the full content of a specific email from your Gmail inbox.
+    Args:
+        email_id: Gmail message ID to read
+    Returns:
+        Full email content and metadata
+    """
+    logger.debug("Read email tool called with email_id: '%s'", email_id)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    input_data = read_email_tool(email_id=email_id)
+    try:
+        email_data = await read_email_tool(input_data)
+        return email_data
+    except Exception as e:
+        logger.error("Read email failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def search_emails(
+    ctx: RunContext[AgentDependencies],
+    query: str,
+    max_results: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Search emails with a specific query.
+    This tool performs a search across your Gmail inbox for emails matching a query.
+    Args:
+        query: Search query for emails
+        max_results: Maximum number of emails to return (1-100)
+    Returns:
+        List of email summaries matching the query
+    """
+    logger.debug("Search emails tool called with query: '%s', max_results: %d", query, max_results)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    input_data = search_emails_tool(query=query, max_results=max_results)
+    try:
+        results = await search_emails_tool(input_data)
+        return results
+    except Exception as e:
+        logger.error("Search emails failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+# Desktop Message Tools
+@rag_agent.tool
+async def save_desktop_message(
+    ctx: RunContext[AgentDependencies],
+    message: str,
+    message_type: str = "user_message",
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a message to the Desktop directory.
+    
+    This tool saves individual messages to the Desktop directory for easy access.
+    Messages are organized by date and include metadata for better organization.
+    
+    Args:
+        message: The message content to save
+        message_type: Type of message (e.g., 'user_message', 'note', 'reminder')
+        metadata: Additional metadata for the message
+    
+    Returns:
+        Save status and file path
+    """
+    logger.debug("Save desktop message tool called with message: '%s', type: %s", message, message_type)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = SaveMessageInput(
+        message=message,
+        message_type=message_type,
+        metadata=metadata or {}
+    )
+    
+    try:
+        result = await save_desktop_message_tool(input_data)
+        logger.debug("Save desktop message result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Save desktop message failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def save_to_desktop(
+    ctx: RunContext[AgentDependencies],
+    message: str,
+    message_type: str = "user_message",
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a message to the Desktop directory (user-friendly alias).
+    
+    This is a user-friendly way to save messages to your Desktop.
+    Just say "save to desktop" followed by your message.
+    
+    Args:
+        message: The message content to save
+        message_type: Type of message (e.g., 'user_message', 'note', 'reminder')
+        metadata: Additional metadata for the message
+    
+    Returns:
+        Save status and file path
+    """
+    logger.debug("Save to desktop tool called with message: '%s', type: %s", message, message_type)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = SaveMessageInput(
+        message=message,
+        message_type=message_type,
+        metadata=metadata or {}
+    )
+    
+    try:
+        result = await save_desktop_message_tool(input_data)
+        logger.debug("Save to desktop result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Save to desktop failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def save_to_project(
+    ctx: RunContext[AgentDependencies],
+    message: str,
+    message_type: str = "user_message",
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a message to the project directory (user-friendly alias).
+    
+    This is a user-friendly way to save messages to the project directory.
+    Just say "save to project" followed by your message.
+    
+    Args:
+        message: The message content to save
+        message_type: Type of message (e.g., 'user_message', 'note', 'reminder')
+        metadata: Additional metadata for the message
+    
+    Returns:
+        Save status and file path
+    """
+    logger.debug("Save to project tool called with message: '%s', type: %s", message, message_type)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = SaveMessageInput(
+        message=message,
+        message_type=message_type,
+        metadata=metadata or {}
+    )
+    
+    try:
+        result = await save_message_tool(input_data)
+        logger.debug("Save to project result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Save to project failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def save_desktop_conversation(
+    ctx: RunContext[AgentDependencies],
+    user_message: str,
+    agent_response: str,
+    metadata: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Save a complete conversation to the Desktop directory.
+    
+    This tool saves both the user's message and the agent's response as a conversation.
+    Useful for keeping track of important discussions and decisions.
+    
+    Args:
+        user_message: The user's message
+        agent_response: The agent's response
+        metadata: Additional metadata for the conversation
+    
+    Returns:
+        Save status and file path
+    """
+    logger.debug("Save desktop conversation tool called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = SaveConversationInput(
+        user_message=user_message,
+        agent_response=agent_response,
+        metadata=metadata or {}
+    )
+    
+    try:
+        result = await save_desktop_conversation_tool(input_data)
+        logger.debug("Save desktop conversation result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Save desktop conversation failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def list_desktop_messages(
+    ctx: RunContext[AgentDependencies],
+    user_id: str = "",
+    message_type: str = "",
+    limit: int = 50
+) -> Dict[str, Any]:
+    """
+    List saved messages from the Desktop directory.
+    
+    This tool lists messages saved to the Desktop directory with optional filtering.
+    Useful for finding previously saved messages and conversations.
+    
+    Args:
+        user_id: Filter by user ID (optional)
+        message_type: Filter by message type (optional)
+        limit: Maximum number of messages to return
+    
+    Returns:
+        List of saved messages with metadata
+    """
+    logger.debug("List desktop messages tool called with limit: %d", limit)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = ListMessagesInput(
+        user_id=user_id,
+        message_type=message_type,
+        limit=limit
+    )
+    
+    try:
+        result = await list_desktop_messages_tool(input_data)
+        logger.debug("List desktop messages result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("List desktop messages failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def show_desktop_messages(
+    ctx: RunContext[AgentDependencies],
+    limit: int = 10
+) -> Dict[str, Any]:
+    """
+    Show saved messages from the Desktop directory (user-friendly alias).
+    
+    This is a user-friendly way to see messages saved to your Desktop.
+    Just say "show desktop messages" to see your saved messages.
+    
+    Args:
+        limit: Maximum number of messages to show
+    
+    Returns:
+        List of saved messages with metadata
+    """
+    logger.debug("Show desktop messages tool called with limit: %d", limit)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = ListMessagesInput(
+        user_id="",
+        message_type="",
+        limit=limit
+    )
+    
+    try:
+        result = await list_desktop_messages_tool(input_data)
+        logger.debug("Show desktop messages result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Show desktop messages failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def show_project_messages(
+    ctx: RunContext[AgentDependencies],
+    limit: int = 10
+) -> Dict[str, Any]:
+    """
+    Show saved messages from the project directory (user-friendly alias).
+    
+    This is a user-friendly way to see messages saved to the project directory.
+    Just say "show project messages" to see your saved messages.
+    
+    Args:
+        limit: Maximum number of messages to show
+    
+    Returns:
+        List of saved messages with metadata
+    """
+    logger.debug("Show project messages tool called with limit: %d", limit)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = ListMessagesInput(
+        user_id="",
+        message_type="",
+        limit=limit
+    )
+    
+    try:
+        result = await list_messages_tool(input_data)
+        logger.debug("Show project messages result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Show project messages failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+# ============================================================================
+# MCP (Model Context Protocol) Tools Integration
+# ============================================================================
+
+@rag_agent.tool
+async def count_r_letters(
+    ctx: RunContext[AgentDependencies],
+    word: str
+) -> Dict[str, Any]:
+    """
+    Count 'r' letters in a word using the MCP server.
+    
+    This tool connects to your count-r MCP server to count the number of 'r' letters
+    in any given word. Useful for text analysis and character counting.
+    
+    Args:
+        word: The word to count 'r' letters in
+    
+    Returns:
+        Dictionary with the count result from the MCP server
+    """
+    logger.debug("Count R letters tool called with word: %s", word)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = CountRInput(word=word)
+    
+    try:
+        result = await count_r_tool(input_data)
+        logger.debug("Count R letters result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Count R letters failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def list_desktop_files(
+    ctx: RunContext[AgentDependencies],
+    random_string: str = "dummy"
+) -> Dict[str, Any]:
+    """
+    List desktop files and folders using the MCP server.
+    
+    This tool connects to your count-r MCP server to list all files and folders
+    on your Desktop. Useful for file management and organization.
+    
+    Args:
+        random_string: Dummy parameter for no-parameter tools
+    
+    Returns:
+        Dictionary with the desktop contents from the MCP server
+    """
+    logger.debug("List desktop files tool called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = DesktopContentsInput(random_string=random_string)
+    
+    try:
+        result = await list_desktop_contents_tool(input_data)
+        logger.debug("List desktop files result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("List desktop files failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def get_desktop_directory(
+    ctx: RunContext[AgentDependencies],
+    random_string: str = "dummy"
+) -> Dict[str, Any]:
+    """
+    Get desktop path using the MCP server.
+    
+    This tool connects to your count-r MCP server to get the full path
+    to your Desktop directory. Useful for file operations and path resolution.
+    
+    Args:
+        random_string: Dummy parameter for no-parameter tools
+    
+    Returns:
+        Dictionary with the desktop path from the MCP server
+    """
+    logger.debug("Get desktop directory tool called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = DesktopPathInput(random_string=random_string)
+    
+    try:
+        result = await get_desktop_path_tool(input_data)
+        logger.debug("Get desktop directory result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Get desktop directory failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def open_gmail_browser(
+    ctx: RunContext[AgentDependencies],
+    random_string: str = "dummy"
+) -> Dict[str, Any]:
+    """
+    Open Gmail in browser using the MCP server.
+    
+    This tool connects to your count-r MCP server to open Gmail
+    in your default web browser. Useful for quick email access.
+    
+    Args:
+        random_string: Dummy parameter for no-parameter tools
+    
+    Returns:
+        Dictionary with the result from the MCP server
+    """
+    logger.debug("Open Gmail browser tool called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = OpenGmailInput(random_string=random_string)
+    
+    try:
+        result = await open_gmail_tool(input_data)
+        logger.debug("Open Gmail browser result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Open Gmail browser failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def open_gmail_compose_window(
+    ctx: RunContext[AgentDependencies],
+    random_string: str = "dummy"
+) -> Dict[str, Any]:
+    """
+    Open Gmail compose window using the MCP server.
+    
+    This tool connects to your count-r MCP server to open Gmail's
+    compose window in your default web browser. Useful for writing emails.
+    
+    Args:
+        random_string: Dummy parameter for no-parameter tools
+    
+    Returns:
+        Dictionary with the result from the MCP server
+    """
+    logger.debug("Open Gmail compose window tool called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = OpenGmailComposeInput(random_string=random_string)
+    
+    try:
+        result = await open_gmail_compose_tool(input_data)
+        logger.debug("Open Gmail compose window result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Open Gmail compose window failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+# Temporarily disabled due to schema issues
+# @rag_agent.tool
+# async def send_email_via_sendmail(
+#     ctx: RunContext[AgentDependencies],
+#     to_email: str,
+#     subject: str,
+#     body: str,
+#     from_email: Optional[str] = None
+# ) -> Dict[str, Any]:
+#     """
+#     Send email via sendmail using the MCP server.
+#     
+#     This tool connects to your count-r MCP server to send emails
+#     using the system's sendmail command. Useful for automated email sending.
+#     
+#     Args:
+#         to_email: Recipient email address
+#         subject: Email subject
+#         body: Email body content
+#         from_email: Sender email address (optional)
+#     
+#     Returns:
+#         Dictionary with the result from the MCP server
+#     """
+#     logger.debug("Send email via sendmail tool called to: %s", to_email)
+#     logger.debug("Session ID: %s", ctx.deps.session_id)
+#     
+#     input_data = SendmailInput(
+#         to_email=to_email,
+#         subject=subject,
+#         body=body,
+#         from_email=from_email if from_email else ""
+#     )
+#     
+#     try:
+#         result = await sendmail_tool(input_data)
+#         logger.debug("Send email via sendmail result: %s", result)
+#         return result
+#     except Exception as e:
+#         logger.error("Send email via sendmail failed: %s", e)
+#         return {"status": "error", "error": str(e)}
+
+
+# Temporarily disabled due to schema issues
+# @rag_agent.tool
+# async def send_simple_email(
+#     ctx: RunContext[AgentDependencies],
+#     to_email: str,
+#     subject: str,
+#     message: str
+# ) -> Dict[str, Any]:
+#     """
+#     Send simple email using the MCP server.
+#     
+#     This tool connects to your count-r MCP server to send simple emails
+#     using the system's sendmail command. Simplified version of email sending.
+#     
+#     Args:
+#         to_email: Recipient email address
+#         subject: Email subject
+#         message: Email message
+#     
+#     Returns:
+#         Dictionary with the result from the MCP server
+#     """
+#     logger.debug("Send simple email tool called to: %s", to_email)
+#     logger.debug("Session ID: %s", ctx.deps.session_id)
+#     
+#     input_data = SendmailSimpleInput(
+#         to_email=to_email,
+#         subject=subject,
+#         message=message
+#     )
+#     
+#     try:
+#         result = await sendmail_simple_tool(input_data)
+#         logger.debug("Send simple email result: %s", result)
+#         return result
+#     except Exception as e:
+#         logger.error("Send simple email failed: %s", e)
+#         return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def call_mcp_tool(
+    ctx: RunContext[AgentDependencies],
+    tool_name: str,
+    parameters: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """
+    Call any tool from your MCP server.
+    
+    This is a generic tool that can call any function available on your
+    count-r MCP server. Useful for accessing tools not explicitly defined.
+    
+    Args:
+        tool_name: Name of the MCP tool to call
+        parameters: Dictionary of parameters for the tool
+    
+    Returns:
+        Dictionary with the result from the MCP server
+    """
+    logger.debug("Call MCP tool called: %s", tool_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    if parameters is None:
+        parameters = {}
+    
+    input_data = MCPToolInput(tool_name=tool_name, parameters=parameters)
+    
+    try:
+        result = await generic_mcp_tool(input_data)
+        logger.debug("Call MCP tool result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Call MCP tool failed: %s", e)
+        return {"status": "error", "error": str(e)}
+
+
+@rag_agent.tool
+async def list_available_mcp_tools(
+    ctx: RunContext[AgentDependencies]
+) -> Dict[str, Any]:
+    """
+    List all available tools from your MCP server.
+    
+    This tool connects to your count-r MCP server to discover and list
+    all available tools. Useful for exploring what tools are available.
+    
+    Returns:
+        Dictionary with the list of available tools from the MCP server
+    """
+    logger.debug("List available MCP tools called")
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    try:
+        result = await list_mcp_tools()
+        logger.debug("List available MCP tools result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("List available MCP tools failed: %s", e)
         return {"status": "error", "error": str(e)}

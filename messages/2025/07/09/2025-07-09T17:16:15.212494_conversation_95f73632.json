@@ -1,0 +1,9 @@
+{
+  "conversation_id": "95f73632-fd28-473e-a01d-9083e942f08b",
+  "timestamp": "2025-07-09T17:16:15.212494",
+  "user_id": null,
+  "session_id": null,
+  "user_message": "Previous conversation:\nuser: 1\nassistant: I'm sorry, I can't find any information about your previous conversation. Would you like to ask another question?\n\nuser: save \"hello\"\n\nCurrent question: Previous conversation:\nuser: 1\nassistant: I'm sorry, I can't find any information about your previous conversation. Would you like to ask another question?\n\nCurrent question: save \"hello\"",
+  "agent_response": "As requested.",
+  "metadata": {}
+}

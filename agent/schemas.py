@@ -275,3 +275,12 @@ def convert_from_provider_format(data: Dict[str, Any], provider: ProviderType, s
     
     # Return as dict
     return db_data 
+
+
+class VectorSearchInput(BaseModel):
+    query: str
+    limit: int = 5
+
+class GraphSearchInput(BaseModel):
+    query: str
+    # Add more fields as needed 

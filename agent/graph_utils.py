@@ -347,12 +347,14 @@ class GraphitiClient:
         """
         
         try:
-            async with self.graphiti.driver.session() as session:
+            async with self.graphiti.driver.session(database="neo4j") as session:
                 result = await session.run(
                     cypher_query,
-                    query=query,
-                    group_ids=["default"],  # Use default group
-                    limit=5
+                    parameters={
+                        "query": query,
+                        "group_ids": ["default"],  # Use default group
+                        "limit": 5
+                    }
                 )
                 
                 results = []
@@ -422,10 +424,12 @@ class GraphitiClient:
         """
         
         try:
-            async with self.graphiti.driver.session() as session:
+            async with self.graphiti.driver.session(database="neo4j") as session:
                 result = await session.run(
                     cypher_query,
-                    entity_name=entity_name
+                    parameters={
+                        "entity_name": entity_name
+                    }
                 )
                 facts = []
                 related_entities = set()

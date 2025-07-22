@@ -1,0 +1,12 @@
+{
+  "conversation_id": "e50dfb15-b93b-4358-9130-1d47f083ad8c",
+  "timestamp": "2025-07-09T14:22:51.052449",
+  "user_id": null,
+  "session_id": null,
+  "user_message": "What is AI?",
+  "agent_response": "AI stands for Artificial Intelligence. It refers to the simulation of human intelligence in machines.",
+  "metadata": {
+    "topic": "AI",
+    "test": true
+  }
+}

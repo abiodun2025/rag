@@ -40,30 +40,40 @@ class AgenticRAGCLI:
     def print_banner(self):
         """Print welcome banner."""
         print(f"\n{Colors.CYAN}{Colors.BOLD}=" * 60)
-        print("🤖 Agentic RAG with Knowledge Graph CLI")
+        print("🧠 Smart Master Agent CLI")
         print("=" * 60)
         print(f"{Colors.WHITE}Connected to: {self.base_url}")
-        print(f"Type 'exit', 'quit', or Ctrl+C to exit")
-        print(f"Type 'help' for commands")
+        print(f"Just type naturally - I'll automatically understand what you want to do!")
+        print(f"Type 'help' for commands or 'exit' to quit")
         print("=" * 60 + f"{Colors.END}\n")
     
     def print_help(self):
         """Print help information."""
         help_text = f"""
-{Colors.BOLD}Available Commands:{Colors.END}
+{Colors.BOLD}Smart Master Agent - Just Type Naturally!{Colors.END}
+
+{Colors.BOLD}Examples:{Colors.END}
+  {Colors.GREEN}Hello world{Colors.END}                    - Saves to Desktop
+  {Colors.GREEN}Remember this meeting note{Colors.END}      - Saves to Desktop
+  {Colors.GREEN}Email john@example.com about project{Colors.END} - Email composition
+  {Colors.GREEN}What's the latest AI news?{Colors.END}     - Web search
+  {Colors.GREEN}Search for OpenAI funding{Colors.END}       - Internal search
+  {Colors.GREEN}Relationship between X and Y{Colors.END}    - Knowledge graph
+
+{Colors.BOLD}Commands:{Colors.END}
   {Colors.GREEN}help{Colors.END}           - Show this help message
   {Colors.GREEN}health{Colors.END}         - Check API health status
   {Colors.GREEN}clear{Colors.END}          - Clear the session
+  {Colors.GREEN}chat{Colors.END}           - Traditional chat mode
   {Colors.GREEN}exit/quit{Colors.END}      - Exit the CLI
-  
-{Colors.BOLD}Usage:{Colors.END}
-  Simply type your question and press Enter to chat with the agent.
-  The agent has access to vector search, knowledge graph, and hybrid search tools.
-  
-{Colors.BOLD}Examples:{Colors.END}
-  - "What are Google's AI initiatives?"
-  - "Tell me about Microsoft's partnerships with OpenAI"
-  - "Compare OpenAI and Anthropic's approaches to AI safety"
+
+{Colors.BOLD}How it works:{Colors.END}
+  The Smart Master Agent automatically identifies what you want to do:
+  • Save messages → Desktop (default)
+  • Search queries → Web search
+  • Email mentions → Email composition
+  • Relationship questions → Knowledge graph
+  • Everything else → General conversation
 """
         print(help_text)
     
@@ -75,11 +85,14 @@ class AgenticRAGCLI:
                     if response.status == 200:
                         data = await response.json()
                         status = data.get('status', 'unknown')
-                        if status == 'healthy':
-                            print(f"{Colors.GREEN}✓ API is healthy{Colors.END}")
+                        if status in ['healthy', 'degraded']:
+                            if status == 'healthy':
+                                print(f"{Colors.GREEN}✓ API is healthy{Colors.END}")
+                            else:
+                                print(f"{Colors.YELLOW}⚠ API status: {status} (some features may be limited){Colors.END}")
                             return True
                         else:
-                            print(f"{Colors.YELLOW}⚠ API status: {status}{Colors.END}")
+                            print(f"{Colors.RED}✗ API status: {status}{Colors.END}")
                             return False
                     else:
                         print(f"{Colors.RED}✗ API health check failed (HTTP {response.status}){Colors.END}")
@@ -227,13 +240,13 @@ class AgenticRAGCLI:
             print(f"{Colors.RED}Cannot connect to API. Please ensure the server is running.{Colors.END}")
             return
         
-        print(f"{Colors.GREEN}Ready to chat! Ask me about tech companies and AI initiatives.{Colors.END}\n")
+        print(f"{Colors.GREEN}Ready! Just type naturally and I'll automatically understand what you want to do.{Colors.END}\n")
         
         try:
             while True:
                 try:
                     # Get user input
-                    user_input = input(f"{Colors.BOLD}You: {Colors.END}").strip()
+                    user_input = input(f"{Colors.BOLD}🎯 Smart Agent > {Colors.END}").strip()
                     
                     if not user_input:
                         continue
@@ -252,9 +265,171 @@ class AgenticRAGCLI:
                         self.session_id = None
                         print(f"{Colors.GREEN}✓ Session cleared{Colors.END}")
                         continue
+                    elif user_input.lower() == 'chat':
+                        print("🤖 Traditional Chat Mode")
+                        print("Type 'exit' to return to Smart Agent mode")
+                        
+                        chat_mode = True
+                        while chat_mode:
+                            try:
+                                chat_input = input("\n🤖 Chat > ").strip()
+                                if not chat_input:
+                                    continue
+                                    
+                                if chat_input.lower() in ['exit', 'quit', 'q']:
+                                    chat_mode = False
+                                    break
+                                
+                                # Send to traditional chat endpoint
+                                await self.stream_chat(chat_input)
+                                        
+                            except KeyboardInterrupt:
+                                chat_mode = False
+                                break
+                            except EOFError:
+                                chat_mode = False
+                                break
+                            except Exception as e:
+                                print(f"❌ Error: {e}")
+                        
+                        print("Returning to Smart Agent mode...")
+                        continue
                     
-                    # Send message to agent
-                    await self.stream_chat(user_input)
+                    # Process with Smart Master Agent by default
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            response = await session.post(
+                                f"{self.base_url}/smart-agent/process",
+                                json={
+                                    "message": user_input,
+                                    "user_id": self.user_id,
+                                    "session_id": self.session_id,
+                                    "search_type": "hybrid"
+                                },
+                                headers={"Content-Type": "application/json"}
+                            )
+                            
+                            if response.status == 200:
+                                result = await response.json()
+                                smart_result = result['smart_agent_result']
+                                intent_analysis = smart_result['intent_analysis']
+                                execution_result = smart_result['execution_result']
+                                
+                                print(f"\n🤖 Smart Agent Response:")
+                                print(f"Session: {result['session_id']}")
+                                print(f"Processing Time: {result['processing_time_ms']:.2f}ms")
+                                print(f"Intent: {intent_analysis['intent']} (confidence: {intent_analysis['confidence']:.2f})")
+                                
+                                if execution_result['success']:
+                                    print(f"{Colors.GREEN}✅ {execution_result['message']}{Colors.END}")
+                                    
+                                    # Show results if available
+                                    result_data = execution_result['result']
+                                    if isinstance(result_data, dict):
+                                        # Handle web search results (direct web search)
+                                        if result_data.get('action') == 'web_search' and result_data.get('results'):
+                                            print(f"\n{Colors.CYAN}🌐 Web Search Results:{Colors.END}")
+                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                                title = item.get('title', 'No title')
+                                                content = item.get('content', item.get('snippet', 'No content'))
+                                                
+                                                # Clean up the content for better readability
+                                                if content:
+                                                    # Remove URLs from content
+                                                    import re
+                                                    content = re.sub(r'https?://\S+', '', content)
+                                                    content = re.sub(r'www\.\S+', '', content)
+                                                    content = content.strip()
+                                                
+                                                print(f"\n{Colors.BOLD}{i}. {title}{Colors.END}")
+                                                if content:
+                                                    # Truncate content to 200 characters for readability
+                                                    display_content = content[:200] + "..." if len(content) > 200 else content
+                                                    print(f"   {display_content}")
+                                                
+                                        # Handle web search fallback results
+                                        elif result_data.get('action') == 'internal_search_with_web_fallback' and result_data.get('results'):
+                                            print(f"\n{Colors.CYAN}🌐 Web Search Fallback Results:{Colors.END}")
+                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                                title = item.get('title', 'No title')
+                                                content = item.get('content', item.get('snippet', 'No content'))
+                                                
+                                                # Clean up the content for better readability
+                                                if content:
+                                                    # Remove URLs from content
+                                                    import re
+                                                    content = re.sub(r'https?://\S+', '', content)
+                                                    content = re.sub(r'www\.\S+', '', content)
+                                                    content = content.strip()
+                                                
+                                                print(f"\n{Colors.BOLD}{i}. {title}{Colors.END}")
+                                                if content:
+                                                    # Truncate content to 200 characters for readability
+                                                    display_content = content[:200] + "..." if len(content) > 200 else content
+                                                    print(f"   {display_content}")
+                                        
+                                        # Handle knowledge graph web search fallback
+                                        elif result_data.get('action') == 'knowledge_graph_search_with_web_fallback' and result_data.get('results'):
+                                            print(f"\n{Colors.MAGENTA}🧠 Knowledge Graph Web Search Fallback:{Colors.END}")
+                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                                title = item.get('title', 'No title')
+                                                content = item.get('content', item.get('snippet', 'No content'))
+                                                
+                                                # Clean up the content for better readability
+                                                if content:
+                                                    # Remove URLs from content
+                                                    import re
+                                                    content = re.sub(r'https?://\S+', '', content)
+                                                    content = re.sub(r'www\.\S+', '', content)
+                                                    content = content.strip()
+                                                
+                                                print(f"\n{Colors.BOLD}{i}. {title}{Colors.END}")
+                                                if content:
+                                                    # Truncate content to 200 characters for readability
+                                                    display_content = content[:200] + "..." if len(content) > 200 else content
+                                                    print(f"   {display_content}")
+                                        
+                                        # Handle internal search results
+                                        elif result_data.get('action') == 'internal_search' and result_data.get('results'):
+                                            print(f"\n{Colors.GREEN}🔍 Internal Search Results:{Colors.END}")
+                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                                content = item.get('content', 'No content')
+                                                source = item.get('document_title', 'Unknown source')
+                                                
+                                                print(f"\n{Colors.BOLD}{i}. {source}{Colors.END}")
+                                                if content and content != 'No content':
+                                                    formatted_content = content[:150] + "..." if len(content) > 150 else content
+                                                    print(f"   {formatted_content}")
+                                        
+                                        # Handle knowledge graph results
+                                        elif result_data.get('action') == 'knowledge_graph_search' and result_data.get('results'):
+                                            print(f"\n{Colors.MAGENTA}🧠 Knowledge Graph Results:{Colors.END}")
+                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                                fact = item.get('fact', 'No fact')
+                                                
+                                                print(f"\n{Colors.BOLD}{i}. Knowledge Fact{Colors.END}")
+                                                if fact and fact != 'No fact':
+                                                    formatted_fact = fact[:150] + "..." if len(fact) > 150 else fact
+                                                    print(f"   {formatted_fact}")
+                                        
+                                        # Handle other actions
+                                        elif result_data.get('action'):
+                                            print(f"  📋 Action: {result_data['action']}")
+                                            if result_data.get('fallback_message'):
+                                                print(f"       Note: {result_data['fallback_message']}")
+                                else:
+                                    print(f"❌ Error: {execution_result.get('error', 'Unknown error')}")
+                                
+                            else:
+                                error_text = await response.text()
+                                print(f"❌ Error: {response.status}")
+                                print(f"Response: {error_text}")
+                                
+                    except Exception as e:
+                        print(f"❌ Smart Agent Error: {e}")
+                        # Fallback to traditional chat
+                        print("Falling back to traditional chat...")
+                        await self.stream_chat(user_input)
                 
                 except KeyboardInterrupt:
                     print(f"\n{Colors.CYAN}👋 Goodbye!{Colors.END}")

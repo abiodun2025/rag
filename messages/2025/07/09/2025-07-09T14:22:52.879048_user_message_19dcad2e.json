@@ -1,0 +1,9 @@
+{
+  "message_id": "19dcad2e-adec-4d6b-a419-6759d0ec68a6",
+  "timestamp": "2025-07-09T14:22:52.879048",
+  "message_type": "user_message",
+  "content": "Hello, this is a test message.",
+  "user_id": null,
+  "session_id": null,
+  "metadata": {}
+}

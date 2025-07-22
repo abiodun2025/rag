@@ -1,0 +1,9 @@
+{
+  "message_id": "99a79fdb-30b9-4bb3-9b50-c9145c61c171",
+  "timestamp": "2025-07-09T14:30:04.192289",
+  "message_type": "user_message",
+  "content": "Demo test for message storage feature",
+  "user_id": null,
+  "session_id": null,
+  "metadata": {}
+}

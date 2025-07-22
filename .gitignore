@@ -195,3 +195,7 @@ secrets/
 *.key
 *.pem
 *.crt
+
+# Gmail API credentials
+credentials.json
+token.pickle

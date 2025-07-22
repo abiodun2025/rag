@@ -49,6 +49,8 @@ from .tools import (
     HybridSearchInput,
     DocumentListInput
 )
+from .master_agent import master_agent
+from .smart_master_agent import smart_master_agent
 
 # Load environment variables
 load_dotenv()
@@ -83,18 +85,26 @@ async def lifespan(app: FastAPI):
         await initialize_database()
         logger.info("Database initialized")
         
-        # Initialize graph database
-        await initialize_graph()
-        logger.info("Graph database initialized")
+        # Initialize graph database (optional - continue if it fails)
+        try:
+            await initialize_graph()
+            logger.info("Graph database initialized")
+        except Exception as e:
+            logger.warning(f"Graph database initialization failed: {e}")
+            logger.warning("Server will start without graph database functionality")
         
         # Test connections
         db_ok = await test_connection()
-        graph_ok = await test_graph_connection()
+        try:
+            graph_ok = await test_graph_connection()
+        except Exception as e:
+            logger.warning(f"Graph connection test failed: {e}")
+            graph_ok = False
         
         if not db_ok:
             logger.error("Database connection failed")
         if not graph_ok:
-            logger.error("Graph database connection failed")
+            logger.warning("Graph database connection failed - graph features will be disabled")
         
         logger.info("Agentic RAG API startup complete")
         
@@ -109,7 +119,10 @@ async def lifespan(app: FastAPI):
     
     try:
         await close_database()
-        await close_graph()
+        try:
+            await close_graph()
+        except Exception as e:
+            logger.warning(f"Graph database close failed: {e}")
         logger.info("Connections closed")
     except Exception as e:
         logger.error(f"Shutdown error: {e}")
@@ -388,13 +401,17 @@ async def health_check():
     try:
         # Test database connections
         db_status = await test_connection()
-        graph_status = await test_graph_connection()
+        try:
+            graph_status = await test_graph_connection()
+        except Exception as e:
+            logger.warning(f"Graph health check failed: {e}")
+            graph_status = False
         
         # Determine overall status
         if db_status and graph_status:
             status = "healthy"
-        elif db_status or graph_status:
-            status = "degraded"
+        elif db_status:
+            status = "degraded"  # Graph DB down but main DB OK
         else:
             status = "unhealthy"
         
@@ -728,6 +745,93 @@ async def get_session_info(session_id: str):
         raise
     except Exception as e:
         logger.error(f"Session retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/master-agent/process")
+async def master_agent_process(request: ChatRequest):
+    """Process request through master agent for task delegation."""
+    try:
+        # Get or create session
+        session_id = await get_or_create_session(request)
+        
+        # Process through master agent
+        start_time = datetime.now()
+        result = await master_agent.process_request(
+            user_message=request.message,
+            session_id=session_id,
+            user_id=request.user_id
+        )
+        end_time = datetime.now()
+        
+        processing_time = (end_time - start_time).total_seconds() * 1000
+        
+        return {
+            "session_id": session_id,
+            "master_agent_result": result,
+            "processing_time_ms": processing_time,
+            "status": "success"
+        }
+        
+    except Exception as e:
+        logger.error(f"Master agent processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/master-agent/stats")
+async def get_master_agent_stats():
+    """Get master agent statistics."""
+    try:
+        return {
+            "agent_stats": master_agent.agent_stats,
+            "task_history_count": len(master_agent.task_history),
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Master agent stats retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/smart-agent/process")
+async def smart_agent_process(request: ChatRequest):
+    """Process request through smart master agent for intelligent task delegation."""
+    try:
+        # Get or create session
+        session_id = await get_or_create_session(request)
+        
+        # Process through smart master agent
+        start_time = datetime.now()
+        result = await smart_master_agent.process_message(
+            message=request.message,
+            session_id=session_id,
+            user_id=request.user_id
+        )
+        end_time = datetime.now()
+        
+        processing_time = (end_time - start_time).total_seconds() * 1000
+        
+        return {
+            "session_id": session_id,
+            "smart_agent_result": result,
+            "processing_time_ms": processing_time,
+            "status": "success"
+        }
+        
+    except Exception as e:
+        logger.error(f"Smart agent processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/smart-agent/stats")
+async def get_smart_agent_stats():
+    """Get smart agent statistics."""
+    try:
+        return {
+            "agent_stats": smart_master_agent.agent_stats,
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Smart agent stats retrieval failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -1,0 +1,12 @@
+{
+  "message_id": "980f790e-1683-465d-8025-ece63bae39a0",
+  "timestamp": "2025-07-09T15:48:06.647970",
+  "message_type": "test_message",
+  "content": "This is a test message from the agent.",
+  "user_id": null,
+  "session_id": null,
+  "metadata": {
+    "test": true,
+    "source": "test_script"
+  }
+}
