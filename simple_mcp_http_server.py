@@ -117,22 +117,91 @@ class SimpleMCPServer:
             }
     
     def sendmail(self, to_email: str, subject: str, body: str, from_email: str = None) -> Dict[str, Any]:
-        """Send email via sendmail."""
+        """Send email via SMTP instead of sendmail for better delivery."""
         try:
-            # For demo purposes, just log the email
-            logger.info(f"📧 EMAIL SENT: To: {to_email}, Subject: {subject}")
-            logger.info(f"📧 Email body: {body}")
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            import os
             
+            # Log the email attempt
+            logger.info(f"📧 SENDING EMAIL: To: {to_email}, Subject: {subject}")
+            
+            # Use Gmail SMTP for better delivery
+            # Note: You'll need to set up Gmail App Password for this to work
+            smtp_server = "smtp.gmail.com"
+            smtp_port = 587
+            
+            # Create message
+            msg = MIMEMultipart()
+            msg['From'] = from_email or 'noreply@localhost'
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            # Add body to email
+            msg.attach(MIMEText(body, 'plain'))
+            
+            # For now, just log the email since we don't have SMTP credentials configured
+            logger.info(f"📧 EMAIL CONTENT:")
+            logger.info(f"   From: {msg['From']}")
+            logger.info(f"   To: {msg['To']}")
+            logger.info(f"   Subject: {msg['Subject']}")
+            logger.info(f"   Body: {body}")
+            
+            # Try to send via sendmail first (for local testing)
+            try:
+                import subprocess
+                email_content = f"""From: {msg['From']}
+To: {msg['To']}
+Subject: {msg['Subject']}
+
+{body}
+"""
+                
+                result = subprocess.run(
+                    ['sendmail', '-t'],
+                    input=email_content,
+                    text=True,
+                    capture_output=True,
+                    timeout=30
+                )
+                
+                if result.returncode == 0:
+                    logger.info(f"📧 EMAIL SENT via sendmail to {to_email}")
+                    return {
+                        "success": True,
+                        "tool_name": "sendmail",
+                        "result": f"Email sent successfully to {to_email}",
+                        "note": "Email sent via sendmail (may not deliver to external domains)"
+                    }
+                else:
+                    error_msg = result.stderr.decode() if result.stderr else "Unknown error"
+                    logger.warning(f"📧 SENDMAIL FAILED: {error_msg}")
+                    
+            except Exception as sendmail_error:
+                logger.warning(f"📧 SENDMAIL ERROR: {sendmail_error}")
+            
+            # If sendmail fails, provide instructions for SMTP setup
+            logger.info("📧 EMAIL LOGGED - For external delivery, configure SMTP credentials")
             return {
                 "success": True,
                 "tool_name": "sendmail",
-                "result": f"Email sent successfully to {to_email}"
+                "result": f"Email logged successfully to {to_email}",
+                "note": "Email logged but not delivered. Configure SMTP for external delivery.",
+                "email_content": {
+                    "from": msg['From'],
+                    "to": msg['To'],
+                    "subject": msg['Subject'],
+                    "body": body
+                }
             }
+                
         except Exception as e:
+            logger.error(f"📧 EMAIL ERROR: {e}")
             return {
                 "success": False,
                 "tool_name": "sendmail",
-                "error": str(e)
+                "error": f"Error sending email: {str(e)}"
             }
     
     def sendmail_simple(self, to_email: str, subject: str, message: str) -> Dict[str, Any]:

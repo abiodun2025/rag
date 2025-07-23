@@ -107,53 +107,115 @@ class MCPClient:
                     }
                 ]
                 logger.info(f"Using fallback tool definitions: {len(self.available_tools)} tools")
-            
-            return self.available_tools
-            
         except Exception as e:
             logger.error(f"Failed to discover tools: {e}")
-            return []
+            # Use fallback tools
+            self.available_tools = [
+                {
+                    "name": "count_r",
+                    "description": "Count 'r' letters in a word",
+                    "parameters": {"word": {"type": "string", "description": "Word to count 'r' letters in"}}
+                },
+                {
+                    "name": "list_desktop_contents",
+                    "description": "List desktop files/folders",
+                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+                },
+                {
+                    "name": "get_desktop_path",
+                    "description": "Get desktop path",
+                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+                },
+                {
+                    "name": "open_gmail",
+                    "description": "Open Gmail in browser",
+                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+                },
+                {
+                    "name": "open_gmail_compose",
+                    "description": "Open Gmail compose window",
+                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+                },
+                {
+                    "name": "sendmail",
+                    "description": "Send email via sendmail",
+                    "parameters": {
+                        "to_email": {"type": "string", "description": "Recipient email address"},
+                        "subject": {"type": "string", "description": "Email subject"},
+                        "body": {"type": "string", "description": "Email body content"},
+                        "from_email": {"type": "string", "description": "Sender email address (optional)"}
+                    }
+                },
+                {
+                    "name": "sendmail_simple",
+                    "description": "Simple email sending",
+                    "parameters": {
+                        "to_email": {"type": "string", "description": "Recipient email address"},
+                        "subject": {"type": "string", "description": "Email subject"},
+                        "message": {"type": "string", "description": "Email message"}
+                    }
+                }
+            ]
+            logger.info(f"Using fallback tool definitions due to error: {len(self.available_tools)} tools")
+        
+        return self.available_tools
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Call a specific tool on the MCP server."""
-        if not self.connected:
-            await self.connect()
-        
+        """Call a tool on the MCP server with improved error handling."""
         try:
-            # Prepare the request payload
-            payload = {
+            # Ensure we're connected
+            if not self.connected:
+                await self.connect()
+            
+            # Prepare request
+            request_data = {
                 "tool": tool_name,
                 "arguments": arguments
             }
             
-            # Make the request to the MCP server
+            logger.debug(f"Calling MCP tool '{tool_name}' with arguments: {arguments}")
+            
+            # Make the request
             response = await self.client.post(
                 f"{self.base_url}/call",
-                json=payload
+                json=request_data,
+                timeout=30.0
             )
             
             if response.status_code == 200:
                 result = response.json()
                 logger.debug(f"MCP tool '{tool_name}' called successfully")
-                return {
-                    "success": True,
-                    "tool_name": tool_name,
-                    "result": result
-                }
+                return result
             else:
-                logger.error(f"MCP tool '{tool_name}' failed: {response.status_code}")
+                logger.error(f"MCP tool call failed: {response.status_code} - {response.text}")
                 return {
                     "success": False,
-                    "error": f"HTTP {response.status_code}",
-                    "tool_name": tool_name
+                    "error": f"MCP server returned status {response.status_code}",
+                    "details": response.text
                 }
                 
-        except Exception as e:
-            logger.error(f"MCP tool '{tool_name}' call failed: {e}")
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error calling MCP tool '{tool_name}': {e}")
             return {
                 "success": False,
-                "error": str(e),
-                "tool_name": tool_name
+                "error": f"Cannot connect to MCP server at {self.base_url}",
+                "details": "Make sure the MCP bridge is running on port 5000",
+                "fallback_available": True
+            }
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout calling MCP tool '{tool_name}': {e}")
+            return {
+                "success": False,
+                "error": "MCP server request timed out",
+                "details": "The server took too long to respond",
+                "fallback_available": True
+            }
+        except Exception as e:
+            logger.error(f"Error calling MCP tool '{tool_name}': {e}")
+            return {
+                "success": False,
+                "error": f"Failed to call MCP tool: {str(e)}",
+                "fallback_available": True
             }
     
     async def close(self):

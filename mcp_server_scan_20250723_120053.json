@@ -1,0 +1,220 @@
+{
+  "server_info": {
+    "url": "http://127.0.0.1:5000",
+    "protocol": "HTTP",
+    "endpoints": [
+      {
+        "path": "/health",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/tools",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/call",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/info",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/status",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/version",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      }
+    ],
+    "metadata": {}
+  },
+  "health_status": {
+    "status": "healthy",
+    "response_time_ms": 8.084774017333984,
+    "endpoints": {
+      "/health": {
+        "status_code": 200,
+        "response_time_ms": 8.084774017333984,
+        "available": true
+      }
+    },
+    "errors": []
+  },
+  "tools_analysis": {
+    "total_tools": 7,
+    "tools_by_category": {
+      "utility": [
+        "count_r"
+      ],
+      "system": [
+        "list_desktop_contents",
+        "get_desktop_path"
+      ],
+      "communication": [
+        "open_gmail",
+        "open_gmail_compose",
+        "sendmail",
+        "sendmail_simple"
+      ]
+    },
+    "tools_details": [
+      {
+        "name": "count_r",
+        "description": "Count 'r' letters in a word",
+        "category": "utility",
+        "capabilities": [
+          "text_processing"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "count_r",
+            "result": "The word '' contains 0 'r' letters"
+          }
+        }
+      },
+      {
+        "name": "list_desktop_contents",
+        "description": "List desktop files/folders",
+        "category": "system",
+        "capabilities": [
+          "file_system_access"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "list_desktop_contents",
+            "result": "Desktop contents: ['healthapp', 'WhatsApp Image 2025-07-22 at 09.31.04.jpeg', 'Profile (1).pdf', '.DS_Store', 'Screenshot 2025-07-17 at 11.02.23\\u202fAM.png', 'Screenshot 2025-07-16 at 3.19.44\\u202fPM.png', 'test-setup', 'Screenshot 2025-07-02 at 9.34.23\\u202fAM.png', 'Screenshot 2025-06-30 at 10.04.18\\u202fPM.png', 'Download Updated PDF Resume', 'Screen Recording 2025-06-24 at 11.13.32\\u202fAM.mov', 'Download Tailored Resume (Word Format)', 'mobile-multi-tenent', 'Screenshot 2025-07-13 at 9.42.11\\u202fPM.png', 'new-rag-profile', 'new-rag', 'working-mcp-server', 'resume', 'agentic-rag-knowledge-graph', 'website', 'mcp-kotlin', 'android.png', 'Screenshot 2025-07-10 at 9.48.00\\u202fAM.png', 'GED_Social_Studies_Study_Plan_with_Practice.pdf', 'Abiodun_resume.docx', 'Screen Recording 2025-06-25 at 5.12.37\\u202fPM.mov', 'Abiodun-Ajagunna', 'Download PDF Resume', 'walmart', 'claudcode', 'Screenshot 2025-07-11 at 9.25.17\\u202fAM.png', 'Screenshot 2025-07-13 at 9.09.38\\u202fPM.png', 'Taehyung Kim__Resume_Production (1).pdf', 'resume-client', 'multi-tenant ', 'save_message', 'AvasoLogoRetina1.png', 'mobile-multi', 'Screenshot 2025-06-30 at 1.45.06\\u202fPM.png', 'Resume JonathanSantoyo 2025 (3).pdf', 'multi-tenant', 'Neo4j Desktop 2.app', 'Taehyung Kim__Resume_Production.pdf', 'Screenshot 2025-06-24 at 4.03.07\\u202fPM.png', 'rag-clone', 'Screen Recording 2025-06-27 at 4.59.50\\u202fPM.mov', 'Body-App', 'pen-test', 'mcp_server', 'Black and White Simple Creative Initial A Logo.png']"
+          }
+        }
+      },
+      {
+        "name": "get_desktop_path",
+        "description": "Get desktop path",
+        "category": "system",
+        "capabilities": [
+          "file_system_access"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "get_desktop_path",
+            "result": "Desktop path: /Users/ola/Desktop"
+          }
+        }
+      },
+      {
+        "name": "open_gmail",
+        "description": "Open Gmail in browser",
+        "category": "communication",
+        "capabilities": [
+          "email_sending",
+          "browser_control"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "open_gmail_compose",
+        "description": "Open Gmail compose window",
+        "category": "communication",
+        "capabilities": [
+          "email_sending",
+          "browser_control"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "sendmail",
+        "description": "Send email via Gmail SMTP",
+        "category": "communication",
+        "capabilities": [
+          "email_sending"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "sendmail_simple",
+        "description": "Simple email sending via Gmail SMTP",
+        "category": "communication",
+        "capabilities": [
+          "email_sending"
+        ],
+        "test_result": null
+      }
+    ],
+    "calling_capabilities": false,
+    "communication_capabilities": true,
+    "system_capabilities": true
+  },
+  "capabilities": {
+    "calling": {
+      "available": false,
+      "tools": [],
+      "readiness": "needs_implementation"
+    },
+    "communication": {
+      "available": true,
+      "tools": [
+        "open_gmail",
+        "open_gmail_compose",
+        "sendmail",
+        "sendmail_simple"
+      ],
+      "readiness": "ready"
+    },
+    "system": {
+      "available": true,
+      "tools": [
+        "list_desktop_contents",
+        "get_desktop_path"
+      ],
+      "readiness": "ready"
+    },
+    "browser": {
+      "available": false,
+      "tools": [],
+      "readiness": "ready"
+    }
+  },
+  "recommendations": {
+    "calling_implementation": [
+      "Add calling tools to MCP server (e.g., make_call, dial_number)",
+      "Implement voice calling capabilities using Twilio or similar service",
+      "Add call management tools (answer_call, end_call, transfer_call)",
+      "Include call recording and transcription capabilities"
+    ],
+    "enhancements": [
+      "Email capabilities are ready - can integrate with calling",
+      "System tools available - can enhance calling with file operations"
+    ],
+    "integration_notes": [
+      "Server is healthy and responsive",
+      "Found 7 total tools",
+      "HTTP-based MCP server ready for integration"
+    ],
+    "next_steps": [
+      "1. Implement calling tools in MCP server",
+      "2. Test calling functionality",
+      "3. Integrate with existing communication tools",
+      "4. Create calling agent that uses MCP tools"
+    ]
+  },
+  "scan_timestamp": "2025-07-23T12:00:53.018090"
+}

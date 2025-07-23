@@ -104,8 +104,8 @@ class ProviderSchema(BaseModel):
     # Cohere-specific fields (all strings to avoid Union[str, None] issues)
     episodes: str = Field("", description="Episodes information")
     fact_embedding: List[float] = Field(default_factory=list, description="Fact embedding vector")
-    start_date: str = Field("", description="Start date")
-    end_date: str = Field("", description="End date")
+    start_date: Optional[str] = Field("", description="Start date")
+    end_date: Optional[str] = Field("", description="End date")
     description: str = Field("", description="Description")
     type: str = Field("", description="Type information")
     
@@ -131,8 +131,8 @@ class SchemaMapper:
                 uuid=db_data.get("uuid", ""),
                 name=db_data.get("name", ""),
                 description=db_data.get("fact", ""),
-                start_date=db_data.get("valid_at", ""),
-                end_date=db_data.get("invalid_at", ""),
+                start_date=str(db_data.get("valid_at", "")) if db_data.get("valid_at") else "",
+                end_date=str(db_data.get("invalid_at", "")) if db_data.get("invalid_at") else "",
                 episodes="",  # Cohere-compatible default
                 fact_embedding=[],  # Cohere-compatible default
                 type="relationship",

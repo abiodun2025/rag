@@ -323,18 +323,17 @@ class GraphitiClient:
         if not self.graphiti or not self.graphiti.driver:
             return []
         
-        # Custom Cypher query for text search
+        # Simple text search that works with our data structure
         cypher_query = """
-        CALL db.index.fulltext.queryRelationships("edge_name_and_fact", $query, {limit: $limit})
-        YIELD relationship AS rel, score
-        MATCH (n:Entity)-[r:RELATES_TO]->(m:Entity)
-        WHERE r.group_id IN $group_ids 
-        WITH r, score, startNode(r) AS n, endNode(r) AS m
+        MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity)
+        WHERE toLower(a.name) CONTAINS toLower($query) 
+           OR toLower(b.name) CONTAINS toLower($query)
+           OR toLower(r.fact) CONTAINS toLower($query)
         RETURN
             r.uuid AS uuid,
             r.group_id AS group_id,
-            n.uuid AS source_node_uuid,
-            m.uuid AS target_node_uuid,
+            a.uuid AS source_node_uuid,
+            b.uuid AS target_node_uuid,
             r.created_at AS created_at,
             r.name AS name,
             r.fact AS fact,
@@ -342,7 +341,7 @@ class GraphitiClient:
             r.valid_at AS valid_at,
             r.invalid_at AS invalid_at,
             properties(r) AS attributes,
-            score
+            1.0 AS score
         ORDER BY score DESC LIMIT $limit
         """
         
@@ -352,7 +351,6 @@ class GraphitiClient:
                     cypher_query,
                     parameters={
                         "query": query,
-                        "group_ids": ["default"],  # Use default group
                         "limit": 5
                     }
                 )
@@ -634,6 +632,10 @@ async def search_knowledge_graph(
     Returns:
         Search results
     """
+    # Ensure the global client is initialized
+    if not graph_client._initialized:
+        await graph_client.initialize()
+    
     return await graph_client._custom_search(query)
 
 

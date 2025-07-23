@@ -21,6 +21,7 @@ class IntentType(Enum):
     WEB_SEARCH = "web_search"
     KNOWLEDGE_GRAPH = "knowledge_graph"
     MCP_TOOLS = "mcp_tools"
+    CALL = "call"
     GENERAL = "general"
 
 @dataclass
@@ -78,9 +79,242 @@ class SmartMasterAgent:
                 r"compose.*email",
                 r"mail.*to",
                 r"write.*email",
+                r"send.*mail",
+                r"send.*to",
                 r"@.*\.com",
                 r"@.*\.org",
-                r"@.*\.net"
+                r"@.*\.net",
+                r"@.*\.edu",
+                r"@.*\.gov",
+                r"@.*\.io",
+                r"@.*\.ai",
+                r"@.*\.co",
+                r"@.*\.uk",
+                r"@.*\.de",
+                r"@.*\.fr",
+                r"@.*\.jp",
+                r"@.*\.cn",
+                r"@.*\.in",
+                r"@.*\.br",
+                r"@.*\.ru",
+                r"@.*\.au",
+                r"@.*\.ca",
+                r"@.*\.mx",
+                r"@.*\.es",
+                r"@.*\.it",
+                r"@.*\.nl",
+                r"@.*\.se",
+                r"@.*\.no",
+                r"@.*\.dk",
+                r"@.*\.fi",
+                r"@.*\.pl",
+                r"@.*\.cz",
+                r"@.*\.hu",
+                r"@.*\.ro",
+                r"@.*\.bg",
+                r"@.*\.hr",
+                r"@.*\.si",
+                r"@.*\.sk",
+                r"@.*\.ee",
+                r"@.*\.lv",
+                r"@.*\.lt",
+                r"@.*\.mt",
+                r"@.*\.cy",
+                r"@.*\.gr",
+                r"@.*\.pt",
+                r"@.*\.ie",
+                r"@.*\.be",
+                r"@.*\.at",
+                r"@.*\.ch",
+                r"@.*\.li",
+                r"@.*\.lu",
+                r"@.*\.mc",
+                r"@.*\.ad",
+                r"@.*\.sm",
+                r"@.*\.va",
+                r"@.*\.mt",
+                r"@.*\.me",
+                r"@.*\.rs",
+                r"@.*\.ba",
+                r"@.*\.mk",
+                r"@.*\.al",
+                r"@.*\.xk",
+                r"@.*\.tr",
+                r"@.*\.ge",
+                r"@.*\.am",
+                r"@.*\.az",
+                r"@.*\.by",
+                r"@.*\.md",
+                r"@.*\.ua",
+                r"@.*\.kz",
+                r"@.*\.uz",
+                r"@.*\.kg",
+                r"@.*\.tj",
+                r"@.*\.tm",
+                r"@.*\.af",
+                r"@.*\.pk",
+                r"@.*\.bd",
+                r"@.*\.lk",
+                r"@.*\.np",
+                r"@.*\.bt",
+                r"@.*\.mm",
+                r"@.*\.kh",
+                r"@.*\.la",
+                r"@.*\.vn",
+                r"@.*\.th",
+                r"@.*\.my",
+                r"@.*\.sg",
+                r"@.*\.id",
+                r"@.*\.ph",
+                r"@.*\.tw",
+                r"@.*\.hk",
+                r"@.*\.mo",
+                r"@.*\.kr",
+                r"@.*\.jp",
+                r"@.*\.cn",
+                r"@.*\.mn",
+                r"@.*\.nz",
+                r"@.*\.fj",
+                r"@.*\.pg",
+                r"@.*\.sb",
+                r"@.*\.vu",
+                r"@.*\.nc",
+                r"@.*\.pf",
+                r"@.*\.wf",
+                r"@.*\.to",
+                r"@.*\.ws",
+                r"@.*\.ki",
+                r"@.*\.tv",
+                r"@.*\.nr",
+                r"@.*\.pw",
+                r"@.*\.fm",
+                r"@.*\.mh",
+                r"@.*\.ck",
+                r"@.*\.nu",
+                r"@.*\.tk",
+                r"@.*\.as",
+                r"@.*\.gu",
+                r"@.*\.mp",
+                r"@.*\.vi",
+                r"@.*\.pr",
+                r"@.*\.do",
+                r"@.*\.ht",
+                r"@.*\.jm",
+                r"@.*\.bb",
+                r"@.*\.tt",
+                r"@.*\.gd",
+                r"@.*\.lc",
+                r"@.*\.vc",
+                r"@.*\.ag",
+                r"@.*\.dm",
+                r"@.*\.kn",
+                r"@.*\.ai",
+                r"@.*\.ms",
+                r"@.*\.tc",
+                r"@.*\.vg",
+                r"@.*\.ky",
+                r"@.*\.bm",
+                r"@.*\.fk",
+                r"@.*\.gs",
+                r"@.*\.io",
+                r"@.*\.sh",
+                r"@.*\.ac",
+                r"@.*\.ta",
+                r"@.*\.st",
+                r"@.*\.cv",
+                r"@.*\.gw",
+                r"@.*\.gn",
+                r"@.*\.sl",
+                r"@.*\.lr",
+                r"@.*\.ci",
+                r"@.*\.gh",
+                r"@.*\.tg",
+                r"@.*\.bj",
+                r"@.*\.ng",
+                r"@.*\.cm",
+                r"@.*\.gq",
+                r"@.*\.ga",
+                r"@.*\.cg",
+                r"@.*\.cd",
+                r"@.*\.ao",
+                r"@.*\.zm",
+                r"@.*\.zw",
+                r"@.*\.mw",
+                r"@.*\.mz",
+                r"@.*\.sz",
+                r"@.*\.ls",
+                r"@.*\.bw",
+                r"@.*\.na",
+                r"@.*\.za",
+                r"@.*\.mg",
+                r"@.*\.mu",
+                r"@.*\.sc",
+                r"@.*\.km",
+                r"@.*\.yt",
+                r"@.*\.re",
+                r"@.*\.dj",
+                r"@.*\.so",
+                r"@.*\.et",
+                r"@.*\.er",
+                r"@.*\.sd",
+                r"@.*\.ss",
+                r"@.*\.ke",
+                r"@.*\.ug",
+                r"@.*\.rw",
+                r"@.*\.bi",
+                r"@.*\.tz",
+                r"@.*\.mw",
+                r"@.*\.zm",
+                r"@.*\.zw",
+                r"@.*\.bw",
+                r"@.*\.na",
+                r"@.*\.za",
+                r"@.*\.ls",
+                r"@.*\.sz",
+                r"@.*\.mz",
+                r"@.*\.mg",
+                r"@.*\.mu",
+                r"@.*\.sc",
+                r"@.*\.km",
+                r"@.*\.yt",
+                r"@.*\.re",
+                r"@.*\.dj",
+                r"@.*\.so",
+                r"@.*\.et",
+                r"@.*\.er",
+                r"@.*\.sd",
+                r"@.*\.ss",
+                r"@.*\.ke",
+                r"@.*\.ug",
+                r"@.*\.rw",
+                r"@.*\.bi",
+                r"@.*\.tz",
+                r"@.*\.mw",
+                r"@.*\.zm",
+                r"@.*\.zw",
+                r"@.*\.bw",
+                r"@.*\.na",
+                r"@.*\.za",
+                r"@.*\.ls",
+                r"@.*\.sz",
+                r"@.*\.mz",
+                r"@.*\.mg",
+                r"@.*\.mu",
+                r"@.*\.sc",
+                r"@.*\.km",
+                r"@.*\.yt",
+                r"@.*\.re",
+                r"@.*\.dj",
+                r"@.*\.so",
+                r"@.*\.et",
+                r"@.*\.er",
+                r"@.*\.sd",
+                r"@.*\.ss",
+                r"@.*\.ke",
+                r"@.*\.ug",
+                r"@.*\.rw",
+                r"@.*\.bi",
+                r"@.*\.tz"
             ],
             IntentType.WEB_SEARCH: [
                 r"search.*web",
@@ -99,139 +333,286 @@ class SmartMasterAgent:
                 r"what.*relationship",
                 r"graph.*query",
                 r"knowledge.*graph",
+                r"entity.*relationship",
+                r"search.*knowledge.*graph",
+                r"search.*graph",
+                r"graph.*search",
+                r"knowledge.*graph.*search"
             ],
             IntentType.MCP_TOOLS: [
-                r"count.*r.*letters",
-                r"count.*letters.*r",
-                r"list.*desktop.*files",
-                r"list.*desktop.*contents",
+                r"count.*r.*letter",
+                r"list.*desktop",
                 r"get.*desktop.*path",
                 r"open.*gmail",
-                r"open.*gmail.*compose",
-                r"send.*email.*via.*sendmail",
-                r"send.*simple.*email",
-                r"call.*mcp.*tool",
-                r"list.*available.*mcp.*tools",
                 r"mcp.*tool",
-                r"mcp.*server"
+                r"count-r",
+                r"desktop.*content",
+                r"gmail.*compose"
+            ],
+            IntentType.CALL: [
+                r"call.*\d+",
+                r"dial.*\d+",
+                r"phone.*\d+",
+                r"ring.*\d+",
+                r"call.*number",
+                r"dial.*number",
+                r"phone.*number",
+                r"call.*\+\d+",
+                r"dial.*\+\d+",
+                r"phone.*\+\d+",
+                r"call.*\(\d+\)",
+                r"dial.*\(\d+\)",
+                r"phone.*\(\d+\)",
+                r"call.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
+                r"dial.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
+                r"phone.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}"
             ],
             IntentType.SEARCH: [
                 r"search.*for",
                 r"find.*information",
                 r"look.*up",
                 r"what.*is",
+                r"who.*is",
+                r"how.*to",
                 r"tell.*me.*about",
                 r"information.*about",
-                r"who.*is",
-                r"what.*are",
-                r"how.*does",
-                r"when.*did",
-                r"where.*is",
-                r"why.*does"
+                r"details.*about",
+                r"who.*owns",
+                r"who.*owner",
+                r"what.*company",
+                r"what.*business",
+                r"find.*out.*about",
+                r"search.*about"
             ]
         }
         
-        # Check each intent pattern
-        best_match = None
-        highest_confidence = 0.0
+        # Check for email patterns first (highest priority)
+        for pattern in patterns[IntentType.EMAIL]:
+            if re.search(pattern, message_lower):
+                extracted_data = self._extract_data(message, IntentType.EMAIL)
+                return IntentResult(
+                    intent=IntentType.EMAIL,
+                    confidence=0.9,
+                    extracted_data=extracted_data,
+                    original_message=message
+                )
         
-        for intent, pattern_list in patterns.items():
-            for pattern in pattern_list:
+        # Check other patterns
+        for intent_type, intent_patterns in patterns.items():
+            for pattern in intent_patterns:
                 if re.search(pattern, message_lower):
-                    confidence = len(re.findall(pattern, message_lower)) * 0.3
-                    
-                    # Boost confidence for more specific patterns
-                    if intent == IntentType.EMAIL and any(word in message_lower for word in ["@", "email", "mail"]):
-                        confidence += 0.4
-                    elif intent == IntentType.SAVE_DESKTOP and "desktop" in message_lower:
-                        confidence += 0.4
-                    elif intent == IntentType.SAVE_PROJECT and "project" in message_lower:
-                        confidence += 0.4
-                    elif intent == IntentType.WEB_SEARCH and any(word in message_lower for word in ["web", "internet", "latest", "current"]):
-                        confidence += 0.4
-                    
-                    if confidence > highest_confidence:
-                        highest_confidence = confidence
-                        best_match = intent
+                    extracted_data = self._extract_data(message, intent_type)
+                    confidence = 0.8 if intent_type != IntentType.GENERAL else 0.3
+                    return IntentResult(
+                        intent=intent_type,
+                        confidence=confidence,
+                        extracted_data=extracted_data,
+                        original_message=message
+                    )
         
-        # If no specific intent found, determine based on content
-        if not best_match:
-            if any(word in message_lower for word in ["save", "remember", "store", "note"]):
-                # Default to desktop save if saving intent detected
-                best_match = IntentType.SAVE_DESKTOP
-                highest_confidence = 0.6
-            elif any(word in message_lower for word in ["search", "find", "look", "what", "tell", "who", "how", "when", "where", "why"]):
-                # Default to web search for search-like queries
-                best_match = IntentType.WEB_SEARCH
-                highest_confidence = 0.7
-            else:
-                # Default to general conversation
-                best_match = IntentType.GENERAL
-                highest_confidence = 0.3
-        
-        # Extract relevant data based on intent
-        extracted_data = self._extract_data(message, best_match)
-        
+        # Default to general intent
         return IntentResult(
-            intent=best_match,
-            confidence=min(highest_confidence, 1.0),
-            extracted_data=extracted_data,
+            intent=IntentType.GENERAL,
+            confidence=0.3,
+            extracted_data=self._extract_data(message, IntentType.GENERAL),
             original_message=message
         )
     
     def _extract_data(self, message: str, intent: IntentType) -> Dict[str, Any]:
-        """Extract relevant data from message based on intent."""
-        data = {"original_message": message}
+        """
+        Extract relevant data from message based on intent.
         
-        if intent == IntentType.SAVE_DESKTOP:
-            # Extract the content to save
-            data["content"] = message
-            data["location"] = "desktop"
+        Args:
+            message: The user's message
+            intent: The identified intent
+            
+        Returns:
+            Dictionary with extracted data
+        """
+        message_lower = message.lower()
+        
+        if intent == IntentType.EMAIL:
+            # Extract email address
+            import re
+            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+            email_match = re.search(email_pattern, message)
+            to_email = email_match.group(0) if email_match else None
+            
+            # Extract subject and body from the message
+            subject = "Message from Agentic RAG System"
+            body = "This is an automated message from the Agentic RAG System."
+            
+            # If no email found, try to extract from common patterns
+            if not to_email:
+                # Look for patterns like "send to user@domain.com" or "email user@domain.com"
+                send_patterns = [
+                    r'send.*to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
+                    r'email\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
+                    r'mail\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
+                    r'to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})'
+                ]
+                
+                for pattern in send_patterns:
+                    match = re.search(pattern, message_lower)
+                    if match:
+                        to_email = match.group(1)
+                        break
+            
+            # Extract the actual message content after the email address
+            if to_email:
+                # Find the position of the email address
+                email_pos = message.find(to_email)
+                if email_pos != -1:
+                    # Get everything after the email address
+                    after_email = message[email_pos + len(to_email):].strip()
+                    
+                    # Remove common email-related words
+                    after_email = re.sub(r'^(send|email|mail|to)\s+', '', after_email, flags=re.IGNORECASE)
+                    after_email = after_email.strip()
+                    
+                    if after_email:
+                        # Use the first part as subject, rest as body
+                        parts = after_email.split('\n', 1)
+                        if len(parts) > 1:
+                            subject = parts[0].strip()
+                            body = parts[1].strip()
+                        else:
+                            # If no newline, use the whole thing as body
+                            body = after_email
+                            subject = "Message from Agentic RAG System"
+                    else:
+                        # If no content after email, try to extract from before
+                        before_email = message[:email_pos].strip()
+                        before_email = re.sub(r'(send|email|mail)\s+', '', before_email, flags=re.IGNORECASE)
+                        before_email = before_email.strip()
+                        
+                        if before_email:
+                            body = before_email
+                            subject = "Message from Agentic RAG System"
+            
+            return {
+                "to_email": to_email,
+                "subject": subject,
+                "body": body,
+                "message": message
+            }
+            
+        elif intent == IntentType.SAVE_DESKTOP:
+            return {
+                "message": message,
+                "type": "desktop_message"
+            }
             
         elif intent == IntentType.SAVE_PROJECT:
-            data["content"] = message
-            data["location"] = "project"
-            
-        elif intent == IntentType.EMAIL:
-            # Extract email components
-            email_pattern = r"(\w+@[\w\.-]+\.\w+)"
-            emails = re.findall(email_pattern, message)
-            data["to_email"] = emails[0] if emails else None
-            
-            # Extract subject and body
-            subject_match = re.search(r"subject[:\s]+([^,]+)", message, re.IGNORECASE)
-            data["subject"] = subject_match.group(1).strip() if subject_match else "No subject"
-            
-            body_match = re.search(r"body[:\s]+([^,]+)", message, re.IGNORECASE)
-            data["body"] = body_match.group(1).strip() if body_match else "No body"
+            return {
+                "message": message,
+                "type": "project_message"
+            }
             
         elif intent == IntentType.WEB_SEARCH:
             # Extract search query
-            search_words = ["search", "find", "look", "what", "tell", "latest", "current"]
             query = message
-            for word in search_words:
-                if word in message.lower():
-                    query = message.lower().split(word, 1)[1].strip()
+            # Remove common search prefixes
+            prefixes = ["search for", "find", "look up", "what is", "tell me about"]
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    query = message[len(prefix):].strip()
                     break
-            data["query"] = query
+            return {
+                "query": query,
+                "message": message
+            }
+            
+        elif intent == IntentType.KNOWLEDGE_GRAPH:
+            # Extract search query from knowledge graph request
+            query = message
+            # Remove common knowledge graph prefixes
+            prefixes = [
+                "search the knowledge graph for information about",
+                "search the knowledge graph for",
+                "knowledge graph search for",
+                "search knowledge graph for",
+                "find in knowledge graph",
+                "query knowledge graph for",
+                "search graph for"
+            ]
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    query = message[len(prefix):].strip()
+                    break
+            return {
+                "query": query,
+                "message": message
+            }
+            
+        elif intent == IntentType.MCP_TOOLS:
+            return {
+                "message": message,
+                "tool_request": message_lower
+            }
+            
+        elif intent == IntentType.CALL:
+            # Extract phone number from message
+            import re
+            
+            # Phone number patterns
+            phone_patterns = [
+                r'\+?1?\s*\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})',  # (123) 456-7890, +1 123 456 7890
+                r'\+?(\d{1,3})\s*(\d{3})\s*(\d{3})\s*(\d{4})',       # +1 123 456 7890
+                r'(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})',              # 123-456-7890
+                r'\+?(\d{10,15})',                                    # +1234567890
+            ]
+            
+            phone_number = None
+            for pattern in phone_patterns:
+                match = re.search(pattern, message)
+                if match:
+                    if len(match.groups()) == 3:
+                        # Format: (123) 456-7890 or 123-456-7890
+                        phone_number = f"+1{match.group(1)}{match.group(2)}{match.group(3)}"
+                    elif len(match.groups()) == 4:
+                        # Format: +1 123 456 7890
+                        phone_number = f"+{match.group(1)}{match.group(2)}{match.group(3)}{match.group(4)}"
+                    else:
+                        # Format: +1234567890
+                        phone_number = f"+{match.group(1)}"
+                    break
+            
+            # If no phone number found, try to extract any sequence of digits
+            if not phone_number:
+                digits_match = re.search(r'(\d{7,15})', message)
+                if digits_match:
+                    digits = digits_match.group(1)
+                    if len(digits) == 10:
+                        phone_number = f"+1{digits}"
+                    elif len(digits) >= 10:
+                        phone_number = f"+{digits}"
+            
+            return {
+                "phone_number": phone_number,
+                "message": message,
+                "call_request": message_lower
+            }
             
         elif intent == IntentType.SEARCH:
             # Extract search query
-            search_words = ["search for", "find", "look up", "what is", "tell me about", "who is", "what are", "how does", "when did", "where is", "why does"]
             query = message
-            for phrase in search_words:
-                if phrase in message.lower():
-                    query = message.lower().split(phrase, 1)[1].strip()
+            # Remove common search prefixes
+            prefixes = ["search for", "find", "look up", "what is", "tell me about", "information about", "details about"]
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    query = message[len(prefix):].strip()
                     break
-            data["query"] = query
+            return {
+                "query": query,
+                "message": message
+            }
             
-        elif intent == IntentType.KNOWLEDGE_GRAPH:
-            data["query"] = message
-            
-        else:  # GENERAL
-            data["message"] = message
-        
-        return data
+        else:  # IntentType.GENERAL
+            return {
+                "message": message,
+                "general_query": message
+            }
     
     async def execute_intent(self, intent_result: IntentResult, session_id: str, user_id: str = None) -> Dict[str, Any]:
         """
@@ -262,6 +643,8 @@ class SmartMasterAgent:
                 result = await self._knowledge_graph_search(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.MCP_TOOLS:
                 result = await self._handle_mcp_tools(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.CALL:
+                result = await self._handle_call(intent_result.extracted_data, session_id, user_id)
             else:  # GENERAL
                 result = await self._general_response(intent_result.extracted_data, session_id, user_id)
             
@@ -307,7 +690,7 @@ class SmartMasterAgent:
         """Save message to desktop."""
         from .desktop_message_tools import desktop_storage
         
-        content = data.get("content", "")
+        content = data.get("message", "")
         result = desktop_storage.save_message(
             message=content,
             message_type="user_message",
@@ -324,7 +707,7 @@ class SmartMasterAgent:
         """Save message to project."""
         from .message_tools import message_storage
         
-        content = data.get("content", "")
+        content = data.get("message", "")
         result = message_storage.save_message(
             message=content,
             message_type="user_message",
@@ -626,6 +1009,62 @@ class SmartMasterAgent:
                 "note": "MCP tools failed - server may not be running"
             }
 
+    async def _handle_call(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle phone call requests."""
+        from .real_google_voice_calling import real_google_voice_caller
+        import subprocess
+        
+        phone_number = data.get("phone_number")
+        if not phone_number:
+            return {
+                "action": "call_error",
+                "error": "No phone number found",
+                "note": "Please provide a valid phone number"
+            }
+        
+        try:
+            # Use real Google Voice calling directly
+            result = real_google_voice_caller.make_real_call(phone_number, "Smart Agent")
+            
+            if result["success"]:
+                return {
+                    "action": "call_initiated",
+                    "phone_number": result["phone_number"],
+                    "method": result["method"],
+                    "note": result["message"],
+                    "instructions": result.get("instructions", []),
+                    "real_call_note": result["note"]
+                }
+            else:
+                # Fallback to system dialer
+                subprocess.run(['open', f'tel:{phone_number}'], check=True)
+                return {
+                    "action": "call_fallback",
+                    "phone_number": phone_number,
+                    "method": "system_dialer",
+                    "note": f"Call initiated to {phone_number} via system dialer",
+                    "fallback_reason": "Real calling failed, using system dialer"
+                }
+                
+        except Exception as e:
+            try:
+                # Emergency fallback to system dialer
+                subprocess.run(['open', f'tel:{phone_number}'], check=True)
+                return {
+                    "action": "call_emergency_fallback",
+                    "phone_number": phone_number,
+                    "method": "system_dialer",
+                    "note": f"Call initiated to {phone_number} via system dialer (emergency fallback)",
+                    "error": str(e)
+                }
+            except:
+                return {
+                    "action": "call_error",
+                    "phone_number": phone_number,
+                    "error": "Failed to initiate call",
+                    "note": f"All calling methods failed. Try manually dialing {phone_number}"
+                }
+
     async def _general_response(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
         """Handle general conversation."""
         return {
@@ -652,6 +1091,37 @@ class SmartMasterAgent:
                 return f"🔧 {result.get('note', 'MCP tool executed')}"
             else:
                 return f"🔧 MCP tools available - {result.get('note', 'Use specific commands')}"
+        elif intent == IntentType.CALL:
+            if result.get('action') == 'call_initiated':
+                message = f"📞 {result.get('note', 'Call initiated')}"
+                # Add MCP server note if available
+                mcp_note = result.get('mcp_note', '')
+                if mcp_note:
+                    message += f"\n🔧 {mcp_note}"
+                # Add instructions if available
+                instructions = result.get('instructions', [])
+                if instructions:
+                    message += "\n\n📋 Instructions:\n" + "\n".join(instructions)
+                return message
+            elif result.get('action') == 'call_fallback':
+                message = f"📞 {result.get('note', 'Call fallback activated')}"
+                fallback_reason = result.get('fallback_reason', '')
+                if fallback_reason:
+                    message += f"\n⚠️ {fallback_reason}"
+                instructions = result.get('instructions', [])
+                if instructions:
+                    message += "\n\n📋 Instructions:\n" + "\n".join(instructions)
+                return message
+            elif result.get('action') == 'call_emergency_fallback':
+                message = f"📞 {result.get('note', 'Emergency call fallback')}"
+                error = result.get('error', '')
+                if error:
+                    message += f"\n⚠️ Error: {error}"
+                return message
+            elif result.get('action') == 'call_error':
+                return f"❌ {result.get('error', 'Call failed')}"
+            else:
+                return f"📞 Call processed: {result.get('note', 'Call action completed')}"
         elif intent == IntentType.WEB_SEARCH:
             count = result.get('total_results', 0)
             return f"🌐 Found {count} web results for your search"

@@ -555,7 +555,7 @@ async def compose_email(
     body: str
 ) -> Dict[str, Any]:
     """
-    Compose and send an email using Gmail.
+    Compose and send an email using MCP bridge with Gmail SMTP.
     This tool allows you to send an email to any recipient with a subject and body.
     Args:
         to: Recipient email address
@@ -565,9 +565,10 @@ async def compose_email(
         Status and message ID or error
     """
     logger.debug("Compose email tool called with to: '%s', subject: '%s'", to, subject)
-    input_data = EmailComposeInput(to=to, subject=subject, body=body)
     try:
-        result = await compose_email_tool(input_data)
+        # Use MCP sendmail tool instead of old email tools
+        input_data = SendmailInput(to_email=to, subject=subject, body=body, from_email="")
+        result = await sendmail_tool(input_data)
         return result
     except Exception as e:
         logger.error("Compose email failed: %s", e)

@@ -348,9 +348,9 @@ class AgenticRAGCLI:
                                                     print(f"   {display_content}")
                                                 
                                         # Handle web search fallback results
-                                        elif result_data.get('action') == 'internal_search_with_web_fallback' and result_data.get('results'):
+                                        elif result_data.get('action') == 'internal_search_with_web_fallback' and result_data.get('web_results'):
                                             print(f"\n{Colors.CYAN}🌐 Web Search Fallback Results:{Colors.END}")
-                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                            for i, item in enumerate(result_data['web_results'][:3], 1):
                                                 title = item.get('title', 'No title')
                                                 content = item.get('content', item.get('snippet', 'No content'))
                                                 
@@ -369,9 +369,9 @@ class AgenticRAGCLI:
                                                     print(f"   {display_content}")
                                         
                                         # Handle knowledge graph web search fallback
-                                        elif result_data.get('action') == 'knowledge_graph_search_with_web_fallback' and result_data.get('results'):
+                                        elif result_data.get('action') == 'knowledge_graph_search_with_web_fallback' and result_data.get('web_results'):
                                             print(f"\n{Colors.MAGENTA}🧠 Knowledge Graph Web Search Fallback:{Colors.END}")
-                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                            for i, item in enumerate(result_data['web_results'][:3], 1):
                                                 title = item.get('title', 'No title')
                                                 content = item.get('content', item.get('snippet', 'No content'))
                                                 
@@ -402,9 +402,9 @@ class AgenticRAGCLI:
                                                     print(f"   {formatted_content}")
                                         
                                         # Handle knowledge graph results
-                                        elif result_data.get('action') == 'knowledge_graph_search' and result_data.get('results'):
+                                        elif result_data.get('action') == 'knowledge_graph_search' and result_data.get('graph_results'):
                                             print(f"\n{Colors.MAGENTA}🧠 Knowledge Graph Results:{Colors.END}")
-                                            for i, item in enumerate(result_data['results'][:3], 1):
+                                            for i, item in enumerate(result_data['graph_results'][:3], 1):
                                                 fact = item.get('fact', 'No fact')
                                                 
                                                 print(f"\n{Colors.BOLD}{i}. Knowledge Fact{Colors.END}")
