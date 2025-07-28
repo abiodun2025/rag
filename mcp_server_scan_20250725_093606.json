@@ -1,0 +1,104 @@
+{
+  "server_info": {
+    "url": "http://127.0.0.1:5000",
+    "protocol": "HTTP",
+    "endpoints": [
+      {
+        "path": "/health",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      },
+      {
+        "path": "/tools",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      },
+      {
+        "path": "/call",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      },
+      {
+        "path": "/info",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      },
+      {
+        "path": "/status",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      },
+      {
+        "path": "/version",
+        "status_code": null,
+        "available": false,
+        "error": "All connection attempts failed"
+      }
+    ],
+    "metadata": {}
+  },
+  "health_status": {
+    "status": "unreachable",
+    "response_time_ms": 0,
+    "endpoints": {},
+    "errors": [
+      "All connection attempts failed"
+    ]
+  },
+  "tools_analysis": {
+    "total_tools": 0,
+    "tools_by_category": {},
+    "tools_details": [],
+    "calling_capabilities": false,
+    "communication_capabilities": false,
+    "system_capabilities": false
+  },
+  "capabilities": {
+    "calling": {
+      "available": false,
+      "tools": [],
+      "readiness": "needs_implementation"
+    },
+    "communication": {
+      "available": false,
+      "tools": [],
+      "readiness": "ready"
+    },
+    "system": {
+      "available": false,
+      "tools": [],
+      "readiness": "ready"
+    },
+    "browser": {
+      "available": false,
+      "tools": [],
+      "readiness": "ready"
+    }
+  },
+  "recommendations": {
+    "calling_implementation": [
+      "Add calling tools to MCP server (e.g., make_call, dial_number)",
+      "Implement voice calling capabilities using Twilio or similar service",
+      "Add call management tools (answer_call, end_call, transfer_call)",
+      "Include call recording and transcription capabilities"
+    ],
+    "enhancements": [],
+    "integration_notes": [
+      "Server is healthy and responsive",
+      "Found 0 total tools",
+      "HTTP-based MCP server ready for integration"
+    ],
+    "next_steps": [
+      "1. Implement calling tools in MCP server",
+      "2. Test calling functionality",
+      "3. Integrate with existing communication tools",
+      "4. Create calling agent that uses MCP tools"
+    ]
+  },
+  "scan_timestamp": "2025-07-25T09:36:06.480724"
+}

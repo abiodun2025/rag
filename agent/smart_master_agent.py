@@ -324,7 +324,19 @@ class SmartMasterAgent:
                 r"current.*news",
                 r"what.*happening",
                 r"trending.*now",
-                r"recent.*developments"
+                r"recent.*developments",
+                r"who.*won.*\d{4}",
+                r"who.*was.*\d{4}",
+                r"nba.*finals.*\d{4}",
+                r"super.*bowl.*\d{4}",
+                r"world.*series.*\d{4}",
+                r"championship.*\d{4}",
+                r"mvp.*\d{4}",
+                r"current.*events",
+                r"recent.*events",
+                r"latest.*results",
+                r"today.*news",
+                r"yesterday.*news"
             ],
             IntentType.KNOWLEDGE_GRAPH: [
                 r"relationship.*between",
@@ -347,7 +359,119 @@ class SmartMasterAgent:
                 r"mcp.*tool",
                 r"count-r",
                 r"desktop.*content",
-                r"gmail.*compose"
+                r"gmail.*compose",
+                r"search.*desktop",
+                r"find.*desktop",
+                r"read.*desktop.*file",
+                r"ingest.*desktop.*file",
+                r"batch.*ingest.*desktop",
+                r"list.*desktop.*files",
+                r"search.*desktop.*files",
+                r"read.*file.*desktop",
+                r"ingest.*file.*desktop",
+                r"find.*file.*desktop",
+                r"search.*file.*desktop",
+                r"list.*files.*desktop",
+                r"desktop.*search",
+                r"desktop.*find",
+                r"desktop.*read",
+                r"desktop.*ingest",
+                r"file.*search",
+                r"file.*find",
+                r"file.*read",
+                r"file.*ingest",
+                r"find.*file",
+                r"search.*file",
+                r"read.*file",
+                r"ingest.*file",
+                r"add.*file.*to.*vector",
+                r"add.*to.*vector.*db",
+                r"store.*file.*in.*vector",
+                r"vector.*db.*add",
+                r"find.*employees\.csv",
+                r"search.*employees\.csv",
+                r"read.*employees\.csv",
+                r"ingest.*employees\.csv",
+                # More flexible patterns
+                r"find\s+\w+",
+                r"search\s+\w+",
+                r"search.*for.*\w+",
+                r"find.*\w+\.csv",
+                r"search.*\w+\.csv",
+                r"employee.*file",
+                r"search.*employee",
+                r"find.*employee",
+                r"search\s+\w+\.csv",
+                r"search\s+\w+\.txt",
+                r"search\s+\w+\.md",
+                # Code writing patterns
+                r"read.*and.*generate.*code",
+                r"generate.*code.*from.*instructions",
+                r"implement.*from.*instructions",
+                r"code.*writing.*agent",
+                r"write.*code.*from.*file",
+                r"create.*code.*from.*instructions",
+                r"generate.*implementation",
+                r"code.*generation",
+                r"read.*instructions.*and.*code",
+                r"implement.*code",
+                r"write.*implementation",
+                r"generate.*from.*instructions",
+                r"code.*from.*file",
+                r"implementation.*from.*file",
+                r"read.*file.*and.*code",
+                r"generate.*python.*from",
+                r"generate.*javascript.*from",
+                r"generate.*java.*from",
+                r"create.*python.*from",
+                r"create.*javascript.*from",
+                r"create.*java.*from",
+                r"write.*python.*from",
+                r"write.*javascript.*from",
+                r"write.*java.*from",
+                # General code writing patterns
+                r"implement.*\w+",
+                r"create.*\w+.*code",
+                r"write.*\w+.*code",
+                r"generate.*\w+.*code",
+                r"code.*for.*\w+",
+                r"implement.*for.*loop",
+                r"create.*for.*loop",
+                r"write.*for.*loop",
+                r"generate.*for.*loop",
+                r"implement.*function",
+                r"create.*function",
+                r"write.*function",
+                r"generate.*function",
+                r"implement.*class",
+                r"create.*class",
+                r"write.*class",
+                r"generate.*class",
+                r"implement.*\w+.*in.*\w+",
+                r"create.*\w+.*in.*\w+",
+                r"write.*\w+.*in.*\w+",
+                r"generate.*\w+.*in.*\w+",
+                r"kotlin.*code",
+                r"python.*code",
+                r"javascript.*code",
+                r"java.*code",
+                r"typescript.*code",
+                r"go.*code",
+                r"rust.*code",
+                r"csharp.*code",
+                r"php.*code",
+                r"ruby.*code",
+                r"swift.*code",
+                # Instruction file patterns
+                r"create.*instruction.*file",
+                r"write.*instruction.*file",
+                r"generate.*instruction.*file",
+                r"make.*instruction.*file",
+                r"instruction.*file.*for",
+                r"read.*instruction.*file",
+                r"execute.*instruction.*file",
+                r"run.*instruction.*file",
+                r"process.*instruction.*file"
             ],
             IntentType.CALL: [
                 r"call.*\d+",
@@ -382,7 +506,22 @@ class SmartMasterAgent:
                 r"what.*company",
                 r"what.*business",
                 r"find.*out.*about",
-                r"search.*about"
+                r"search.*about",
+                r"who.*won",
+                r"who.*was",
+                r"who.*did",
+                r"what.*happened",
+                r"when.*was",
+                r"where.*was",
+                r"which.*team",
+                r"which.*player",
+                r"nba.*finals",
+                r"super.*bowl",
+                r"world.*series",
+                r"championship",
+                r"playoff",
+                r"mvp",
+                r"most.*valuable.*player"
             ]
         }
         
@@ -546,10 +685,47 @@ class SmartMasterAgent:
             }
             
         elif intent == IntentType.MCP_TOOLS:
-            return {
-                "message": message,
-                "tool_request": message_lower
+            # Extract code writing specific data
+            import re
+            
+            # Check for code writing patterns
+            code_patterns = {
+                'file_name': r'(?:from|in|read|generate|create|write|implement)\s+(\w+\.(?:md|txt|py|js|java|kt|ts|go|rs|cs|php|rb|swift))',
+                'language': r'(?:in|using|with)\s+(python|javascript|java|kotlin|typescript|go|rust|csharp|php|ruby|swift|js|py|kt|ts|cs)',
+                'code_type': r'(?:implement|create|write|generate)\s+(\w+(?:\s+\w+)*)',
+                'for_loop': r'(?:implement|create|write|generate)\s+(?:a\s+)?(?:simple\s+)?(?:for\s+loop)',
+                'function': r'(?:implement|create|write|generate)\s+(?:a\s+)?(?:function)',
+                'class': r'(?:implement|create|write|generate)\s+(?:a\s+)?(?:class)'
             }
+            
+            extracted_data = {
+                "message": message,
+                "tool_request": message_lower,
+                "is_code_request": any(re.search(pattern, message_lower) for pattern in [
+                    r'code', r'loop', r'function', r'class', r'implement', r'create', r'write', r'generate'
+                ])
+            }
+            
+            # Extract specific data
+            for key, pattern in code_patterns.items():
+                match = re.search(pattern, message_lower)
+                if match:
+                    extracted_data[key] = match.group(1) if match.groups() else True
+            
+            # Special handling for "implement for loop"
+            if re.search(r'implement\s+for\s+loop', message_lower):
+                extracted_data['code_type'] = 'for loop'
+                extracted_data['is_code_request'] = True
+                
+                # Try to extract language
+                lang_match = re.search(r'(?:in|using|with)\s+(python|javascript|java|kotlin|typescript|go|rust|csharp|php|ruby|swift|js|py|kt|ts|cs)', message_lower)
+                if lang_match:
+                    extracted_data['language'] = lang_match.group(1)
+                else:
+                    # Default to Kotlin for simple requests
+                    extracted_data['language'] = 'kotlin'
+            
+            return extracted_data
             
         elif intent == IntentType.CALL:
             # Extract phone number from message
@@ -771,18 +947,19 @@ class SmartMasterAgent:
     
     async def _web_search(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
         """Perform web search."""
-        from .web_search_tools import web_search_tools
+        from .tools import web_search_tool, WebSearchInput
         
         query = data.get("query", "")
-        results = await web_search_tools.search_web(query, max_results=5)
+        search_input = WebSearchInput(query=query, max_results=5)
+        results = await web_search_tool(search_input)
         
         formatted_results = []
         for result in results:
             formatted_results.append({
-                "title": result.title,
-                "url": result.url,
-                "snippet": result.snippet,
-                "source": result.source
+                "title": result.get("title", ""),
+                "url": result.get("url", ""),
+                "snippet": result.get("content", ""),
+                "source": result.get("source", "web_search")
             })
         
         return {
@@ -937,6 +1114,195 @@ class SmartMasterAgent:
                     "note": "Used MCP server to list desktop contents"
                 }
             
+            # Search desktop files - more flexible patterns
+            elif ("search" in message or "find" in message):
+                import re
+                # Try different patterns - more flexible
+                search_patterns = [
+                    r'search.*desktop.*file.*for\s+(.+)',
+                    r'find.*desktop.*file\s+(.+)',
+                    r'search.*file\s+(.+)',
+                    r'find.*file\s+(.+)',
+                    r'search.*for\s+(.+)',
+                    r'find\s+(.+)',
+                    r'search\s+(.+)',
+                    r'search.*employee.*file',
+                    r'search.*for.*employee.*file'
+                ]
+                
+                filename = None
+                for pattern in search_patterns:
+                    match = re.search(pattern, message)
+                    if match:
+                        filename = match.group(1).strip()
+                        break
+                
+                # Handle special cases
+                if not filename:
+                    if "employee" in message and "file" in message:
+                        filename = "employees.csv"  # Default to employees.csv for employee file searches
+                    elif "find" in message and len(message.split()) >= 2:
+                        # Extract the word after "find"
+                        parts = message.split()
+                        filename = parts[1].strip()
+                    elif "search" in message and len(message.split()) >= 2:
+                        # Extract the word after "search"
+                        parts = message.split()
+                        filename = parts[1].strip()
+                
+                if filename:
+                    # Use generic MCP tool call for search_desktop_files
+                    input_data = MCPToolInput(tool_name="search_desktop_files", parameters={"filename": filename})
+                    result = await generic_mcp_tool(input_data)
+                    return {
+                        "action": "mcp_search_desktop_files",
+                        "search_term": filename,
+                        "result": result,
+                        "note": f"Used MCP server to search for '{filename}' on desktop"
+                    }
+            
+
+            
+            # Read desktop file
+            elif "read" in message and "desktop" in message and "file" in message:
+                import re
+                file_match = re.search(r'read.*desktop.*file\s+(.+)', message)
+                if file_match:
+                    filename = file_match.group(1).strip()
+                    # Use generic MCP tool call for read_desktop_file
+                    input_data = MCPToolInput(tool_name="read_desktop_file", parameters={"filename": filename})
+                    result = await generic_mcp_tool(input_data)
+                    return {
+                        "action": "mcp_read_desktop_file",
+                        "filename": filename,
+                        "result": result,
+                        "note": f"Used MCP server to read '{filename}' from desktop"
+                    }
+            
+            # Ingest desktop file
+            elif ("ingest" in message or "add" in message or "store" in message) and ("desktop" in message or "file" in message or "vector" in message):
+                import re
+                # Try different patterns for ingest
+                ingest_patterns = [
+                    r'ingest.*desktop.*file\s+(.+)',
+                    r'add.*file.*to.*vector.*db\s+(.+)',
+                    r'store.*file.*in.*vector\s+(.+)',
+                    r'ingest.*file\s+(.+)',
+                    r'add.*to.*vector.*db\s+(.+)',
+                    r'ingest\s+(.+)',
+                    r'add\s+(.+)'
+                ]
+                
+                filename = None
+                for pattern in ingest_patterns:
+                    match = re.search(pattern, message)
+                    if match:
+                        filename = match.group(1).strip()
+                        break
+                
+                if filename:
+                    # Use generic MCP tool call for ingest_desktop_file
+                    input_data = MCPToolInput(tool_name="ingest_desktop_file", parameters={"filename": filename})
+                    result = await generic_mcp_tool(input_data)
+                    return {
+                        "action": "mcp_ingest_desktop_file",
+                        "filename": filename,
+                        "result": result,
+                        "note": f"Used MCP server to ingest '{filename}' from desktop into vector database"
+                    }
+            
+            # Batch ingest desktop files
+            elif "batch" in message and "ingest" in message and "desktop" in message:
+                # Use generic MCP tool call for batch_ingest_desktop
+                input_data = MCPToolInput(tool_name="batch_ingest_desktop", parameters={})
+                result = await generic_mcp_tool(input_data)
+                return {
+                    "action": "mcp_batch_ingest_desktop",
+                    "result": result,
+                    "note": "Used MCP server to batch ingest all supported files from desktop"
+                }
+            
+            # Code writing patterns
+            elif any(phrase in message for phrase in ["generate code", "write code", "implement code", "code generation", "read and generate"]) or data.get("is_code_request", False):
+                import re
+                import os
+                
+                # Extract file name and language
+                file_match = re.search(r'from\s+(\w+\.\w+)', message)
+                language_match = re.search(r'(python|javascript|java|kotlin|typescript|go|rust|csharp|php|ruby|swift|js|py|kt|ts|cs)', message)
+                
+                file_name = file_match.group(1) if file_match else ""
+                language = language_match.group(1) if language_match else data.get("language", "kotlin")
+                
+                # Handle simple code requests like "implement for loop"
+                if not file_name and data.get("is_code_request", False):
+                    # Create a simple instruction file for the request
+                    code_type = data.get("code_type", "simple code")
+                    language = data.get("language", "kotlin")
+                    
+                    # Create a simple instruction content
+                    instruction_content = f"""Title: {code_type.title()}
+
+Requirements:
+- Create a simple {language} program
+- Demonstrate {code_type}
+- Include basic examples and explanations
+
+Features:
+- {code_type}
+- Basic implementation
+- Educational examples
+
+Constraints:
+- Keep it simple and educational
+- Include comments explaining the code
+- Make it runnable as a standalone program
+"""
+                    
+                    # Write the instruction to a temporary file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+                        f.write(instruction_content)
+                        file_name = f.name
+                
+                # Determine output file name
+                if file_name:
+                    base_name = os.path.splitext(file_name)[0]
+                    if language == "python":
+                        output_file = f"{base_name}_implementation.py"
+                    elif language in ["javascript", "js"]:
+                        output_file = f"{base_name}_implementation.js"
+                    elif language == "java":
+                        output_file = f"{base_name}_implementation.java"
+                    else:
+                        output_file = f"{base_name}_implementation.{language}"
+                else:
+                    output_file = f"generated_code.{language}"
+                
+                # Call the code writing agent
+                input_data = MCPToolInput(
+                    tool_name="read_and_generate_code", 
+                    parameters={
+                        "file_name": file_name,
+                        "language": language,
+                        "output_file": output_file,
+                        "include_tests": True,
+                        "include_docs": True
+                    }
+                )
+                result = await generic_mcp_tool(input_data)
+                
+                return {
+                    "action": "mcp_code_generation",
+                    "source_file": file_name,
+                    "language": language,
+                    "output_file": output_file,
+                    "result": result,
+                    "note": f"Generated {language} code from instructions in {file_name}",
+                    "project_folder": result.get("project_folder"),
+                    "project_created": result.get("project_folder") is not None
+                }
+            
             # Get desktop path
             elif "get" in message and "desktop" in message and "path" in message:
                 input_data = DesktopPathInput()
@@ -990,6 +1356,95 @@ class SmartMasterAgent:
                         "tool_name": tool_name,
                         "result": result,
                         "note": f"Used MCP server to call {tool_name}"
+                    }
+            
+            # Instruction file patterns
+            elif any(phrase in message for phrase in ["create instruction file", "write instruction file", "generate instruction file", "make instruction file"]):
+                import re
+                
+                # Extract instruction details
+                title_match = re.search(r'(?:create|write|generate|make).*instruction.*file.*for\s+(.+)', message)
+                title = title_match.group(1).strip() if title_match else "Instruction File"
+                
+                # Extract action type
+                action_type = "code_generation"  # Default
+                if "code" in message or "program" in message:
+                    action_type = "code_generation"
+                elif "file" in message and ("operation" in message or "search" in message):
+                    action_type = "file_operation"
+                elif "web" in message and "search" in message:
+                    action_type = "web_search"
+                elif "email" in message:
+                    action_type = "email"
+                elif "phone" in message or "call" in message:
+                    action_type = "phone_call"
+                
+                # Extract language
+                language_match = re.search(r'(python|javascript|java|kotlin|typescript|go|rust|csharp|php|ruby|swift|js|py|kt|ts|cs)', message)
+                language = language_match.group(1) if language_match else "python"
+                
+                # Create instruction file
+                input_data = MCPToolInput(
+                    tool_name="create_instruction_file",
+                    parameters={
+                        "file_name": f"{title.lower().replace(' ', '_')}_instruction.md",
+                        "title": title,
+                        "action_type": action_type,
+                        "description": f"Instruction for {title}",
+                        "requirements": [f"Complete {title}"],
+                        "features": [f"{title} functionality"],
+                        "constraints": ["Must be working and complete"],
+                        "language": language,
+                        "priority": "high",
+                        "tags": [action_type, language]
+                    }
+                )
+                result = await generic_mcp_tool(input_data)
+                
+                return {
+                    "action": "mcp_create_instruction_file",
+                    "title": title,
+                    "action_type": action_type,
+                    "language": language,
+                    "result": result,
+                    "note": f"Created instruction file for {action_type} action"
+                }
+            
+            # Read and execute instruction file
+            elif any(phrase in message for phrase in ["read instruction file", "execute instruction file", "run instruction file", "process instruction file"]):
+                import re
+                
+                # Extract file name
+                file_match = re.search(r'(?:read|execute|run|process).*instruction.*file\s+(.+)', message)
+                file_name = file_match.group(1).strip() if file_match else ""
+                
+                if not file_name:
+                    # Try to find any .md file mentioned
+                    md_match = re.search(r'(\w+\.md)', message)
+                    file_name = md_match.group(1) if md_match else ""
+                
+                if file_name:
+                    # Read and execute instruction file
+                    input_data = MCPToolInput(
+                        tool_name="read_and_execute_instruction",
+                        parameters={
+                            "file_name": file_name,
+                            "auto_execute": True
+                        }
+                    )
+                    result = await generic_mcp_tool(input_data)
+                    
+                    return {
+                        "action": "mcp_read_and_execute_instruction",
+                        "file_name": file_name,
+                        "result": result,
+                        "note": f"Read and executed instruction file '{file_name}'"
+                    }
+                else:
+                    return {
+                        "action": "mcp_instruction_error",
+                        "error": "No instruction file specified",
+                        "note": "Please specify which instruction file to read and execute"
                     }
             
             # Default response for MCP tools
