@@ -68,8 +68,8 @@ class MasterAgent:
         logger.info("🚀 Master Agent initialized and ready to distribute workflows")
     
     def _initialize_slave_agents(self):
-        """Initialize the available slave agents."""
-        # PR Creation Agent
+        """Initialize the available slave agents with clear separation of concerns."""
+        # PR Agent - Only creates pull requests
         self.slave_agents["pr_agent"] = SlaveAgent(
             agent_id="pr_agent",
             name="Pull Request Agent",
@@ -78,7 +78,25 @@ class MasterAgent:
             last_heartbeat=datetime.now().isoformat()
         )
         
-        # Code Review Agent
+        # Report Agent - Only generates reports in local URLs
+        self.slave_agents["report_agent"] = SlaveAgent(
+            agent_id="report_agent",
+            name="Report Agent",
+            capabilities=["generate_report", "create_local_url", "save_report"],
+            status="available",
+            last_heartbeat=datetime.now().isoformat()
+        )
+        
+        # Branch Agent - Only handles branch operations
+        self.slave_agents["branch_agent"] = SlaveAgent(
+            agent_id="branch_agent",
+            name="Branch Agent",
+            capabilities=["create_branch", "checkout_branch", "push_branch", "delete_branch"],
+            status="available",
+            last_heartbeat=datetime.now().isoformat()
+        )
+        
+        # Code Review Agent (for complex workflows)
         self.slave_agents["review_agent"] = SlaveAgent(
             agent_id="review_agent",
             name="Code Review Agent",
@@ -87,16 +105,11 @@ class MasterAgent:
             last_heartbeat=datetime.now().isoformat()
         )
         
-        # Analysis Agent
-        self.slave_agents["analysis_agent"] = SlaveAgent(
-            agent_id="analysis_agent",
-            name="Code Analysis Agent",
-            capabilities=["analyze_code", "security_scan", "performance_analysis"],
-            status="available",
-            last_heartbeat=datetime.now().isoformat()
-        )
-        
-        logger.info(f"✅ Initialized {len(self.slave_agents)} slave agents")
+        logger.info(f"✅ Initialized {len(self.slave_agents)} slave agents with separation of concerns")
+        logger.info("   - PR Agent: Creates pull requests")
+        logger.info("   - Report Agent: Generates local URL reports")
+        logger.info("   - Branch Agent: Handles branch operations")
+        logger.info("   - Review Agent: Performs code reviews")
     
     def create_workflow(self, workflow_type: str, parameters: Dict[str, Any], priority: int = 2) -> str:
         """Create a new workflow with multiple tasks."""
@@ -157,6 +170,27 @@ class MasterAgent:
                     task_type="merge_pr",
                     priority=4,
                     parameters={"pr_number": "{{PR_NUMBER}}", "wait_for_approval": True},
+                    status="pending",
+                    created_at=datetime.now().isoformat()
+                )
+            ]
+        
+        elif workflow_type == "pr_with_report":
+            # Create PR and generate a report
+            tasks = [
+                WorkflowTask(
+                    task_id=f"{workflow_id}_create_pr",
+                    task_type="create_pr",
+                    priority=priority,
+                    parameters=parameters,
+                    status="pending",
+                    created_at=datetime.now().isoformat()
+                ),
+                WorkflowTask(
+                    task_id=f"{workflow_id}_generate_report",
+                    task_type="generate_report",
+                    priority=priority + 1,
+                    parameters={"pr_number": "{{PR_NUMBER}}"},
                     status="pending",
                     created_at=datetime.now().isoformat()
                 )
@@ -251,7 +285,10 @@ class MasterAgent:
                 "code_review": "automated_code_review",
                 "merge_pr": "merge_pull_request",
                 "analyze_code": "automated_code_review",
-                "list_prs": "list_pull_requests"
+                "list_prs": "list_pull_requests",
+                "generate_report": "generate_report",
+                "create_local_url": "create_local_url",
+                "save_report": "save_report"
             }
             
             tool_name = tool_mapping.get(task.task_type, task.task_type)
