@@ -91,7 +91,7 @@ class MasterAgent:
         self.slave_agents["branch_agent"] = SlaveAgent(
             agent_id="branch_agent",
             name="Branch Agent",
-            capabilities=["create_branch", "checkout_branch", "push_branch", "delete_branch", "list_branches"],
+            capabilities=["create_branch", "create_branch_from_base", "checkout_branch", "push_branch", "delete_branch", "list_branches"],
             status="available",
             last_heartbeat=datetime.now().isoformat()
         )
@@ -277,6 +277,7 @@ class MasterAgent:
                 "create_local_url": "create_local_url",
                 "save_report": "save_report",
                 "create_branch": "create_branch",
+                "create_branch_from_base": "create_branch_from_base",
                 "checkout_branch": "checkout_branch",
                 "push_branch": "push_branch",
                 "delete_branch": "delete_branch",

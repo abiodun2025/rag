@@ -46,6 +46,8 @@ class GitHubMCPBridge:
                 return self._delete_branch(arguments)
             elif tool_name == "list_branches":
                 return self._list_branches(arguments)
+            elif tool_name == "create_branch_from_base":
+                return self._create_branch_from_base(arguments)
             else:
                 return {
                     "success": False,
@@ -305,7 +307,7 @@ class GitHubMCPBridge:
             }
 
     def _create_branch(self, arguments: dict) -> dict:
-        """Create a new branch."""
+        """Create a new branch from main."""
         try:
             import subprocess
             import os
@@ -326,9 +328,33 @@ class GitHubMCPBridge:
                     "error": "Not in a git repository"
                 }
             
-            # Create and checkout the new branch
+            # Create and checkout the new branch from main
             try:
-                # Create the branch
+                # First, checkout to main to ensure we're creating from main
+                checkout_main = subprocess.run(
+                    ["git", "checkout", "main"],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if checkout_main.returncode != 0:
+                    # Try master if main doesn't exist
+                    checkout_main = subprocess.run(
+                        ["git", "checkout", "master"],
+                        capture_output=True,
+                        text=True,
+                        cwd=os.getcwd()
+                    )
+                    
+                    if checkout_main.returncode != 0:
+                        return {
+                            "success": False,
+                            "tool_name": "create_branch",
+                            "error": f"Failed to checkout to main/master: {checkout_main.stderr}"
+                        }
+                
+                # Now create the new branch from main/master
                 result = subprocess.run(
                     ["git", "checkout", "-b", branch_name],
                     capture_output=True,
@@ -340,9 +366,10 @@ class GitHubMCPBridge:
                     return {
                         "success": True,
                         "tool_name": "create_branch",
-                        "result": f"Successfully created and checked out branch '{branch_name}'",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from main",
                         "branch_name": branch_name,
-                        "current_branch": branch_name
+                        "current_branch": branch_name,
+                        "created_from": "main"
                     }
                 else:
                     return {
@@ -362,6 +389,85 @@ class GitHubMCPBridge:
             return {
                 "success": False,
                 "tool_name": "create_branch",
+                "error": f"Failed to create branch: {str(e)}"
+            }
+
+    def _create_branch_from_base(self, arguments: dict) -> dict:
+        """Create a new branch from a specified base branch."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            base_branch = arguments.get("base_branch", "main")
+            
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": "Not in a git repository"
+                }
+            
+            # Create and checkout the new branch from the specified base
+            try:
+                # First, checkout to the base branch
+                checkout_base = subprocess.run(
+                    ["git", "checkout", base_branch],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if checkout_base.returncode != 0:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch_from_base",
+                        "error": f"Failed to checkout to base branch '{base_branch}': {checkout_base.stderr}"
+                    }
+                
+                # Now create the new branch from the base branch
+                result = subprocess.run(
+                    ["git", "checkout", "-b", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "success": True,
+                        "tool_name": "create_branch_from_base",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from '{base_branch}'",
+                        "branch_name": branch_name,
+                        "current_branch": branch_name,
+                        "created_from": base_branch
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch_from_base",
+                        "error": f"Failed to create branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "create_branch_from_base",
                 "error": f"Failed to create branch: {str(e)}"
             }
 
@@ -639,7 +745,8 @@ class GitHubMCPBridge:
                 {"name": "generate_report", "description": "Generate a report"},
                 {"name": "create_local_url", "description": "Create a local URL for a report"},
                 {"name": "save_report", "description": "Save a report to local storage"},
-                {"name": "create_branch", "description": "Create a new git branch"},
+                {"name": "create_branch", "description": "Create a new git branch from main"},
+                {"name": "create_branch_from_base", "description": "Create a new git branch from a specified base branch"},
                 {"name": "checkout_branch", "description": "Checkout to an existing git branch"},
                 {"name": "push_branch", "description": "Push a branch to remote repository"},
                 {"name": "delete_branch", "description": "Delete a git branch"},
