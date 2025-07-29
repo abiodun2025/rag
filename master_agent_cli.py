@@ -33,14 +33,11 @@ def print_help():
     print("\n📋 Workflow Types (Separation of Concerns):")
     print("  create_pr                       - PR Agent only (creates PR)")
     print("  pr_with_report                  - PR Agent + Report Agent")
-    print("  pr_with_review                  - PR Agent + Review Agent")
-    print("  full_development_cycle          - All agents (complete workflow)")
-    print("  code_review                     - Review Agent only")
+    print("  full_development_cycle          - PR Agent + Report Agent + Merge")
     print("\n📋 Agent Responsibilities:")
     print("  - PR Agent: Creates pull requests")
     print("  - Report Agent: Generates local URL reports")
     print("  - Branch Agent: Handles branch operations")
-    print("  - Review Agent: Performs code reviews")
     print("\n📋 Examples:")
     print("  interactive                     - Step-by-step workflow creation")
     print("  create pr_with_report 'My Feature' feature-branch")
@@ -74,27 +71,6 @@ Target: main
 ## Workflow Steps
 1. Create Pull Request (PR Agent)
 2. Generate Report (Report Agent)
-
-Created at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}""",
-                "source_branch": branch,
-                "target_branch": "main"
-            }
-        elif workflow_type == "pr_with_review":
-            parameters = {
-                "title": title,
-                "description": f"""Created by Master Agent CLI
-
-## Description
-This PR was created using the master-slave workflow system.
-
-## Branch
-Source: {branch}
-Target: main
-
-## Workflow Steps
-1. Create Pull Request (PR Agent)
-2. Automated Code Review (Review Agent)
-3. Generate Report (Review Agent)
 
 Created at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}""",
                 "source_branch": branch,
@@ -174,18 +150,14 @@ def create_workflow_interactive(master):
     print("Available types:")
     print("  1. create_pr          - PR Agent only (creates PR)")
     print("  2. pr_with_report     - PR Agent + Report Agent")
-    print("  3. pr_with_review     - PR Agent + Review Agent")
-    print("  4. full_development_cycle - All agents (complete workflow)")
-    print("  5. code_review        - Review Agent only")
+    print("  3. full_development_cycle - PR Agent + Report Agent + Merge")
     
     while True:
-        choice = input("\nEnter your choice (1-5): ").strip()
+        choice = input("\nEnter your choice (1-3): ").strip()
         workflow_types = {
             "1": "create_pr",
             "2": "pr_with_report", 
-            "3": "pr_with_review",
-            "4": "full_development_cycle",
-            "5": "code_review"
+            "3": "full_development_cycle"
         }
         
         if choice in workflow_types:
@@ -193,7 +165,7 @@ def create_workflow_interactive(master):
             print(f"✅ Selected: {workflow_type}")
             break
         else:
-            print("❌ Invalid choice. Please enter 1-5.")
+            print("❌ Invalid choice. Please enter 1-3.")
     
     # Step 2: Enter title
     print(f"\n📋 Step 2: Enter Pull Request Title")
