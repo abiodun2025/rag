@@ -510,8 +510,13 @@ def main():
             print("\n👋 Goodbye!")
             master.stop()
             break
+        except EOFError:
+            print("\n👋 Goodbye!")
+            master.stop()
+            break
         except Exception as e:
             print(f"❌ Error: {e}")
+            continue
 
 if __name__ == "__main__":
     main()
