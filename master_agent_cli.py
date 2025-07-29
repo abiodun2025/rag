@@ -438,11 +438,39 @@ def main():
             elif cmd == 'create':
                 if len(parts) < 4:
                     print("❌ Usage: create <type> <title> <branch>")
+                    print("   Note: Use quotes for titles with spaces")
+                    print("   Example: create create_branch \"My Feature Branch\" feature-branch")
                     continue
                 
                 workflow_type = parts[1]
-                title = parts[2]
-                branch = parts[3]
+                
+                # Handle quoted titles properly
+                if len(parts) >= 4:
+                    # Check if title is quoted
+                    if parts[2].startswith('"') and parts[2].endswith('"'):
+                        title = parts[2][1:-1]  # Remove quotes
+                        branch = parts[3]
+                    elif parts[2].startswith('"'):
+                        # Multi-word quoted title
+                        title_parts = []
+                        i = 2
+                        while i < len(parts) and not parts[i].endswith('"'):
+                            title_parts.append(parts[i])
+                            i += 1
+                        if i < len(parts):
+                            title_parts.append(parts[i])
+                            title = ' '.join(title_parts)[1:-1]  # Remove quotes
+                            branch = parts[i + 1] if i + 1 < len(parts) else "feature-branch"
+                        else:
+                            print("❌ Unclosed quote in title")
+                            continue
+                    else:
+                        # Simple single-word title
+                        title = parts[2]
+                        branch = parts[3]
+                else:
+                    print("❌ Usage: create <type> <title> <branch>")
+                    continue
                 
                 create_workflow(master, workflow_type, title, branch)
             

@@ -330,29 +330,47 @@ class GitHubMCPBridge:
             
             # Create and checkout the new branch from main
             try:
-                # First, checkout to main to ensure we're creating from main
-                checkout_main = subprocess.run(
-                    ["git", "checkout", "main"],
+                # First, determine which base branch to use (main or master)
+                check_main = subprocess.run(
+                    ["git", "show-ref", "--verify", "--quiet", "refs/heads/main"],
                     capture_output=True,
                     text=True,
                     cwd=os.getcwd()
                 )
                 
-                if checkout_main.returncode != 0:
-                    # Try master if main doesn't exist
-                    checkout_main = subprocess.run(
-                        ["git", "checkout", "master"],
-                        capture_output=True,
-                        text=True,
-                        cwd=os.getcwd()
-                    )
-                    
-                    if checkout_main.returncode != 0:
-                        return {
-                            "success": False,
-                            "tool_name": "create_branch",
-                            "error": f"Failed to checkout to main/master: {checkout_main.stderr}"
-                        }
+                check_master = subprocess.run(
+                    ["git", "show-ref", "--verify", "--quiet", "refs/heads/master"],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                # Determine the base branch
+                if check_main.returncode == 0:
+                    base_branch = "main"
+                elif check_master.returncode == 0:
+                    base_branch = "master"
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch",
+                        "error": "Neither 'main' nor 'master' branch exists"
+                    }
+                
+                # Checkout to the base branch
+                checkout_base = subprocess.run(
+                    ["git", "checkout", base_branch],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if checkout_base.returncode != 0:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch",
+                        "error": f"Failed to checkout to {base_branch}: {checkout_base.stderr}"
+                    }
                 
                 # Now create the new branch from main/master
                 result = subprocess.run(
@@ -366,10 +384,10 @@ class GitHubMCPBridge:
                     return {
                         "success": True,
                         "tool_name": "create_branch",
-                        "result": f"Successfully created and checked out branch '{branch_name}' from main",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from {base_branch}",
                         "branch_name": branch_name,
                         "current_branch": branch_name,
-                        "created_from": "main"
+                        "created_from": base_branch
                     }
                 else:
                     return {
