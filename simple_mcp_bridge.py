@@ -20,7 +20,13 @@ sys.path.append("/Users/ola/Desktop/working-mcp-server/count-r-server")
 class SimpleMCPBridge:
     def __init__(self):
         self.gmail_sender = None
+        self.github_pr = None
+        self.code_review_agent = None
+        self.github_owner = None
+        self.github_repo = None
         self._load_gmail_sender()
+        self._load_github_client()
+        self._load_code_review_agent()
 
     def _load_gmail_sender(self):
         """Load Gmail email sender with better error handling."""
@@ -35,6 +41,50 @@ class SimpleMCPBridge:
             logger.error("Make sure the count-r-server directory exists and contains gmail_email_sender.py")
         except Exception as e:
             logger.error(f"❌ Failed to load Gmail email sender: {e}")
+
+    def _load_github_client(self):
+        """Load GitHub pull request client with better error handling."""
+        try:
+            from real_github_pull_request import RealGitHubPullRequest, GitHubConfig
+            
+            # Get GitHub configuration from environment variables
+            token = os.getenv('GITHUB_TOKEN')
+            owner = os.getenv('GITHUB_OWNER')
+            repo = os.getenv('GITHUB_REPO')
+            
+            if token and owner and repo:
+                config = GitHubConfig(token=token, owner=owner, repo=repo)
+                self.github_pr = RealGitHubPullRequest(config)
+                self.github_owner = owner
+                self.github_repo = repo
+                logger.info("✅ Real GitHub pull request client loaded successfully")
+                logger.info(f"   Repository: {owner}/{repo}")
+            else:
+                logger.warning("⚠️ GitHub environment variables not set - using simulated pull requests")
+                logger.warning("   Set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO for real GitHub integration")
+                self.github_pr = None
+                
+        except ImportError as e:
+            logger.error(f"❌ Failed to import GitHub pull request client: {e}")
+            logger.error("Make sure real_github_pull_request.py is in the same directory")
+            self.github_pr = None
+        except Exception as e:
+            logger.error(f"❌ Failed to load GitHub pull request client: {e}")
+            self.github_pr = None
+
+    def _load_code_review_agent(self):
+        """Load code review agent with better error handling."""
+        try:
+            from code_review_agent import CodeReviewAgent
+            self.code_review_agent = CodeReviewAgent()
+            logger.info("✅ Code review agent loaded successfully")
+        except ImportError as e:
+            logger.error(f"❌ Failed to import code review agent: {e}")
+            logger.error("Make sure code_review_agent.py is in the same directory")
+            self.code_review_agent = None
+        except Exception as e:
+            logger.error(f"❌ Failed to load code review agent: {e}")
+            self.code_review_agent = None
 
     def call_tool(self, tool_name: str, arguments: dict) -> dict:
         """Call MCP tool with better error handling."""
@@ -150,6 +200,41 @@ class SimpleMCPBridge:
             
             elif tool_name == "read_and_execute_instruction":
                 return self._read_and_execute_instruction(arguments)
+            
+            # Pull Request and Code Review tools
+            elif tool_name == "create_pull_request":
+                return self._create_pull_request(arguments)
+            
+            elif tool_name == "review_pull_request":
+                return self._review_pull_request(arguments)
+            
+            elif tool_name == "list_pull_requests":
+                return self._list_pull_requests(arguments)
+            
+            elif tool_name == "merge_pull_request":
+                return self._merge_pull_request(arguments)
+            
+            elif tool_name == "code_review":
+                return self._code_review(arguments)
+            
+            elif tool_name == "analyze_code_changes":
+                return self._analyze_code_changes(arguments)
+            
+            elif tool_name == "generate_review_comments":
+                return self._generate_review_comments(arguments)
+            
+            # Automated Code Review Agent tools
+            elif tool_name == "automated_code_review":
+                return self._automated_code_review(arguments)
+            
+            elif tool_name == "get_code_review_report":
+                return self._get_code_review_report(arguments)
+            
+            elif tool_name == "list_code_reviews":
+                return self._list_code_reviews(arguments)
+            
+            elif tool_name == "open_review_report":
+                return self._open_review_report(arguments)
             
             else:
                 return {
@@ -851,9 +936,13 @@ class SimpleMCPBridge:
             logger.info(f" GENERATING CODE in {language}")
             
             # Generate code based on instructions
+            logger.info(f"🔧 ABOUT TO CALL _generate_code_from_instructions")
+            print(f"🔧 ABOUT TO CALL _generate_code_from_instructions")
             generated_code = self._generate_code_from_instructions(
                 instructions, language, include_tests, include_docs
             )
+            logger.info(f"🔧 RETURNED FROM _generate_code_from_instructions")
+            print(f"🔧 RETURNED FROM _generate_code_from_instructions")
             
             # Create project folder structure if requested
             project_folder = None
@@ -902,70 +991,44 @@ class SimpleMCPBridge:
             }
 
     def _generate_code_from_instructions(self, instructions: str, language: str, include_tests: bool, include_docs: bool) -> str:
-        """Generate code implementation from instructions using AI-like logic."""
+        """Generate code implementation from instructions using improved AI-like logic."""
         
-        # Parse instructions to extract key components
-        lines = instructions.split('\n')
-        title = ""
-        requirements = []
-        features = []
-        constraints = []
+        print(f"🔧 METHOD CALLED: _generate_code_from_instructions for {language}")
+        logger.info(f"🔧 STARTING CODE GENERATION for {language}")
         
-        current_section = None
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            # Detect sections
-            if line.lower().startswith(('title:', 'name:', 'project:')):
-                title = line.split(':', 1)[1].strip()
-            elif line.lower().startswith(('requirements:', 'req:', 'needs:')):
-                current_section = 'requirements'
-            elif line.lower().startswith(('features:', 'functionality:', 'functions:')):
-                current_section = 'features'
-            elif line.lower().startswith(('constraints:', 'limitations:', 'notes:')):
-                current_section = 'constraints'
-            elif line.startswith('-') or line.startswith('*'):
-                item = line[1:].strip()
-                if current_section == 'requirements':
-                    requirements.append(item)
-                elif current_section == 'features':
-                    features.append(item)
-                elif current_section == 'constraints':
-                    constraints.append(item)
-            elif current_section == 'requirements':
-                requirements.append(line)
-            elif current_section == 'features':
-                features.append(line)
-            elif current_section == 'constraints':
-                constraints.append(line)
-        
-        # Generate code based on language and requirements
-        if language.lower() in ['python', 'py']:
-            return self._generate_python_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['javascript', 'js', 'node']:
-            return self._generate_javascript_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['java']:
-            return self._generate_java_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['typescript', 'ts']:
-            return self._generate_typescript_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['go', 'golang']:
-            return self._generate_go_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['rust']:
-            return self._generate_rust_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['csharp', 'c#', 'dotnet']:
-            return self._generate_csharp_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['php']:
-            return self._generate_php_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['ruby']:
-            return self._generate_ruby_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['swift']:
-            return self._generate_swift_code(title, requirements, features, constraints, include_tests, include_docs)
-        elif language.lower() in ['kotlin']:
-            return self._generate_kotlin_code(title, requirements, features, constraints, include_tests, include_docs)
-        else:
-            return self._generate_generic_code(title, requirements, features, constraints, language, include_tests, include_docs)
+        try:
+            # Use the improved code generator
+            print(f"🔧 TRYING TO IMPORT IMPROVED CODE GENERATOR")
+            from improved_code_generator import ImprovedCodeGenerator
+            
+            logger.info(f"🔧 IMPORTED IMPROVED CODE GENERATOR")
+            print(f"🔧 IMPORTED IMPROVED CODE GENERATOR")
+            
+            generator = ImprovedCodeGenerator()
+            logger.info(f"🔧 CREATED GENERATOR INSTANCE")
+            print(f"🔧 CREATED GENERATOR INSTANCE")
+            
+            result = generator.generate_code(instructions, language, include_tests, include_docs)
+            
+            # Debug output
+            logger.info(f"🔧 USING IMPROVED CODE GENERATOR for {language}")
+            logger.info(f"📝 GENERATED CODE LENGTH: {len(result)}")
+            logger.info(f"📝 FIRST 100 CHARS: {result[:100]}")
+            print(f"🔧 USING IMPROVED CODE GENERATOR for {language}")
+            print(f"📝 GENERATED CODE LENGTH: {len(result)}")
+            print(f"📝 FIRST 100 CHARS: {result[:100]}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ IMPROVED CODE GENERATOR FAILED: {e}")
+            print(f"❌ IMPROVED CODE GENERATOR FAILED: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to old method
+            logger.info(f"🔄 FALLING BACK TO OLD CODE GENERATOR")
+            print(f"🔄 FALLING BACK TO OLD CODE GENERATOR")
+            return self._generate_kotlin_code("Generated", [], [], [], include_tests, include_docs)
 
     def _generate_python_code(self, title: str, requirements: list, features: list, constraints: list, include_tests: bool, include_docs: bool) -> str:
         """Generate Python code implementation."""
@@ -3492,9 +3555,678 @@ Constraints:
                 {"name": "code_writing_agent", "description": "Main code writing agent that orchestrates code generation"},
                 {"name": "select_language_and_generate", "description": "Interactive language selection and code generation with editor opening"},
                 {"name": "create_instruction_file", "description": "Create instruction files on desktop for other agents to read and execute"},
-                {"name": "read_and_execute_instruction", "description": "Read instruction files from desktop and execute the described actions"}
+                {"name": "read_and_execute_instruction", "description": "Read instruction files from desktop and execute the described actions"},
+                {"name": "create_pull_request", "description": "Create a pull request for code review"},
+                {"name": "review_pull_request", "description": "Review a pull request"},
+                {"name": "list_pull_requests", "description": "List all pull requests"},
+                {"name": "merge_pull_request", "description": "Merge a pull request"},
+                {"name": "code_review", "description": "Review code changes"},
+                {"name": "analyze_code_changes", "description": "Analyze code changes"},
+                {"name": "generate_review_comments", "description": "Generate comments for code review"},
+                {"name": "automated_code_review", "description": "Automated code review agent that analyzes PRs and generates detailed reports"},
+                {"name": "get_code_review_report", "description": "Get a specific code review report by review ID"},
+                {"name": "list_code_reviews", "description": "List all code review reports and their accessible URLs"},
+                {"name": "open_review_report", "description": "Open a code review report in the browser"}
             ]
         }
+
+    def _create_pull_request(self, arguments: dict) -> dict:
+        """Create a pull request for code review."""
+        try:
+            title = arguments.get("title", "")
+            description = arguments.get("description", "")
+            source_branch = arguments.get("source_branch", "feature-branch")
+            target_branch = arguments.get("target_branch", "main")
+            repository = arguments.get("repository", "default-repo")
+            
+            if not title:
+                return {
+                    "success": False,
+                    "tool_name": "create_pull_request",
+                    "error": "No pull request title provided"
+                }
+            
+            logger.info(f"🔀 CREATING PULL REQUEST:")
+            logger.info(f"   Title: {title}")
+            logger.info(f"   Source: {source_branch}")
+            logger.info(f"   Target: {target_branch}")
+            logger.info(f"   Repository: {repository}")
+            
+            # Use real GitHub implementation if available
+            if self.github_pr:
+                logger.info("   Using REAL GitHub API")
+                result = self.github_pr.create_pull_request(
+                    title=title,
+                    description=description,
+                    source_branch=source_branch,
+                    target_branch=target_branch
+                )
+                return result
+            else:
+                # Fallback to simulation
+                logger.info("   Using SIMULATED pull request (GitHub not configured)")
+                pr_id = f"PR_{int(datetime.now().timestamp())}"
+                
+                return {
+                    "success": True,
+                    "tool_name": "create_pull_request",
+                    "result": f"Pull request '{title}' created successfully",
+                    "pr_id": pr_id,
+                    "title": title,
+                    "description": description,
+                    "source_branch": source_branch,
+                    "target_branch": target_branch,
+                    "repository": repository,
+                    "status": "open",
+                    "created_at": datetime.now().isoformat(),
+                    "url": f"https://github.com/{repository}/pull/{pr_id}",
+                    "note": "This is a simulated pull request creation - set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO for real GitHub integration"
+                }
+            
+        except Exception as e:
+            logger.error(f"🔀 CREATE PULL REQUEST FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "create_pull_request",
+                "error": f"Failed to create pull request: {str(e)}"
+            }
+
+    def _review_pull_request(self, arguments: dict) -> dict:
+        """Review a pull request."""
+        try:
+            pr_id = arguments.get("pr_id", "")
+            review_type = arguments.get("review_type", "approve")  # approve, request_changes, comment
+            comments = arguments.get("comments", [])
+            reviewer = arguments.get("reviewer", "Code Reviewer")
+            
+            if not pr_id:
+                return {
+                    "success": False,
+                    "tool_name": "review_pull_request",
+                    "error": "No pull request ID provided"
+                }
+            
+            logger.info(f"🔍 REVIEWING PULL REQUEST:")
+            logger.info(f"   PR ID: {pr_id}")
+            logger.info(f"   Type: {review_type}")
+            logger.info(f"   Reviewer: {reviewer}")
+            
+            # Simulate PR review
+            review_id = f"review_{int(datetime.now().timestamp())}"
+            
+            return {
+                "success": True,
+                "tool_name": "review_pull_request",
+                "result": f"Pull request {pr_id} reviewed successfully",
+                "pr_id": pr_id,
+                "review_id": review_id,
+                "review_type": review_type,
+                "comments": comments,
+                "reviewer": reviewer,
+                "reviewed_at": datetime.now().isoformat(),
+                "status": "completed",
+                "note": "This is a simulated pull request review"
+            }
+            
+        except Exception as e:
+            logger.error(f"🔍 REVIEW PULL REQUEST FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "review_pull_request",
+                "error": f"Failed to review pull request: {str(e)}"
+            }
+
+    def _list_pull_requests(self, arguments: dict) -> dict:
+        """List all pull requests."""
+        try:
+            repository = arguments.get("repository", "default-repo")
+            status = arguments.get("status", "all")  # open, closed, all
+            limit = arguments.get("limit", 10)
+            
+            logger.info(f"📋 LISTING PULL REQUESTS:")
+            logger.info(f"   Repository: {repository}")
+            logger.info(f"   Status: {status}")
+            
+            # Use real GitHub implementation if available
+            if self.github_pr:
+                logger.info("   Using REAL GitHub API")
+                result = self.github_pr.list_pull_requests(state=status, limit=limit)
+                return result
+            else:
+                # Fallback to simulation
+                logger.info("   Using SIMULATED pull requests (GitHub not configured)")
+                
+                # Simulate PR list (in real implementation, this would fetch from GitHub/GitLab API)
+                sample_prs = [
+                    {
+                        "pr_id": "PR_001",
+                        "title": "Add new feature for user authentication",
+                        "author": "developer1",
+                        "status": "open",
+                        "created_at": "2024-01-15T10:30:00Z",
+                        "updated_at": "2024-01-16T14:20:00Z",
+                        "reviewers": ["reviewer1", "reviewer2"],
+                        "comments_count": 5,
+                        "commits_count": 12
+                    },
+                    {
+                        "pr_id": "PR_002",
+                        "title": "Fix bug in data processing module",
+                        "author": "developer2",
+                        "status": "closed",
+                        "created_at": "2024-01-14T09:15:00Z",
+                        "updated_at": "2024-01-15T16:45:00Z",
+                        "reviewers": ["reviewer1"],
+                        "comments_count": 3,
+                        "commits_count": 8
+                    },
+                    {
+                        "pr_id": "PR_003",
+                        "title": "Update documentation for API endpoints",
+                        "author": "developer3",
+                        "status": "open",
+                        "created_at": "2024-01-16T11:00:00Z",
+                        "updated_at": "2024-01-16T11:00:00Z",
+                        "reviewers": [],
+                        "comments_count": 0,
+                        "commits_count": 3
+                    }
+                ]
+                
+                # Filter by status if specified
+                if status != "all":
+                    sample_prs = [pr for pr in sample_prs if pr["status"] == status]
+                
+                # Limit results
+                sample_prs = sample_prs[:limit]
+                
+                return {
+                    "success": True,
+                    "tool_name": "list_pull_requests",
+                    "result": f"Found {len(sample_prs)} pull requests",
+                    "repository": repository,
+                    "status": status,
+                    "pull_requests": sample_prs,
+                    "total_count": len(sample_prs),
+                    "note": "This is a simulated list of pull requests - set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO for real GitHub integration"
+                }
+            
+        except Exception as e:
+            logger.error(f"📋 LIST PULL REQUESTS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "list_pull_requests",
+                "error": f"Failed to list pull requests: {str(e)}"
+            }
+
+    def _merge_pull_request(self, arguments: dict) -> dict:
+        """Merge a pull request."""
+        try:
+            pr_id = arguments.get("pr_id", "")
+            merge_method = arguments.get("merge_method", "squash")  # merge, squash, rebase
+            commit_message = arguments.get("commit_message", "")
+            
+            if not pr_id:
+                return {
+                    "success": False,
+                    "tool_name": "merge_pull_request",
+                    "error": "No pull request ID provided"
+                }
+            
+            logger.info(f"🔀 MERGING PULL REQUEST:")
+            logger.info(f"   PR ID: {pr_id}")
+            logger.info(f"   Method: {merge_method}")
+            
+            # Use real GitHub implementation if available
+            if self.github_pr:
+                logger.info("   Using REAL GitHub API")
+                result = self.github_pr.merge_pull_request(
+                    pr_number=int(pr_id),
+                    merge_method=merge_method,
+                    commit_message=commit_message
+                )
+                return result
+            else:
+                # Fallback to simulation
+                logger.info("   Using SIMULATED merge (GitHub not configured)")
+                merge_id = f"merge_{int(datetime.now().timestamp())}"
+                
+                return {
+                    "success": True,
+                    "tool_name": "merge_pull_request",
+                    "result": f"Pull request {pr_id} merged successfully",
+                    "pr_id": pr_id,
+                    "merge_id": merge_id,
+                    "merge_method": merge_method,
+                    "commit_message": commit_message or f"Merge pull request {pr_id}",
+                    "merged_at": datetime.now().isoformat(),
+                    "status": "merged",
+                    "note": "This is a simulated pull request merge - set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO for real GitHub integration"
+                }
+            
+        except Exception as e:
+            logger.error(f"🔀 MERGE PULL REQUEST FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "merge_pull_request",
+                "error": f"Failed to merge pull request: {str(e)}"
+            }
+
+    def _code_review(self, arguments: dict) -> dict:
+        """Review code changes."""
+        try:
+            file_path = arguments.get("file_path", "")
+            code_content = arguments.get("code_content", "")
+            review_focus = arguments.get("review_focus", "all")  # security, performance, style, all
+            
+            if not file_path and not code_content:
+                return {
+                    "success": False,
+                    "tool_name": "code_review",
+                    "error": "No file path or code content provided"
+                }
+            
+            logger.info(f"🔍 CODE REVIEW:")
+            logger.info(f"   File: {file_path}")
+            logger.info(f"   Focus: {review_focus}")
+            
+            # Simulate code review analysis
+            review_id = f"review_{int(datetime.now().timestamp())}"
+            
+            # Generate sample review findings
+            findings = []
+            if review_focus in ["security", "all"]:
+                findings.append({
+                    "type": "security",
+                    "severity": "medium",
+                    "line": 15,
+                    "message": "Consider using parameterized queries to prevent SQL injection",
+                    "suggestion": "Use prepared statements or ORM methods"
+                })
+            
+            if review_focus in ["performance", "all"]:
+                findings.append({
+                    "type": "performance",
+                    "severity": "low",
+                    "line": 23,
+                    "message": "Consider caching frequently accessed data",
+                    "suggestion": "Implement Redis or in-memory caching"
+                })
+            
+            if review_focus in ["style", "all"]:
+                findings.append({
+                    "type": "style",
+                    "severity": "low",
+                    "line": 8,
+                    "message": "Variable name could be more descriptive",
+                    "suggestion": "Rename 'x' to 'user_count'"
+                })
+            
+            return {
+                "success": True,
+                "tool_name": "code_review",
+                "result": f"Code review completed for {file_path or 'provided code'}",
+                "review_id": review_id,
+                "file_path": file_path,
+                "review_focus": review_focus,
+                "findings": findings,
+                "findings_count": len(findings),
+                "reviewed_at": datetime.now().isoformat(),
+                "overall_rating": "good" if len(findings) <= 2 else "needs_improvement",
+                "note": "This is a simulated code review"
+            }
+            
+        except Exception as e:
+            logger.error(f"🔍 CODE REVIEW FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "code_review",
+                "error": f"Failed to review code: {str(e)}"
+            }
+
+    def _analyze_code_changes(self, arguments: dict) -> dict:
+        """Analyze code changes between versions."""
+        try:
+            old_version = arguments.get("old_version", "")
+            new_version = arguments.get("new_version", "")
+            file_path = arguments.get("file_path", "")
+            
+            if not old_version or not new_version:
+                return {
+                    "success": False,
+                    "tool_name": "analyze_code_changes",
+                    "error": "Both old and new versions must be provided"
+                }
+            
+            logger.info(f"📊 ANALYZING CODE CHANGES:")
+            logger.info(f"   File: {file_path}")
+            logger.info(f"   From: {old_version}")
+            logger.info(f"   To: {new_version}")
+            
+            # Simulate code change analysis
+            analysis_id = f"analysis_{int(datetime.now().timestamp())}"
+            
+            # Generate sample change statistics
+            changes = {
+                "lines_added": 15,
+                "lines_removed": 8,
+                "lines_modified": 12,
+                "files_changed": 1,
+                "complexity_change": "+2",
+                "test_coverage_change": "+5%",
+                "security_issues": 0,
+                "performance_impact": "low",
+                "breaking_changes": False
+            }
+            
+            return {
+                "success": True,
+                "tool_name": "analyze_code_changes",
+                "result": f"Code changes analyzed between {old_version} and {new_version}",
+                "analysis_id": analysis_id,
+                "file_path": file_path,
+                "old_version": old_version,
+                "new_version": new_version,
+                "changes": changes,
+                "analyzed_at": datetime.now().isoformat(),
+                "note": "This is a simulated code change analysis"
+            }
+            
+        except Exception as e:
+            logger.error(f"📊 ANALYZE CODE CHANGES FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "analyze_code_changes",
+                "error": f"Failed to analyze code changes: {str(e)}"
+            }
+
+    def _generate_review_comments(self, arguments: dict) -> dict:
+        """Generate comments for code review."""
+        try:
+            file_path = arguments.get("file_path", "")
+            code_content = arguments.get("code_content", "")
+            review_focus = arguments.get("review_focus", "all")
+            
+            if not file_path and not code_content:
+                return {
+                    "success": False,
+                    "tool_name": "generate_review_comments",
+                    "error": "No file path or code content provided"
+                }
+            
+            logger.info(f"💬 GENERATING REVIEW COMMENTS:")
+            logger.info(f"   File: {file_path}")
+            logger.info(f"   Focus: {review_focus}")
+            
+            # Generate sample review comments
+            comments = [
+                "Consider adding input validation for better security",
+                "This function could benefit from error handling",
+                "Consider extracting this logic into a separate function",
+                "Add documentation for this complex algorithm",
+                "Consider using constants instead of magic numbers"
+            ]
+            
+            return {
+                "success": True,
+                "tool_name": "generate_review_comments",
+                "result": f"Generated {len(comments)} review comments",
+                "file_path": file_path,
+                "review_focus": review_focus,
+                "comments": comments,
+                "note": "These are sample review comments"
+            }
+            
+        except Exception as e:
+            logger.error(f"💬 GENERATE REVIEW COMMENTS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "generate_review_comments",
+                "error": f"Failed to generate review comments: {str(e)}"
+            }
+
+    def _automated_code_review(self, arguments: dict) -> dict:
+        """Automated code review agent that analyzes PRs and generates detailed reports."""
+        try:
+            pr_number = arguments.get("pr_number")
+            
+            if not pr_number:
+                return {
+                    "success": False,
+                    "tool_name": "automated_code_review",
+                    "error": "No pull request number provided"
+                }
+            
+            logger.info(f"🔍 AUTOMATED CODE REVIEW:")
+            logger.info(f"   PR Number: {pr_number}")
+            
+            if self.code_review_agent:
+                logger.info("   Using REAL code review agent")
+                
+                # Get PR details and files from GitHub if available
+                pr_details = None
+                pr_files = None
+                
+                if self.github_pr:
+                    try:
+                        # Get PR details
+                        pr_response = self.github_pr.get_pull_request(pr_number)
+                        if pr_response.get("success"):
+                            pr_details = pr_response.get("pull_request")
+                        
+                        # Get PR files/changes
+                        files_response = self.github_pr.analyze_code_changes(pr_number)
+                        if files_response.get("success"):
+                            pr_files = files_response.get("files", [])
+                        
+                        logger.info(f"   Retrieved PR details and {len(pr_files) if pr_files else 0} files from GitHub")
+                    except Exception as e:
+                        logger.warning(f"   Could not fetch PR details from GitHub: {e}")
+                        logger.info("   Using test data for code review")
+                
+                # Perform code review with available data
+                result = self.code_review_agent.review_pull_request(
+                    pr_number=pr_number,
+                    pr_details=pr_details,
+                    pr_files=pr_files,
+                    repository=f"{self.github_owner}/{self.github_repo}" if self.github_owner and self.github_repo else None
+                )
+                return result
+            else:
+                logger.info("   Using SIMULATED code review (agent not loaded)")
+                review_id = f"review_{int(datetime.now().timestamp())}"
+                
+                return {
+                    "success": True,
+                    "tool_name": "automated_code_review",
+                    "result": f"Code review completed for PR #{pr_number}",
+                    "review_id": review_id,
+                    "pr_number": pr_number,
+                    "overall_score": 85.0,
+                    "findings_count": 3,
+                    "status": "approved",
+                    "report_url": f"file:///tmp/{review_id}.html",
+                    "summary": "Code review completed with minor suggestions",
+                    "recommendations": ["Add more comments", "Consider error handling", "Code looks good overall"],
+                    "note": "This is a simulated code review - ensure code_review_agent.py is available for real reviews"
+                }
+            
+        except Exception as e:
+            logger.error(f"🔍 AUTOMATED CODE REVIEW FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "automated_code_review",
+                "error": f"Failed to perform automated code review: {str(e)}"
+            }
+
+    def _get_code_review_report(self, arguments: dict) -> dict:
+        """Get a specific code review report by review ID."""
+        try:
+            review_id = arguments.get("review_id")
+            
+            if not review_id:
+                return {
+                    "success": False,
+                    "tool_name": "get_code_review_report",
+                    "error": "No review ID provided"
+                }
+            
+            logger.info(f"📄 GETTING CODE REVIEW REPORT:")
+            logger.info(f"   Review ID: {review_id}")
+            
+            if self.code_review_agent:
+                # Try to get the report from the review agent
+                try:
+                    import json
+                    from pathlib import Path
+                    
+                    reports_dir = Path("review_reports")
+                    json_file = reports_dir / f"{review_id}.json"
+                    
+                    if json_file.exists():
+                        with open(json_file, 'r') as f:
+                            report = json.load(f)
+                        
+                        return {
+                            "success": True,
+                            "tool_name": "get_code_review_report",
+                            "result": f"Found review report for {review_id}",
+                            "review_id": review_id,
+                            "report": report,
+                            "report_url": f"file://{json_file.with_suffix('.html').absolute()}"
+                        }
+                    else:
+                        return {
+                            "success": False,
+                            "tool_name": "get_code_review_report",
+                            "error": f"Review report not found: {review_id}"
+                        }
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "tool_name": "get_code_review_report",
+                        "error": f"Failed to load review report: {str(e)}"
+                    }
+            else:
+                return {
+                    "success": False,
+                    "tool_name": "get_code_review_report",
+                    "error": "Code review agent not available"
+                }
+            
+        except Exception as e:
+            logger.error(f"📄 GET CODE REVIEW REPORT FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "get_code_review_report",
+                "error": f"Failed to get code review report: {str(e)}"
+            }
+
+    def _list_code_reviews(self, arguments: dict) -> dict:
+        """List all code review reports and their accessible URLs."""
+        try:
+            logger.info(f"📋 LISTING CODE REVIEWS:")
+            
+            if self.code_review_agent:
+                logger.info("   Using REAL code review agent")
+                history = self.code_review_agent.get_review_history()
+                
+                return {
+                    "success": True,
+                    "tool_name": "list_code_reviews",
+                    "result": f"Found {len(history)} code review reports",
+                    "reviews": history,
+                    "total_count": len(history)
+                }
+            else:
+                logger.info("   Using SIMULATED code reviews (agent not loaded)")
+                
+                # Simulate review history
+                simulated_reviews = [
+                    {
+                        "review_id": "review_12345678",
+                        "pr_number": 1,
+                        "repository": "abiodun2025/rag",
+                        "review_date": "2025-07-29T09:00:00",
+                        "overall_score": 85.0,
+                        "status": "approved",
+                        "findings_count": 3,
+                        "report_url": "file:///tmp/review_12345678.html"
+                    },
+                    {
+                        "review_id": "review_87654321",
+                        "pr_number": 2,
+                        "repository": "abiodun2025/rag",
+                        "review_date": "2025-07-29T08:30:00",
+                        "overall_score": 92.0,
+                        "status": "approved",
+                        "findings_count": 1,
+                        "report_url": "file:///tmp/review_87654321.html"
+                    }
+                ]
+                
+                return {
+                    "success": True,
+                    "tool_name": "list_code_reviews",
+                    "result": f"Found {len(simulated_reviews)} code review reports",
+                    "reviews": simulated_reviews,
+                    "total_count": len(simulated_reviews),
+                    "note": "These are simulated reviews - ensure code_review_agent.py is available for real reviews"
+                }
+            
+        except Exception as e:
+            logger.error(f"📋 LIST CODE REVIEWS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "list_code_reviews",
+                "error": f"Failed to list code reviews: {str(e)}"
+            }
+
+    def _open_review_report(self, arguments: dict) -> dict:
+        """Open a code review report in the browser."""
+        try:
+            review_id = arguments.get("review_id")
+            
+            if not review_id:
+                return {
+                    "success": False,
+                    "tool_name": "open_review_report",
+                    "error": "No review ID provided"
+                }
+            
+            logger.info(f"🌐 OPENING REVIEW REPORT:")
+            logger.info(f"   Review ID: {review_id}")
+            
+            if self.code_review_agent:
+                success = self.code_review_agent.open_review_report(review_id)
+                
+                if success:
+                    return {
+                        "success": True,
+                        "tool_name": "open_review_report",
+                        "result": f"Opened review report for {review_id} in browser",
+                        "review_id": review_id
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "open_review_report",
+                        "error": f"Failed to open review report: {review_id}"
+                    }
+            else:
+                return {
+                    "success": False,
+                    "tool_name": "open_review_report",
+                    "error": "Code review agent not available"
+                }
+            
+        except Exception as e:
+            logger.error(f"🌐 OPEN REVIEW REPORT FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "open_review_report",
+                "error": f"Failed to open review report: {str(e)}"
+            }
 
 # Create bridge instance
 bridge = SimpleMCPBridge()
@@ -3545,8 +4277,8 @@ class SimpleMCPHandler(BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
-            if self.path == '/call':
-                tool_name = request_data.get("tool")
+            if self.path == '/call' or self.path == '/call_tool':
+                tool_name = request_data.get("tool") or request_data.get("tool_name")
                 arguments = request_data.get("arguments", {})
                 
                 if not tool_name:

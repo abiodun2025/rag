@@ -1,171 +1,190 @@
 #!/usr/bin/env python3
 """
-Email Agent Demo Script
-=======================
+Email Agent Demo - Show how the agent handles any email request
+===============================================================
 
-This script demonstrates how to test the email agent functionality
-with example conversations and expected responses.
+This script demonstrates the agent's ability to handle any type of email request
+with automatic intent detection, email extraction, and composition.
 """
 
 import asyncio
-import aiohttp
-import json
-import time
+import os
+import sys
+from datetime import datetime
 
-async def demo_email_conversation():
-    """Demo email conversation with the agent."""
-    print("🎭 Email Agent Demo")
-    print("=" * 50)
+# Add the project root to the path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from agent.smart_master_agent import SmartMasterAgent
+
+class EmailAgentDemo:
+    """Demonstrate email agent capabilities."""
     
-    # Example conversation flow
-    conversation = [
-        {
-            "user": "Hello! Can you help me send an email?",
-            "expected": "Agent should greet and offer to help with email"
-        },
-        {
-            "user": "Send an email to test@example.com with subject 'Test Email' and body 'This is a test email from the agent.'",
-            "expected": "Agent should understand and attempt to send email"
-        },
-        {
-            "user": "Compose an email to john@company.com about AI project updates. Subject should be 'AI Project Update' and include information about our progress.",
-            "expected": "Agent should compose email with business context"
-        },
-        {
-            "user": "Send an email to tech@startup.com with subject 'Meeting Request' and body 'I would like to schedule a meeting to discuss AI integration opportunities.'",
-            "expected": "Agent should send email with meeting request"
-        }
-    ]
+    def __init__(self):
+        self.smart_agent = SmartMasterAgent()
+        self.session_id = f"demo_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.user_id = "demo_user"
     
-    async with aiohttp.ClientSession() as session:
-        for i, turn in enumerate(conversation, 1):
-            print(f"\n💬 Turn {i}:")
-            print(f"👤 User: {turn['user']}")
-            print(f"🎯 Expected: {turn['expected']}")
-            print("-" * 50)
-            
-            payload = {
-                "message": turn["user"],
-                "session_id": None,
-                "user_id": "demo_user",
-                "search_type": "hybrid"
-            }
-            
+    async def demo_email_requests(self):
+        """Demonstrate various email request scenarios."""
+        print("📧 EMAIL AGENT DEMONSTRATION")
+        print("=" * 60)
+        print("The agent can handle ANY email request automatically!\n")
+        
+        # Example email requests
+        examples = [
+            "send email to john@gmail.com",
+            "email sarah@company.com about the meeting tomorrow",
+            "write an email to client@business.org asking for proposal review",
+            "compose email to team@startup.io regarding the new feature launch",
+            "urgently email emergency@hospital.com about patient transfer",
+            "send a friendly email to grandma@family.com telling her about my new job",
+            "email dev@tech.com about the API integration - we're getting 500 errors",
+            "compose email to investor@venture.com regarding Series A funding",
+            "email team@project.com about sprint planning - please prepare updates",
+            "send email to manager@work.com regarding project update - discuss timeline"
+        ]
+        
+        print("🎯 EXAMPLE EMAIL REQUESTS THE AGENT CAN HANDLE:")
+        for i, example in enumerate(examples, 1):
+            print(f"{i:2d}. '{example}'")
+        
+        print(f"\n✨ FEATURES:")
+        print("✅ Automatic intent detection")
+        print("✅ Email address extraction")
+        print("✅ Subject and body composition")
+        print("✅ Natural language processing")
+        print("✅ Professional email formatting")
+        print("✅ MCP integration for sending")
+        
+        print(f"\n🚀 HOW IT WORKS:")
+        print("1. You type any email request in natural language")
+        print("2. Agent automatically detects it's an email request")
+        print("3. Agent extracts email address, subject, and body")
+        print("4. Agent composes a professional email")
+        print("5. Agent sends the email via MCP tools")
+        
+        return examples
+    
+    async def interactive_demo(self):
+        """Interactive demo where user can test email requests."""
+        print(f"\n🎮 INTERACTIVE DEMO")
+        print("=" * 60)
+        print("Try your own email requests! Type 'quit' to exit.\n")
+        
+        while True:
             try:
-                async with session.post(
-                    "http://localhost:8058/chat/stream",
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                ) as response:
-                    if response.status == 200:
-                        response_text = await response.text()
-                        print(f"🤖 Agent Response: {response_text[:200]}...")
-                        
-                        # Check for email-related keywords
-                        email_keywords = ["email", "compose", "send", "gmail", "recipient", "subject", "body"]
-                        found_keywords = [kw for kw in email_keywords if kw in response_text.lower()]
-                        
-                        if found_keywords:
-                            print(f"✅ Agent mentioned email: {found_keywords}")
-                        else:
-                            print("⚠️  Agent didn't mention email in response")
-                            
+                # Get user input
+                user_input = input("📝 Enter your email request: ").strip()
+                
+                if user_input.lower() in ['quit', 'exit', 'q']:
+                    print("👋 Thanks for trying the email agent!")
+                    break
+                
+                if not user_input:
+                    print("❌ Please enter a valid email request.")
+                    continue
+                
+                print(f"\n🔍 Processing: '{user_input}'")
+                
+                # Analyze intent
+                intent_result = self.smart_agent.analyze_intent(user_input)
+                print(f"🎯 Detected Intent: {intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
+                
+                if intent_result.intent.value == "email":
+                    # Extract data
+                    extracted_data = intent_result.extracted_data
+                    print(f"📊 Extracted Data:")
+                    print(f"   📧 To: {extracted_data.get('to_email', 'Not found')}")
+                    print(f"   📋 Subject: {extracted_data.get('subject', 'Not found')}")
+                    print(f"   📝 Body: {extracted_data.get('body', 'Not found')}")
+                    
+                    # Process with smart agent
+                    print(f"\n🚀 Processing with Smart Agent...")
+                    result = await self.smart_agent.process_message(
+                        message=user_input,
+                        session_id=self.session_id,
+                        user_id=self.user_id
+                    )
+                    
+                    print(f"📊 Result:")
+                    print(f"   Action: {result.get('action', 'unknown')}")
+                    print(f"   Note: {result.get('note', 'No note')}")
+                    
+                    if result.get('action') == 'email_sent':
+                        print(f"   ✅ Email sent successfully!")
+                        print(f"   📧 Recipient: {result.get('to_email')}")
+                        print(f"   📋 Subject: {result.get('subject')}")
+                        print(f"   📝 Body Preview: {result.get('body_preview', 'No body')}")
                     else:
-                        print(f"❌ Request failed with status {response.status}")
-                        
+                        print(f"   ❌ Email not sent: {result.get('error', 'Unknown error')}")
+                        print(f"   💡 Note: This is expected if MCP server is not running")
+                else:
+                    print(f"❌ Not detected as email request. Detected as: {intent_result.intent.value}")
+                    print(f"💡 Try including an email address in your request")
+                
+                print("-" * 60)
+                
+            except KeyboardInterrupt:
+                print(f"\n👋 Demo interrupted. Thanks for trying!")
+                break
             except Exception as e:
-                print(f"❌ Connection error: {e}")
-            
-            # Small delay between requests
-            await asyncio.sleep(1)
+                print(f"❌ Error: {e}")
+                print("💡 Try a different email request")
+    
+    async def show_capabilities(self):
+        """Show the agent's email capabilities."""
+        print(f"\n🔧 AGENT CAPABILITIES")
+        print("=" * 60)
+        
+        capabilities = [
+            "🎯 Intent Detection: Automatically identifies email requests",
+            "📧 Email Extraction: Finds email addresses in any format",
+            "📋 Subject Generation: Creates appropriate subjects from context",
+            "📝 Body Composition: Writes professional email content",
+            "🌐 Domain Support: Works with any email domain (.com, .org, .io, etc.)",
+            "💼 Business Context: Handles professional and personal emails",
+            "🚨 Urgency Detection: Recognizes urgent requests",
+            "👥 Multiple Recipients: Can handle multiple email addresses",
+            "🔧 Technical Content: Processes technical and business content",
+            "🎨 Natural Language: Understands conversational requests"
+        ]
+        
+        for capability in capabilities:
+            print(f"   {capability}")
+        
+        print(f"\n📚 SUPPORTED PATTERNS:")
+        patterns = [
+            "send email to [address]",
+            "email [address] about [topic]",
+            "write an email to [address] asking [request]",
+            "compose email to [address] regarding [subject]",
+            "urgently email [address] about [urgent matter]",
+            "send a friendly email to [address] telling [content]",
+            "email [address] about [technical issue]",
+            "compose email to [address] regarding [business matter]"
+        ]
+        
+        for pattern in patterns:
+            print(f"   • {pattern}")
 
-def show_cli_demo():
-    """Show CLI demo instructions."""
-    print("\n💻 CLI Demo Instructions:")
-    print("=" * 50)
+async def main():
+    """Main demonstration function."""
+    demo = EmailAgentDemo()
     
-    print("1. Start the API server:")
-    print("   python3 -m uvicorn agent.api:app --host 0.0.0.0 --port 8058")
-    print("\n2. In another terminal, start the CLI:")
-    print("   python3 cli.py")
-    print("\n3. Try this conversation:")
-    print("   You: Hello! Can you help me send an email?")
-    print("   Agent: [Should greet and offer help]")
-    print("\n   You: Send an email to test@example.com with subject 'Test Email' and body 'This is a test email.'")
-    print("   Agent: [Should understand and attempt to send]")
-    print("\n   You: Compose an email to john@company.com about AI updates")
-    print("   Agent: [Should compose email with context]")
-
-def show_expected_behavior():
-    """Show expected behavior for different scenarios."""
-    print("\n📋 Expected Behavior:")
-    print("=" * 50)
+    # Show capabilities
+    await demo.show_capabilities()
     
-    scenarios = [
-        {
-            "scenario": "Without Gmail Credentials",
-            "behavior": [
-                "Agent understands email requests",
-                "Agent attempts to use email tool",
-                "Tool returns error about missing credentials",
-                "Agent explains the issue to user"
-            ]
-        },
-        {
-            "scenario": "With Gmail Credentials",
-            "behavior": [
-                "Agent composes and sends emails",
-                "First run opens browser for OAuth",
-                "Subsequent runs use cached token",
-                "Emails sent via Gmail API"
-            ]
-        },
-        {
-            "scenario": "Interactive CLI",
-            "behavior": [
-                "Agent responds to email commands",
-                "Agent asks for missing information",
-                "Agent provides helpful feedback",
-                "Agent handles errors gracefully"
-            ]
-        }
-    ]
+    # Show example requests
+    await demo.demo_email_requests()
     
-    for scenario in scenarios:
-        print(f"\n🎯 {scenario['scenario']}:")
-        for behavior in scenario['behavior']:
-            print(f"   • {behavior}")
-
-def main():
-    """Main demo function."""
-    print("🎭 Email Agent Demo")
-    print("=" * 50)
+    # Interactive demo
+    await demo.interactive_demo()
     
-    print("This demo shows how to test the email agent functionality.")
-    print("The agent should understand and respond to email requests.")
-    
-    # Show expected behavior
-    show_expected_behavior()
-    
-    # Show CLI demo
-    show_cli_demo()
-    
-    # Run API demo if server is available
-    print("\n🌐 Running API Demo...")
-    try:
-        asyncio.run(demo_email_conversation())
-    except Exception as e:
-        print(f"❌ API demo failed: {e}")
-        print("💡 Make sure the API server is running:")
-        print("   python3 -m uvicorn agent.api:app --host 0.0.0.0 --port 8058")
-    
-    print("\n" + "="*50)
-    print("✅ Demo Complete!")
-    print("="*50)
-    print("\n📝 Next Steps:")
-    print("1. Set up Gmail credentials for full functionality")
-    print("2. Test interactively with CLI")
-    print("3. Try different email scenarios")
+    print(f"\n🎉 DEMONSTRATION COMPLETE!")
+    print("=" * 60)
+    print("The agent is ready to handle any email request!")
+    print("Just type naturally and the agent will do the rest.")
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

@@ -8,7 +8,7 @@ This script tests the email functionality with proper error handling.
 
 import os
 import asyncio
-from agent.email_tools import compose_and_send_email
+from agent.email_tools import compose_email
 from agent.tools import compose_email_tool, EmailComposeInput
 
 def test_email_tools():

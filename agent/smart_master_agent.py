@@ -588,7 +588,9 @@ class SmartMasterAgent:
                     r'send.*to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
                     r'email\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
                     r'mail\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
-                    r'to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})'
+                    r'to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
+                    r'write\s+to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})',
+                    r'compose\s+.*to\s+([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,})'
                 ]
                 
                 for pattern in send_patterns:
@@ -597,7 +599,7 @@ class SmartMasterAgent:
                         to_email = match.group(1)
                         break
             
-            # Extract the actual message content after the email address
+            # Enhanced content extraction
             if to_email:
                 # Find the position of the email address
                 email_pos = message.find(to_email)
@@ -605,29 +607,76 @@ class SmartMasterAgent:
                     # Get everything after the email address
                     after_email = message[email_pos + len(to_email):].strip()
                     
-                    # Remove common email-related words
-                    after_email = re.sub(r'^(send|email|mail|to)\s+', '', after_email, flags=re.IGNORECASE)
+                    # Remove common email-related words and connectors
+                    after_email = re.sub(r'^(send|email|mail|to|write|compose|ask|tell)\s+', '', after_email, flags=re.IGNORECASE)
+                    after_email = re.sub(r'^(him|her|them|that|about|regarding)\s+', '', after_email, flags=re.IGNORECASE)
                     after_email = after_email.strip()
                     
                     if after_email:
-                        # Use the first part as subject, rest as body
-                        parts = after_email.split('\n', 1)
-                        if len(parts) > 1:
-                            subject = parts[0].strip()
-                            body = parts[1].strip()
-                        else:
-                            # If no newline, use the whole thing as body
-                            body = after_email
-                            subject = "Message from Agentic RAG System"
+                        # Try to intelligently split into subject and body
+                        # Look for natural breaks like "about", "regarding", "concerning"
+                        subject_indicators = ['about', 'regarding', 'concerning', 're:', 'subject:', 'topic:']
+                        subject_found = False
+                        
+                        for indicator in subject_indicators:
+                            if indicator in after_email.lower():
+                                parts = after_email.split(indicator, 1)
+                                if len(parts) > 1:
+                                    # Extract subject from before the indicator
+                                    potential_subject = parts[0].strip()
+                                    if potential_subject:
+                                        subject = potential_subject
+                                        body = parts[1].strip()
+                                        subject_found = True
+                                        break
+                        
+                        if not subject_found:
+                            # Try to extract subject from first sentence or phrase
+                            sentences = re.split(r'[.!?]', after_email)
+                            if len(sentences) > 1:
+                                # First sentence as subject, rest as body
+                                subject = sentences[0].strip()
+                                body = '. '.join(sentences[1:]).strip()
+                            else:
+                                # If it's one sentence, use it as body and generate subject
+                                body = after_email
+                                # Try to extract a meaningful subject from the content
+                                words = after_email.split()
+                                if len(words) > 3:
+                                    subject = ' '.join(words[:3]) + "..."
+                                else:
+                                    subject = "Message from Agentic RAG System"
                     else:
                         # If no content after email, try to extract from before
                         before_email = message[:email_pos].strip()
-                        before_email = re.sub(r'(send|email|mail)\s+', '', before_email, flags=re.IGNORECASE)
+                        before_email = re.sub(r'(send|email|mail|write|compose)\s+', '', before_email, flags=re.IGNORECASE)
                         before_email = before_email.strip()
                         
                         if before_email:
                             body = before_email
-                            subject = "Message from Agentic RAG System"
+                            # Generate subject from content
+                            words = before_email.split()
+                            if len(words) > 3:
+                                subject = ' '.join(words[:3]) + "..."
+                            else:
+                                subject = "Message from Agentic RAG System"
+            
+            # If still no email found, try to extract from common names or patterns
+            if not to_email:
+                # Look for common email patterns in the message
+                common_domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com']
+                for domain in common_domains:
+                    if domain in message_lower:
+                        # Try to extract the username part
+                        domain_pos = message_lower.find(domain)
+                        if domain_pos > 0:
+                            # Look backwards for username
+                            username_start = domain_pos - 1
+                            while username_start >= 0 and message[username_start] not in ' \t\n\r@':
+                                username_start -= 1
+                            username_start += 1
+                            to_email = message[username_start:domain_pos + len(domain)]
+                            break
             
             return {
                 "to_email": to_email,
@@ -897,52 +946,57 @@ class SmartMasterAgent:
         }
     
     async def _handle_email(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
-        """Handle email composition using MCP tools."""
+        """Handle email composition using dynamic LLM-based composer."""
         try:
-            from .mcp_tools import sendmail_simple_tool, SendmailSimpleInput
+            from .dynamic_email_composer import analyze_and_compose_email
             
             to_email = data.get("to_email")
-            subject = data.get("subject", "Message from Agentic RAG System")
-            body = data.get("body", "This is an automated message from the Agentic RAG System.")
+            original_message = data.get("message", "")
             
             if not to_email:
                 return {
                     "action": "email_error",
                     "error": "No email address provided",
-                    "note": "Please provide a valid email address"
+                    "note": "Please provide a valid email address. Example: 'send email to john@gmail.com asking about the meeting'"
                 }
             
-            # Use MCP tool to send email
-            input_data = SendmailSimpleInput(
-                to_email=to_email,
-                subject=subject,
-                message=body
-            )
+            # Use dynamic email composer with LLM
+            result = await analyze_and_compose_email(original_message)
             
-            result = await sendmail_simple_tool(input_data)
-            
-            if result.get("success"):
+            if result.get("status") == "success" and result.get("email_sent"):
                 return {
                     "action": "email_sent",
-                    "to_email": to_email,
-                    "subject": subject,
-                    "result": result.get("result", "Email sent successfully"),
-                    "note": "Email sent using MCP server tools"
+                    "to_email": result.get("to_email"),
+                    "subject": result.get("subject"),
+                    "body_preview": result.get("body_preview"),
+                    "tone": result.get("tone"),
+                    "urgency": result.get("urgency"),
+                    "note": f"✅ Dynamic email composed and sent successfully to {result.get('to_email')}",
+                    "details": {
+                        "recipient": result.get("to_email"),
+                        "subject": result.get("subject"),
+                        "body_length": len(result.get("body", "")),
+                        "tone": result.get("tone"),
+                        "urgency": result.get("urgency"),
+                        "composed_at": result.get("composed_at"),
+                        "message_id": result.get("message_id"),
+                        "thread_id": result.get("thread_id")
+                    }
                 }
             else:
                 return {
                     "action": "email_error",
                     "to_email": to_email,
                     "error": result.get("error", "Unknown error"),
-                    "note": "Failed to send email via MCP server"
+                    "note": f"❌ Failed to compose and send email: {result.get('error', 'Unknown error')}"
                 }
                 
         except Exception as e:
-            logger.error(f"Email handling failed: {e}")
+            logger.error(f"Dynamic email handling failed: {e}")
             return {
                 "action": "email_error",
                 "error": str(e),
-                "note": "Email handling failed - MCP server may not be running"
+                "note": "❌ Dynamic email composition failed"
             }
     
     async def _web_search(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
@@ -1536,9 +1590,14 @@ Constraints:
             return f"✅ Saved to Project: {result.get('file_path', '')}"
         elif intent == IntentType.EMAIL:
             if result.get('action') == 'email_sent':
-                return f"📧 Email sent successfully to {result.get('to_email', 'recipient')}"
+                to_email = result.get('to_email', 'recipient')
+                subject = result.get('subject', 'Message')
+                body_preview = result.get('body_preview', '')
+                return f"📧 Email sent successfully!\n\n📮 To: {to_email}\n📝 Subject: {subject}\n💬 Content: {body_preview}"
             elif result.get('action') == 'email_error':
-                return f"❌ Email error: {result.get('error', 'Unknown error')}"
+                error_msg = result.get('error', 'Unknown error')
+                note = result.get('note', '')
+                return f"❌ Email failed to send\n\nError: {error_msg}\n\n💡 {note}"
             else:
                 return f"📧 Email composition ready for {result.get('to_email', 'recipient')}"
         elif intent == IntentType.MCP_TOOLS:

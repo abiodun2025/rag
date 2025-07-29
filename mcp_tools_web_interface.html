@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Tools Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #0056b3;
+        }
+
+        .tools-container {
+            padding: 30px;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .tool-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #007bff;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #007bff, #28a745);
+        }
+
+        .tool-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tool-description {
+            color: #6c757d;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .tool-category {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .category-pull-request {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .category-code-review {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .category-email {
+            background: #e8f5e8;
+            color: #388e3c;
+        }
+
+        .category-calling {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .category-desktop {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .category-code-generation {
+            background: #e0f2f1;
+            color: #00695c;
+        }
+
+        .category-utility {
+            background: #f1f8e9;
+            color: #558b2f;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .icon {
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 768px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 MCP Tools Dashboard</h1>
+            <p>Model Context Protocol Tools Available on 127.0.0.1:5000</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span id="status-text">Connecting to MCP Server...</span>
+            </div>
+            <button class="refresh-btn" onclick="loadTools()">🔄 Refresh</button>
+        </div>
+
+        <div class="tools-container">
+            <div id="loading" class="loading">
+                <h3>Loading tools...</h3>
+                <p>Connecting to MCP server at 127.0.0.1:5000</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;">
+                <strong>Error:</strong> <span id="error-message"></span>
+            </div>
+
+            <div id="stats" class="stats" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-tools">0</div>
+                    <div class="stat-label">Total Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pull-request-tools">0</div>
+                    <div class="stat-label">Pull Request Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="code-review-tools">0</div>
+                    <div class="stat-label">Code Review Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="email-tools">0</div>
+                    <div class="stat-label">Email Tools</div>
+                </div>
+            </div>
+
+            <div id="tools-grid" class="tools-grid" style="display: none;">
+                <!-- Tools will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MCP_SERVER_URL = 'http://127.0.0.1:5000';
+        
+        // Tool categories and their icons
+        const toolCategories = {
+            'pull_request': { icon: '🔀', name: 'Pull Request', class: 'category-pull-request' },
+            'code_review': { icon: '🔍', name: 'Code Review', class: 'category-code-review' },
+            'email': { icon: '📧', name: 'Email', class: 'category-email' },
+            'calling': { icon: '📞', name: 'Calling', class: 'category-calling' },
+            'desktop': { icon: '🖥️', name: 'Desktop', class: 'category-desktop' },
+            'code_generation': { icon: '⚙️', name: 'Code Generation', class: 'category-code-generation' },
+            'utility': { icon: '🔧', name: 'Utility', class: 'category-utility' }
+        };
+
+        function categorizeTool(toolName) {
+            if (toolName.includes('pull_request') || toolName.includes('merge')) {
+                return 'pull_request';
+            } else if (toolName.includes('review') || toolName.includes('analyze') || toolName.includes('comment')) {
+                return 'code_review';
+            } else if (toolName.includes('email') || toolName.includes('mail') || toolName.includes('gmail')) {
+                return 'email';
+            } else if (toolName.includes('call') || toolName.includes('phone') || toolName.includes('dial')) {
+                return 'calling';
+            } else if (toolName.includes('desktop') || toolName.includes('file')) {
+                return 'desktop';
+            } else if (toolName.includes('generate') || toolName.includes('code') || toolName.includes('implement')) {
+                return 'code_generation';
+            } else {
+                return 'utility';
+            }
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.querySelector('.status-dot');
+            
+            statusText.textContent = message;
+            
+            if (isError) {
+                statusDot.style.background = '#dc3545';
+                statusDot.style.animation = 'none';
+            } else {
+                statusDot.style.background = '#28a745';
+                statusDot.style.animation = 'pulse 2s infinite';
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+            document.getElementById('tools-grid').style.display = 'none';
+        }
+
+        function updateStats(tools) {
+            const stats = {
+                total: tools.length,
+                pull_request: 0,
+                code_review: 0,
+                email: 0,
+                calling: 0,
+                desktop: 0,
+                code_generation: 0,
+                utility: 0
+            };
+
+            tools.forEach(tool => {
+                const category = categorizeTool(tool.name);
+                stats[category]++;
+            });
+
+            document.getElementById('total-tools').textContent = stats.total;
+            document.getElementById('pull-request-tools').textContent = stats.pull_request;
+            document.getElementById('code-review-tools').textContent = stats.code_review;
+            document.getElementById('email-tools').textContent = stats.email;
+        }
+
+        function createToolCard(tool) {
+            const category = categorizeTool(tool.name);
+            const categoryInfo = toolCategories[category];
+            
+            return `
+                <div class="tool-card">
+                    <div class="tool-name">
+                        <span class="icon">${categoryInfo.icon}</span>
+                        ${tool.name}
+                    </div>
+                    <div class="tool-description">${tool.description}</div>
+                    <span class="tool-category ${categoryInfo.class}">${categoryInfo.name}</span>
+                </div>
+            `;
+        }
+
+        async function loadTools() {
+            try {
+                updateStatus('Loading tools from MCP server...');
+                
+                const response = await fetch(`${MCP_SERVER_URL}/tools`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.tools || !Array.isArray(data.tools)) {
+                    throw new Error('Invalid response format from MCP server');
+                }
+
+                // Hide loading and show content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('stats').style.display = 'grid';
+                document.getElementById('tools-grid').style.display = 'grid';
+
+                // Update stats
+                updateStats(data.tools);
+
+                // Create tool cards
+                const toolsGrid = document.getElementById('tools-grid');
+                toolsGrid.innerHTML = data.tools.map(createToolCard).join('');
+
+                updateStatus(`Connected - ${data.tools.length} tools available`);
+
+            } catch (error) {
+                console.error('Error loading tools:', error);
+                showError(`Failed to connect to MCP server: ${error.message}`);
+                updateStatus('Connection failed', true);
+            }
+        }
+
+        // Load tools on page load
+        document.addEventListener('DOMContentLoaded', loadTools);
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadTools, 30000);
+    </script>
+</body>
+</html> 

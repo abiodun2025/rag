@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎤 Voice Email Composer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .voice-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .voice-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            border-radius: 50px;
+            padding: 20px 40px;
+            font-size: 1.2em;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .voice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .voice-btn:active {
+            transform: translateY(0);
+        }
+        
+        .voice-btn.recording {
+            background: linear-gradient(45deg, #ff3838, #ff0000);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .command-input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+        
+        .examples {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .example {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .example:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .result {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .success {
+            background: rgba(46, 204, 113, 0.2);
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .error {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Voice Email Composer</h1>
+        
+        <div class="voice-section">
+            <button id="voiceBtn" class="voice-btn">
+                🎤 Click to Start Voice Input
+            </button>
+        </div>
+        
+        <div id="status" class="status">
+            💡 Click the button above and speak your email request
+        </div>
+        
+        <input type="text" id="commandInput" class="command-input" 
+               placeholder="Or type your voice command here... (e.g., 'send email to john@company.com about the meeting')">
+        
+        <div class="examples">
+            <h3>💡 Voice Command Examples:</h3>
+            <div class="example" onclick="useExample(this)">send email to john@company.com about the meeting tomorrow</div>
+            <div class="example" onclick="useExample(this)">write urgent email to support@service.com about login issues</div>
+            <div class="example" onclick="useExample(this)">compose formal email to client@business.com regarding the proposal</div>
+            <div class="example" onclick="useExample(this)">send casual email to friend@gmail.com about weekend plans</div>
+        </div>
+        
+        <div id="result" class="result">
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const voiceBtn = document.getElementById('voiceBtn');
+        const status = document.getElementById('status');
+        const commandInput = document.getElementById('commandInput');
+        const result = document.getElementById('result');
+        const resultContent = document.getElementById('resultContent');
+        
+        let recognition;
+        let isRecording = false;
+        
+        // Initialize speech recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                recognition.onstart = function() {
+                    isRecording = true;
+                    voiceBtn.textContent = '🔴 Recording... Speak Now!';
+                    voiceBtn.classList.add('recording');
+                    status.textContent = '🎤 Listening... Speak your email request';
+                };
+                
+                recognition.onresult = function(event) {
+                    const command = event.results[0][0].transcript;
+                    commandInput.value = command;
+                    processVoiceCommand(command);
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Speech recognition error:', event.error);
+                    status.textContent = `❌ Error: ${event.error}`;
+                    stopRecording();
+                };
+                
+                recognition.onend = function() {
+                    stopRecording();
+                };
+                
+                return true;
+            } else {
+                status.textContent = '❌ Speech recognition not supported in this browser';
+                return false;
+            }
+        }
+        
+        function stopRecording() {
+            isRecording = false;
+            voiceBtn.textContent = '🎤 Click to Start Voice Input';
+            voiceBtn.classList.remove('recording');
+        }
+        
+        function useExample(element) {
+            commandInput.value = element.textContent;
+            processVoiceCommand(element.textContent);
+        }
+        
+        async function processVoiceCommand(command) {
+            status.textContent = '🔄 Processing voice command...';
+            showLoading();
+            
+            try {
+                // Simulate API call to your voice email composer
+                const response = await simulateEmailComposition(command);
+                
+                if (response.success) {
+                    showResult('success', `
+                        <h3>✅ Email Composed Successfully!</h3>
+                        <p><strong>Voice Command:</strong> "${command}"</p>
+                        <p><strong>To:</strong> ${response.to_email}</p>
+                        <p><strong>Subject:</strong> ${response.subject}</p>
+                        <p><strong>Body Preview:</strong> ${response.body_preview}</p>
+                        <p><strong>Tone:</strong> ${response.tone}</p>
+                        <p><strong>Status:</strong> Email sent successfully!</p>
+                    `);
+                } else {
+                    showResult('error', `
+                        <h3>❌ Email Composition Failed</h3>
+                        <p><strong>Error:</strong> ${response.error}</p>
+                        <p><strong>Voice Command:</strong> "${command}"</p>
+                    `);
+                }
+            } catch (error) {
+                showResult('error', `
+                    <h3>❌ Processing Error</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Voice Command:</strong> "${command}"</p>
+                `);
+            }
+        }
+        
+        function simulateEmailComposition(command) {
+            // This simulates your actual email composition
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Simulate different responses based on command
+                    if (command.includes('urgent')) {
+                        resolve({
+                            success: true,
+                            to_email: extractEmail(command),
+                            subject: 'Urgent: ' + extractTopic(command),
+                            body_preview: 'This is an urgent email regarding ' + extractTopic(command) + '...',
+                            tone: 'urgent'
+                        });
+                    } else if (command.includes('formal') || command.includes('business')) {
+                        resolve({
+                            success: true,
+                            to_email: extractEmail(command),
+                            subject: 'Professional: ' + extractTopic(command),
+                            body_preview: 'I hope this email finds you well. I am writing regarding ' + extractTopic(command) + '...',
+                            tone: 'formal'
+                        });
+                    } else if (command.includes('casual') || command.includes('friend')) {
+                        resolve({
+                            success: true,
+                            to_email: extractEmail(command),
+                            subject: extractTopic(command),
+                            body_preview: 'Hey! I wanted to reach out about ' + extractTopic(command) + '...',
+                            tone: 'casual'
+                        });
+                    } else {
+                        resolve({
+                            success: true,
+                            to_email: extractEmail(command),
+                            subject: extractTopic(command),
+                            body_preview: 'I hope this email finds you well. I am writing regarding ' + extractTopic(command) + '...',
+                            tone: 'professional'
+                        });
+                    }
+                }, 2000); // Simulate processing time
+            });
+        }
+        
+        function extractEmail(command) {
+            const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+            const match = command.match(emailRegex);
+            return match ? match[0] : 'recipient@example.com';
+        }
+        
+        function extractTopic(command) {
+            const afterAbout = command.split('about ')[1];
+            const afterRegarding = command.split('regarding ')[1];
+            const topic = afterAbout || afterRegarding || 'your request';
+            return topic.charAt(0).toUpperCase() + topic.slice(1);
+        }
+        
+        function showLoading() {
+            result.className = 'result show';
+            resultContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>🎤 Processing voice command...</p>
+                    <p>📧 Composing email...</p>
+                    <p>📤 Sending email...</p>
+                </div>
+            `;
+        }
+        
+        function showResult(type, content) {
+            result.className = `result show ${type}`;
+            resultContent.innerHTML = content;
+            status.textContent = type === 'success' ? '✅ Email processed successfully!' : '❌ Email processing failed';
+        }
+        
+        // Event listeners
+        voiceBtn.addEventListener('click', function() {
+            if (!isRecording) {
+                if (initSpeechRecognition()) {
+                    recognition.start();
+                }
+            } else {
+                recognition.stop();
+            }
+        });
+        
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const command = commandInput.value.trim();
+                if (command) {
+                    processVoiceCommand(command);
+                }
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initSpeechRecognition();
+        });
+    </script>
+</body>
+</html> 

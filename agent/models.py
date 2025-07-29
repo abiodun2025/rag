@@ -150,8 +150,11 @@ class Chunk(BaseModel):
     @classmethod
     def validate_embedding(cls, v: Optional[List[float]]) -> Optional[List[float]]:
         """Validate embedding dimensions."""
-        if v is not None and len(v) == 0:
-            raise ValueError("Embedding cannot be empty")
+        if v is not None:
+            if len(v) == 0:
+                raise ValueError("Embedding cannot be empty")
+            if len(v) != 1536:
+                raise ValueError("Embedding must have 1536 dimensions")
         return v
 
 
