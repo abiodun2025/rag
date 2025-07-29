@@ -87,19 +87,9 @@ class MasterAgent:
             last_heartbeat=datetime.now().isoformat()
         )
         
-        # Branch Agent - Only handles branch operations
-        self.slave_agents["branch_agent"] = SlaveAgent(
-            agent_id="branch_agent",
-            name="Branch Agent",
-            capabilities=["create_branch", "checkout_branch", "push_branch", "delete_branch"],
-            status="available",
-            last_heartbeat=datetime.now().isoformat()
-        )
-        
         logger.info(f"✅ Initialized {len(self.slave_agents)} slave agents with separation of concerns")
         logger.info("   - PR Agent: Creates pull requests")
         logger.info("   - Report Agent: Generates local URL reports")
-        logger.info("   - Branch Agent: Handles branch operations")
     
     def create_workflow(self, workflow_type: str, parameters: Dict[str, Any], priority: int = 2) -> str:
         """Create a new workflow with multiple tasks."""
@@ -107,28 +97,7 @@ class MasterAgent:
         
         logger.info(f"🔧 Creating workflow {workflow_id}: {workflow_type}")
         
-        if workflow_type == "pr_with_review":
-            # Create PR and then review it
-            tasks = [
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_pr",
-                    task_type="create_pr",
-                    priority=priority,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_review_pr",
-                    task_type="code_review",
-                    priority=priority + 1,  # Review after PR creation
-                    parameters={"pr_number": "{{PR_NUMBER}}", "wait_for_pr": True},
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                )
-            ]
-        
-        elif workflow_type == "pr_with_report":
+        if workflow_type == "pr_with_report":
             # Create PR and generate a report
             tasks = [
                 WorkflowTask(
@@ -149,37 +118,8 @@ class MasterAgent:
                 )
             ]
         
-        elif workflow_type == "full_development_cycle":
-            # Complete development workflow
-            tasks = [
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_pr",
-                    task_type="create_pr",
-                    priority=1,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_generate_report",
-                    task_type="generate_report",
-                    priority=2,
-                    parameters={"pr_number": "{{PR_NUMBER}}", "wait_for_pr": True},
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_merge_pr",
-                    task_type="merge_pr",
-                    priority=3,
-                    parameters={"pr_number": "{{PR_NUMBER}}", "wait_for_approval": True},
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                )
-            ]
-        
         else:
-            # Single task workflow
+            # Single task workflow (create_pr)
             tasks = [
                 WorkflowTask(
                     task_id=f"{workflow_id}_task",
@@ -395,7 +335,7 @@ def main():
     try:
         # Example: Create a workflow
         workflow_id = master.create_workflow(
-            workflow_type="pr_with_review",
+            workflow_type="pr_with_report",
             parameters={
                 "title": "Test Master-Slave Workflow",
                 "description": "Testing the master-slave agent architecture",
