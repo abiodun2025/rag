@@ -128,12 +128,20 @@ class MasterAgent:
                 )
             ]
         elif workflow_type == "create_branch":
-            # Create a new branch
+            # Create a new branch and push it to GitHub
             tasks = [
                 WorkflowTask(
                     task_id=f"{workflow_id}_create_branch",
                     task_type="create_branch",
                     priority=priority,
+                    parameters=parameters,
+                    status="pending",
+                    created_at=datetime.now().isoformat()
+                ),
+                WorkflowTask(
+                    task_id=f"{workflow_id}_push_branch",
+                    task_type="push_branch",
+                    priority=priority + 1,
                     parameters=parameters,
                     status="pending",
                     created_at=datetime.now().isoformat()

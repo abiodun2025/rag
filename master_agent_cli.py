@@ -34,7 +34,7 @@ def print_help():
     print("\n📋 Workflow Types (Separation of Concerns):")
     print("  create_pr                       - PR Agent only (creates PR)")
     print("  pr_with_report                  - PR Agent + Report Agent")
-    print("  create_branch                   - Branch Agent only (creates branch)")
+    print("  create_branch                   - Branch Agent only (creates branch + pushes to GitHub)")
     print("  branch_and_pr                   - Branch Agent + PR Agent")
     print("  full_branch_workflow            - Complete workflow (Branch + Push + PR + Report)")
     
