@@ -4,7 +4,8 @@ GitHub Repository Code Review Agent
 ==================================
 
 A simple agent that reviews any GitHub repository and returns a comprehensive report.
-Version: 1.0.0
+Enhanced with full repository and branch access.
+Version: 1.1.0
 """
 
 import sys
@@ -12,7 +13,7 @@ import os
 import json
 import argparse
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,12 +22,24 @@ from agent.github_code_reviewer import GitHubCodeReviewer
 from agent.code_reviewer import code_reviewer
 
 class GitHubReviewAgent:
-    """Agent for reviewing GitHub repositories."""
+    """Agent for reviewing GitHub repositories with full access."""
     
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
         self.reviewer = GitHubCodeReviewer(self.github_token)
-        self.version = "1.0.0"
+        self.version = "1.1.0"
+    
+    def test_github_connection(self) -> Dict[str, Any]:
+        """Test GitHub connection and get user information."""
+        return self.reviewer.test_connection()
+    
+    def list_user_repositories(self, include_private: bool = True) -> Dict[str, Any]:
+        """List all repositories for the authenticated user."""
+        return self.reviewer.get_user_repositories(include_private)
+    
+    def list_repository_branches(self, owner: str, repo: str) -> Dict[str, Any]:
+        """List all branches for a specific repository."""
+        return self.reviewer.get_repository_branches(owner, repo)
     
     def extract_repo_info(self, repo_url: str) -> Dict[str, str]:
         """Extract owner and repo name from various URL formats."""
@@ -54,7 +67,7 @@ class GitHubReviewAgent:
         
         raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
     
-    def review_repository(self, repo_url: str, output_file: str = None, clone_locally: bool = True) -> Dict[str, Any]:
+    def review_repository(self, repo_url: str, output_file: str = None, clone_locally: bool = True, branch: str = None) -> Dict[str, Any]:
         """Review a GitHub repository and generate a comprehensive report."""
         try:
             # Extract repository information
@@ -64,10 +77,12 @@ class GitHubReviewAgent:
             
             print(f"🔍 Starting code review for: {repo_url}")
             print(f"📦 Repository: {owner}/{repo}")
+            if branch:
+                print(f"🌿 Branch: {branch}")
             print("📊 Analyzing repository...")
             
             # Analyze the repository
-            analysis_result = self.reviewer.analyze_repository(owner, repo, clone_locally)
+            analysis_result = self.reviewer.analyze_repository(owner, repo, clone_locally, branch)
             
             if not analysis_result["success"]:
                 return {
@@ -78,7 +93,7 @@ class GitHubReviewAgent:
                 }
             
             # Generate comprehensive report
-            report = self._generate_comprehensive_report(analysis_result, repo_url)
+            report = self._generate_comprehensive_report(analysis_result, repo_url, branch)
             
             # Save report if output file specified
             if output_file:
@@ -94,63 +109,208 @@ class GitHubReviewAgent:
                 "timestamp": datetime.now().isoformat()
             }
     
-    def _generate_comprehensive_report(self, analysis_result: Dict[str, Any], repo_url: str) -> Dict[str, Any]:
-        """Generate a comprehensive report from analysis results."""
-        
-        summary = analysis_result["summary"]
-        results = analysis_result["results"]
-        
-        # Collect all issues and categorize them
-        all_issues = []
-        critical_issues = []
-        high_issues = []
-        medium_issues = []
-        low_issues = []
-        
-        file_reports = []
-        
-        for file_result in results:
-            if 'report' in file_result:
-                report = file_result['report']
-                file_info = {
-                    "file": file_result['file'],
-                    "score": report['score'],
-                    "grade": report['grade'],
-                    "language": report['language'],
-                    "issues_count": report['issues']['total'],
-                    "critical_issues": report['issues']['critical'],
-                    "high_issues": report['issues']['high'],
-                    "medium_issues": report['issues']['medium'],
-                    "low_issues": report['issues']['low']
+    def review_pull_request(self, owner: str, repo: str, pr_number: int, output_file: str = None) -> Dict[str, Any]:
+        """Review a specific pull request."""
+        try:
+            print(f"🔍 Starting pull request review for: {owner}/{repo}#{pr_number}")
+            print("📊 Analyzing pull request changes...")
+            
+            # Review the pull request
+            pr_result = self.reviewer.review_pull_request(owner, repo, pr_number)
+            
+            if not pr_result["success"]:
+                return {
+                    "success": False,
+                    "error": pr_result["error"],
+                    "repository": f"{owner}/{repo}",
+                    "pr_number": pr_number,
+                    "timestamp": datetime.now().isoformat()
                 }
-                file_reports.append(file_info)
+            
+            # Generate comprehensive report
+            report = self._generate_pr_report(pr_result, owner, repo, pr_number)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"PR review failed: {str(e)}",
+                "repository": f"{owner}/{repo}",
+                "pr_number": pr_number,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def review_user_repositories(self, review_type: str = "full", include_private: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Review all repositories for the authenticated user."""
+        try:
+            print("🔍 Starting review of all user repositories...")
+            
+            # Get user repositories
+            repos_result = self.list_user_repositories(include_private)
+            
+            if not repos_result["success"]:
+                return {
+                    "success": False,
+                    "error": repos_result["error"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            repositories = repos_result["repositories"]
+            print(f"📦 Found {len(repositories)} repositories to review")
+            
+            # Review each repository
+            results = []
+            for i, repo_info in enumerate(repositories, 1):
+                repo_name = repo_info["full_name"]
+                print(f"📊 Reviewing {i}/{len(repositories)}: {repo_name}")
                 
-                # Collect all issues
-                for issue in report['issues']['details']:
-                    issue_info = {
-                        'file': file_result['file'],
-                        'line': issue.get('line', 'N/A'),
-                        'severity': issue.get('severity', 'unknown'),
-                        'category': issue.get('category', 'unknown'),
-                        'message': issue.get('message', ''),
-                        'suggestion': issue.get('suggestion', '')
-                    }
-                    all_issues.append(issue_info)
+                try:
+                    # Review the repository
+                    repo_result = self.review_repository(
+                        repo_name, 
+                        output_file=None, 
+                        clone_locally=False,  # Use API for faster bulk review
+                        branch=repo_info.get("default_branch", "main")
+                    )
                     
-                    # Categorize by severity
-                    if issue.get('severity') == 'critical':
-                        critical_issues.append(issue_info)
-                    elif issue.get('severity') == 'high':
-                        high_issues.append(issue_info)
-                    elif issue.get('severity') == 'medium':
-                        medium_issues.append(issue_info)
-                    elif issue.get('severity') == 'low':
-                        low_issues.append(issue_info)
+                    if repo_result["success"]:
+                        results.append({
+                            "repository": repo_name,
+                            "info": repo_info,
+                            "review": repo_result
+                        })
+                    else:
+                        results.append({
+                            "repository": repo_name,
+                            "info": repo_info,
+                            "error": repo_result.get("error", "Unknown error")
+                        })
+                        
+                except Exception as e:
+                    results.append({
+                        "repository": repo_name,
+                        "info": repo_info,
+                        "error": str(e)
+                    })
+            
+            # Generate comprehensive report
+            report = self._generate_user_repos_report(results, review_type)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"User repositories review failed: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def _generate_comprehensive_report(self, analysis_result: Dict[str, Any], repo_url: str, branch: str = None) -> Dict[str, Any]:
+        """Generate a comprehensive report from analysis results."""
+        summary = analysis_result.get("summary", {})
         
-        # Calculate overall metrics
-        total_files = len(file_reports)
-        successful_reviews = len([f for f in file_reports if f['score'] > 0])
-        avg_score = sum([f['score'] for f in file_reports]) / total_files if total_files > 0 else 0
+        # Find critical and high priority issues
+        critical_issues = []
+        high_priority_issues = []
+        recommendations = []
+        
+        for result in analysis_result.get("results", []):
+            if "report" in result:
+                report = result["report"]
+                file_path = result["file"]
+                
+                # Collect critical issues
+                for issue in report.get("issues", {}).get("critical", []):
+                    critical_issues.append({
+                        "file": file_path,
+                        "issue": issue
+                    })
+                
+                # Collect high priority issues
+                for issue in report.get("issues", {}).get("high", []):
+                    high_priority_issues.append({
+                        "file": file_path,
+                        "issue": issue
+                    })
+        
+        # Generate recommendations
+        if summary.get("critical_issues", 0) > 0:
+            recommendations.append(f"🔴 CRITICAL: Address {summary['critical_issues']} critical issues immediately")
+        
+        if summary.get("high_issues", 0) > 0:
+            recommendations.append(f"🟠 HIGH: Address {summary['high_issues']} high priority issues")
+        
+        if summary.get("average_score", 0) < 70:
+            recommendations.append("🟡 QUALITY: Consider improving overall code quality")
+        
+        if summary.get("total_files", 0) > 0 and summary.get("successful_reviews", 0) < summary.get("total_files", 0):
+            recommendations.append("🟡 COVERAGE: Some files could not be analyzed")
+        
+        return {
+            "success": True,
+            "repository": analysis_result.get("repository", repo_url),
+            "repository_url": repo_url,
+            "branch": branch or "default",
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "critical_issues": critical_issues[:10],  # Top 10 critical issues
+            "high_priority_issues": high_priority_issues[:10],  # Top 10 high priority issues
+            "recommendations": recommendations,
+            "total_files_analyzed": len(analysis_result.get("results", [])),
+            "local_path": analysis_result.get("local_path")
+        }
+    
+    def _generate_pr_report(self, pr_result: Dict[str, Any], owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Generate a report for pull request review."""
+        summary = pr_result.get("summary", {})
+        
+        return {
+            "success": True,
+            "repository": f"{owner}/{repo}",
+            "pr_number": pr_number,
+            "pr_title": pr_result.get("title"),
+            "pr_author": pr_result.get("author"),
+            "pr_state": pr_result.get("state"),
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "changed_files": len(pr_result.get("results", [])),
+            "results": pr_result.get("results", [])
+        }
+    
+    def _generate_user_repos_report(self, results: List[Dict[str, Any]], review_type: str) -> Dict[str, Any]:
+        """Generate a report for user repositories review."""
+        successful_reviews = [r for r in results if "review" in r]
+        failed_reviews = [r for r in results if "error" in r]
+        
+        # Calculate overall statistics
+        total_repos = len(results)
+        successful_count = len(successful_reviews)
+        failed_count = len(failed_reviews)
+        
+        # Calculate average scores
+        scores = []
+        total_issues = 0
+        critical_issues = 0
+        high_issues = 0
+        
+        for result in successful_reviews:
+            if "review" in result and "summary" in result["review"]:
+                summary = result["review"]["summary"]
+                scores.append(summary.get("average_score", 0))
+                total_issues += summary.get("total_issues", 0)
+                critical_issues += summary.get("critical_issues", 0)
+                high_issues += summary.get("high_issues", 0)
+        
+        avg_score = sum(scores) / len(scores) if scores else 0
         
         # Determine overall grade
         if avg_score >= 90:
@@ -164,92 +324,27 @@ class GitHubReviewAgent:
         else:
             overall_grade = "F"
         
-        # Generate recommendations
-        recommendations = self._generate_recommendations(critical_issues, high_issues, medium_issues, file_reports)
-        
-        # Create comprehensive report
-        report = {
+        return {
             "success": True,
-            "repository": analysis_result["repository"],
-            "repository_url": repo_url,
+            "review_type": review_type,
             "timestamp": datetime.now().isoformat(),
             "summary": {
-                "total_files": total_files,
-                "successful_reviews": successful_reviews,
+                "total_repositories": total_repos,
+                "successful_reviews": successful_count,
+                "failed_reviews": failed_count,
                 "average_score": round(avg_score, 2),
                 "overall_grade": overall_grade,
-                "total_issues": len(all_issues),
-                "critical_issues": len(critical_issues),
-                "high_issues": len(high_issues),
-                "medium_issues": len(medium_issues),
-                "low_issues": len(low_issues)
+                "total_issues": total_issues,
+                "critical_issues": critical_issues,
+                "high_issues": high_issues
             },
-            "file_analysis": file_reports,
-            "critical_issues": critical_issues[:20],  # Top 20 critical issues
-            "high_priority_issues": high_issues[:30],  # Top 30 high priority issues
-            "recommendations": recommendations,
-            "local_path": analysis_result.get("local_path"),
-            "note": "Use cleanup_local_repository() to remove cloned repository"
+            "repositories": results,
+            "top_repositories": sorted(
+                successful_reviews, 
+                key=lambda x: x.get("review", {}).get("summary", {}).get("average_score", 0),
+                reverse=True
+            )[:5]
         }
-        
-        return report
-    
-    def _generate_recommendations(self, critical_issues: list, high_issues: list, medium_issues: list, file_reports: list) -> list:
-        """Generate actionable recommendations based on analysis."""
-        
-        recommendations = []
-        
-        # Critical issues
-        if critical_issues:
-            recommendations.append({
-                "priority": "critical",
-                "message": f"🔴 CRITICAL: Address {len(critical_issues)} critical issues immediately",
-                "details": "These issues pose serious security or safety risks and must be fixed before deployment."
-            })
-        
-        # High priority issues
-        if high_issues:
-            recommendations.append({
-                "priority": "high",
-                "message": f"🟠 HIGH: Fix {len(high_issues)} high-priority issues",
-                "details": "These issues should be addressed before the next release."
-            })
-        
-        # Performance recommendations
-        low_score_files = [f for f in file_reports if f['score'] < 70]
-        if low_score_files:
-            recommendations.append({
-                "priority": "medium",
-                "message": f"🟡 MEDIUM: Improve {len(low_score_files)} files with low scores",
-                "details": "Focus on files with scores below 70 for significant improvements."
-            })
-        
-        # Security recommendations
-        security_issues = [i for i in critical_issues + high_issues if i['category'] == 'security']
-        if security_issues:
-            recommendations.append({
-                "priority": "high",
-                "message": f"🔒 SECURITY: Address {len(security_issues)} security vulnerabilities",
-                "details": "Security issues should be prioritized for immediate attention."
-            })
-        
-        # Code quality recommendations
-        if len(file_reports) > 10:
-            recommendations.append({
-                "priority": "medium",
-                "message": "📚 DOCUMENTATION: Consider improving code documentation",
-                "details": "Large codebases benefit from comprehensive documentation."
-            })
-        
-        # Testing recommendations
-        if len(critical_issues) + len(high_issues) > 20:
-            recommendations.append({
-                "priority": "medium",
-                "message": "🧪 TESTING: Consider adding more comprehensive tests",
-                "details": "High issue count suggests need for better testing coverage."
-            })
-        
-        return recommendations
     
     def _save_report(self, report: Dict[str, Any], output_file: str):
         """Save report to file."""
@@ -271,103 +366,23 @@ class GitHubReviewAgent:
     
     def cleanup_local_repository(self, local_path: str):
         """Clean up locally cloned repository."""
-        if local_path and os.path.exists(local_path):
-            try:
-                self.reviewer.cleanup_local_repository(local_path)
-                print(f"🧹 Cleaned up: {local_path}")
-                return True
-            except Exception as e:
-                print(f"⚠️  Failed to clean up {local_path}: {e}")
-                return False
-        return False
-    
-    def print_report_summary(self, report: Dict[str, Any]):
-        """Print a summary of the report."""
-        if not report["success"]:
-            print(f"❌ Review failed: {report.get('error', 'Unknown error')}")
-            return
-        
-        summary = report["summary"]
-        
-        print("\n" + "="*80)
-        print("🔍 GITHUB REPOSITORY CODE REVIEW REPORT")
-        print("="*80)
-        print(f"📦 Repository: {report['repository']}")
-        print(f"🔗 URL: {report['repository_url']}")
-        print(f"📅 Timestamp: {report['timestamp']}")
-        print(f"📊 Overall Grade: {summary['overall_grade']} ({summary['average_score']}/100)")
-        print()
-        
-        print("📈 SUMMARY STATISTICS:")
-        print(f"   📁 Total Files: {summary['total_files']}")
-        print(f"   ✅ Successful Reviews: {summary['successful_reviews']}")
-        print(f"   🚨 Total Issues: {summary['total_issues']}")
-        print(f"   🔴 Critical: {summary['critical_issues']}")
-        print(f"   🟠 High: {summary['high_issues']}")
-        print(f"   🟡 Medium: {summary['medium_issues']}")
-        print(f"   🟢 Low: {summary['low_issues']}")
-        print()
-        
-        # Show top critical and high issues
-        if report.get('critical_issues'):
-            print("🔴 CRITICAL ISSUES (Top 5):")
-            for i, issue in enumerate(report['critical_issues'][:5], 1):
-                print(f"   {i}. {issue['file']}:{issue['line']} - {issue['message']}")
-            print()
-        
-        if report.get('high_priority_issues'):
-            print("🟠 HIGH PRIORITY ISSUES (Top 5):")
-            for i, issue in enumerate(report['high_priority_issues'][:5], 1):
-                print(f"   {i}. {issue['file']}:{issue['line']} - {issue['message']}")
-            print()
-        
-        # Show recommendations
-        if report.get('recommendations'):
-            print("🎯 KEY RECOMMENDATIONS:")
-            for rec in report['recommendations']:
-                priority_emoji = {
-                    'critical': '🔴',
-                    'high': '🟠',
-                    'medium': '🟡',
-                    'low': '🟢'
-                }.get(rec['priority'], 'ℹ️')
-                print(f"   {priority_emoji} {rec['message']}")
-            print()
-        
-        if report.get('local_path'):
-            print(f"📂 Local repository: {report['local_path']}")
-            print("💡 Use cleanup_local_repository() to remove cloned repository")
-        
-        print("="*80)
+        if local_path:
+            self.reviewer.cleanup_local_repository(local_path)
 
-def main():
-    """Main function for command-line usage."""
-    
-    parser = argparse.ArgumentParser(description='Review GitHub repositories with AI-powered analysis')
-    parser.add_argument('repository', help='GitHub repository URL or owner/repo format')
-    parser.add_argument('--token', '-t', help='GitHub token (or set GITHUB_TOKEN env var)')
-    parser.add_argument('--output', '-o', help='Output file for detailed report (JSON)')
-    parser.add_argument('--api-only', action='store_true', help='Use GitHub API only (no local cloning)')
-    parser.add_argument('--cleanup', action='store_true', help='Clean up local repository after analysis')
-    
-    args = parser.parse_args()
-    
-    # Initialize agent
-    agent = GitHubReviewAgent(args.token)
-    
-    # Review repository
-    report = agent.review_repository(
-        args.repository, 
-        args.output, 
-        clone_locally=not args.api_only
-    )
-    
-    # Print summary
-    agent.print_report_summary(report)
-    
-    # Cleanup if requested
-    if args.cleanup and report.get('local_path'):
-        agent.cleanup_local_repository(report['local_path'])
-
+# Example usage
 if __name__ == "__main__":
-    main() 
+    # Initialize the agent
+    agent = GitHubReviewAgent()
+    
+    # Test GitHub connection
+    connection = agent.test_github_connection()
+    if connection["success"]:
+        print(f"✅ Connected to GitHub as: {connection['user']}")
+        print(f"📊 Public repos: {connection['public_repos']}")
+        print(f"🔒 Private repos: {connection['private_repos']}")
+    else:
+        print(f"❌ GitHub connection failed: {connection['error']}")
+    
+    # Example: Review a repository
+    # result = agent.review_repository("https://github.com/owner/repo")
+    # print(json.dumps(result, indent=2)) 

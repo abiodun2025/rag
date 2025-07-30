@@ -4,6 +4,7 @@ GitHub Code Reviewer
 ===================
 
 Integration with GitHub to perform code reviews on real repositories.
+Enhanced with full repository and branch access.
 """
 
 import os
@@ -22,7 +23,7 @@ from .code_reviewer import code_reviewer
 logger = logging.getLogger(__name__)
 
 class GitHubCodeReviewer:
-    """GitHub integration for code review."""
+    """GitHub integration for code review with full repository access."""
     
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
@@ -34,9 +35,11 @@ class GitHubCodeReviewer:
                 'Authorization': f'token {self.github_token}',
                 'Accept': 'application/vnd.github.v3+json'
             }
+        else:
+            logger.warning("No GitHub token provided. Limited to public repositories only.")
     
     def test_connection(self) -> Dict[str, Any]:
-        """Test GitHub API connection."""
+        """Test GitHub API connection and get user info."""
         try:
             response = requests.get(f"{self.api_base}/user", headers=self.headers)
             if response.status_code == 200:
@@ -45,273 +48,458 @@ class GitHubCodeReviewer:
                     "success": True,
                     "user": user_data.get('login'),
                     "name": user_data.get('name'),
-                    "email": user_data.get('email')
+                    "email": user_data.get('email'),
+                    "public_repos": user_data.get('public_repos', 0),
+                    "private_repos": user_data.get('total_private_repos', 0),
+                    "avatar_url": user_data.get('avatar_url'),
+                    "authenticated": True
                 }
             else:
                 return {
                     "success": False,
                     "error": f"GitHub API error: {response.status_code}",
-                    "message": response.text
+                    "message": response.text,
+                    "authenticated": False
                 }
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Connection failed: {str(e)}"
+                "error": f"Connection failed: {str(e)}",
+                "authenticated": False
             }
     
-    def get_repositories(self, username: str = None) -> Dict[str, Any]:
-        """Get list of repositories for a user."""
+    def get_user_repositories(self, include_private: bool = True) -> Dict[str, Any]:
+        """Get all repositories for the authenticated user."""
         try:
-            if username:
-                url = f"{self.api_base}/users/{username}/repos"
-            else:
-                url = f"{self.api_base}/user/repos"
+            if not self.github_token:
+                return {
+                    "success": False,
+                    "error": "GitHub token required to access user repositories",
+                    "repositories": []
+                }
             
+            repos = []
+            page = 1
+            per_page = 100
+            
+            while True:
+                url = f"{self.api_base}/user/repos?page={page}&per_page={per_page}&sort=updated"
+                if not include_private:
+                    url += "&type=public"
+                
+                response = requests.get(url, headers=self.headers)
+                
+                if response.status_code != 200:
+                    return {
+                        "success": False,
+                        "error": f"Failed to fetch repositories: {response.status_code}",
+                        "repositories": repos
+                    }
+                
+                page_repos = response.json()
+                if not page_repos:
+                    break
+                
+                for repo in page_repos:
+                    repo_info = {
+                        "name": repo.get('name'),
+                        "full_name": repo.get('full_name'),
+                        "description": repo.get('description'),
+                        "private": repo.get('private', False),
+                        "fork": repo.get('fork', False),
+                        "language": repo.get('language'),
+                        "stars": repo.get('stargazers_count', 0),
+                        "forks": repo.get('forks_count', 0),
+                        "updated_at": repo.get('updated_at'),
+                        "clone_url": repo.get('clone_url'),
+                        "ssh_url": repo.get('ssh_url'),
+                        "default_branch": repo.get('default_branch', 'main'),
+                        "size": repo.get('size', 0),
+                        "topics": repo.get('topics', [])
+                    }
+                    repos.append(repo_info)
+                
+                page += 1
+                if len(page_repos) < per_page:
+                    break
+            
+            return {
+                "success": True,
+                "repositories": repos,
+                "total_count": len(repos)
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch repositories: {str(e)}",
+                "repositories": []
+            }
+    
+    def get_repository_branches(self, owner: str, repo: str) -> Dict[str, Any]:
+        """Get all branches for a specific repository."""
+        try:
+            url = f"{self.api_base}/repos/{owner}/{repo}/branches"
             response = requests.get(url, headers=self.headers)
+            
             if response.status_code == 200:
-                repos = response.json()
+                branches = response.json()
+                branch_list = []
+                
+                for branch in branches:
+                    branch_info = {
+                        "name": branch.get('name'),
+                        "commit": {
+                            "sha": branch.get('commit', {}).get('sha'),
+                            "message": branch.get('commit', {}).get('commit', {}).get('message'),
+                            "date": branch.get('commit', {}).get('commit', {}).get('author', {}).get('date')
+                        },
+                        "protected": branch.get('protected', False)
+                    }
+                    branch_list.append(branch_info)
+                
                 return {
                     "success": True,
-                    "repositories": [
-                        {
-                            "name": repo.get('name'),
-                            "full_name": repo.get('full_name'),
-                            "description": repo.get('description'),
-                            "language": repo.get('language'),
-                            "private": repo.get('private'),
-                            "url": repo.get('html_url'),
-                            "clone_url": repo.get('clone_url')
-                        }
-                        for repo in repos
-                    ]
+                    "branches": branch_list,
+                    "total_count": len(branch_list)
                 }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to fetch repositories: {response.status_code}"
+                    "error": f"Failed to fetch branches: {response.status_code}",
+                    "branches": []
                 }
+                
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error fetching repositories: {str(e)}"
+                "error": f"Failed to fetch branches: {str(e)}",
+                "branches": []
             }
     
-    def get_repository_content(self, owner: str, repo: str, path: str = "") -> Dict[str, Any]:
-        """Get content of a repository or specific path."""
+    def get_repository_content(self, owner: str, repo: str, path: str = "", branch: str = None) -> Dict[str, Any]:
+        """Get repository content at a specific path and branch."""
         try:
             url = f"{self.api_base}/repos/{owner}/{repo}/contents/{path}"
-            response = requests.get(url, headers=self.headers)
+            params = {}
+            if branch:
+                params['ref'] = branch
+            
+            response = requests.get(url, headers=self.headers, params=params)
             
             if response.status_code == 200:
                 content = response.json()
-                return {
-                    "success": True,
-                    "content": content
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Failed to fetch content: {response.status_code}"
-                }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Error fetching content: {str(e)}"
-            }
-    
-    def get_file_content(self, owner: str, repo: str, path: str) -> Dict[str, Any]:
-        """Get content of a specific file."""
-        try:
-            url = f"{self.api_base}/repos/{owner}/{repo}/contents/{path}"
-            response = requests.get(url, headers=self.headers)
-            
-            if response.status_code == 200:
-                file_data = response.json()
-                if file_data.get('type') == 'file':
-                    # Decode content
-                    content = base64.b64decode(file_data.get('content', '')).decode('utf-8')
+                
+                if isinstance(content, list):
+                    # Directory listing
                     return {
                         "success": True,
-                        "content": content,
-                        "filename": file_data.get('name'),
-                        "path": file_data.get('path'),
-                        "size": file_data.get('size'),
-                        "sha": file_data.get('sha')
+                        "type": "directory",
+                        "path": path,
+                        "items": [
+                            {
+                                "name": item.get('name'),
+                                "path": item.get('path'),
+                                "type": item.get('type'),
+                                "size": item.get('size'),
+                                "sha": item.get('sha')
+                            }
+                            for item in content
+                        ]
                     }
                 else:
+                    # Single file
                     return {
-                        "success": False,
-                        "error": "Path is not a file"
+                        "success": True,
+                        "type": "file",
+                        "name": content.get('name'),
+                        "path": content.get('path'),
+                        "size": content.get('size'),
+                        "sha": content.get('sha'),
+                        "content": base64.b64decode(content.get('content', '')).decode('utf-8'),
+                        "encoding": content.get('encoding')
                     }
             else:
                 return {
                     "success": False,
-                    "error": f"Failed to fetch file: {response.status_code}"
+                    "error": f"Failed to fetch content: {response.status_code}",
+                    "message": response.text
                 }
+                
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error fetching file: {str(e)}"
+                "error": f"Failed to fetch content: {str(e)}"
             }
     
-    def clone_repository(self, repo_url: str, local_path: str = None) -> Dict[str, Any]:
+    def get_file_content(self, owner: str, repo: str, file_path: str, branch: str = None) -> Dict[str, Any]:
+        """Get content of a specific file."""
+        return self.get_repository_content(owner, repo, file_path, branch)
+    
+    def clone_repository(self, owner: str, repo: str, branch: str = None) -> Dict[str, Any]:
         """Clone a repository locally for analysis."""
         try:
-            if not local_path:
-                local_path = tempfile.mkdtemp(prefix="github_review_")
+            # Create temporary directory
+            local_path = tempfile.mkdtemp(prefix="github_review_")
             
-            # Clone the repository
-            result = subprocess.run(
-                ['git', 'clone', repo_url, local_path],
-                capture_output=True,
-                text=True
-            )
+            # Determine clone URL
+            if self.github_token:
+                # Use authenticated URL for private repos
+                clone_url = f"https://{self.github_token}@github.com/{owner}/{repo}.git"
+            else:
+                # Use public URL
+                clone_url = f"https://github.com/{owner}/{repo}.git"
+            
+            # Clone command
+            clone_cmd = ["git", "clone", clone_url, local_path]
+            if branch and branch != "main" and branch != "master":
+                clone_cmd.extend(["-b", branch])
+            
+            # Execute clone
+            result = subprocess.run(clone_cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
                 return {
                     "success": True,
                     "local_path": local_path,
-                    "message": "Repository cloned successfully"
+                    "repository": f"{owner}/{repo}",
+                    "branch": branch or "default"
                 }
             else:
+                # Clean up on failure
+                shutil.rmtree(local_path, ignore_errors=True)
                 return {
                     "success": False,
-                    "error": f"Git clone failed: {result.stderr}"
+                    "error": f"Clone failed: {result.stderr}",
+                    "local_path": None
                 }
+                
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error cloning repository: {str(e)}"
+                "error": f"Clone failed: {str(e)}",
+                "local_path": None
             }
     
-    def analyze_repository(self, owner: str, repo: str, clone_locally: bool = True) -> Dict[str, Any]:
-        """Analyze an entire repository."""
+    def analyze_repository(self, owner: str, repo: str, clone_locally: bool = True, branch: str = None) -> Dict[str, Any]:
+        """Analyze a repository using the code reviewer."""
         try:
-            repo_url = f"https://github.com/{owner}/{repo}.git"
-            
             if clone_locally:
                 # Clone repository locally
-                clone_result = self.clone_repository(repo_url)
+                clone_result = self.clone_repository(owner, repo, branch)
                 if not clone_result["success"]:
                     return clone_result
                 
                 local_path = clone_result["local_path"]
                 
-                # Analyze all files in the repository
-                return self._analyze_local_repository(local_path, f"{owner}/{repo}")
+                # Analyze the local repository
+                analysis_result = self._analyze_local_repository(local_path)
+                analysis_result["local_path"] = local_path
+                
+                return analysis_result
             else:
-                # Analyze repository via GitHub API
-                return self._analyze_remote_repository(owner, repo)
+                # Analyze using GitHub API only
+                return self._analyze_remote_repository(owner, repo, branch)
                 
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error analyzing repository: {str(e)}"
+                "error": f"Analysis failed: {str(e)}"
             }
     
-    def _analyze_local_repository(self, local_path: str, repo_name: str) -> Dict[str, Any]:
+    def _analyze_local_repository(self, local_path: str) -> Dict[str, Any]:
         """Analyze a locally cloned repository."""
         try:
-            results = []
-            supported_extensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs']
-            
-            # Walk through all files
+            # Get all Python files in the repository
+            python_files = []
             for root, dirs, files in os.walk(local_path):
-                # Skip .git directory
-                if '.git' in dirs:
-                    dirs.remove('.git')
+                # Skip common directories that shouldn't be analyzed
+                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', '.venv', 'venv']]
                 
                 for file in files:
-                    if any(file.endswith(ext) for ext in supported_extensions):
-                        filepath = os.path.join(root, file)
-                        relative_path = os.path.relpath(filepath, local_path)
-                        
-                        try:
-                            with open(filepath, 'r', encoding='utf-8') as f:
-                                code = f.read()
-                            
-                            # Analyze the file
-                            report = code_reviewer.generate_report(code, relative_path)
-                            results.append({
-                                "file": relative_path,
-                                "report": report
-                            })
-                            
-                        except Exception as e:
-                            results.append({
-                                "file": relative_path,
-                                "error": str(e)
-                            })
+                    if file.endswith('.py'):
+                        file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(file_path, local_path)
+                        python_files.append({
+                            'file': relative_path,
+                            'full_path': file_path
+                        })
             
-            # Calculate overall statistics
-            total_files = len(results)
-            successful_reviews = len([r for r in results if 'report' in r])
-            total_issues = sum([r['report']['issues']['total'] for r in results if 'report' in r])
-            avg_score = sum([r['report']['score'] for r in results if 'report' in r]) / successful_reviews if successful_reviews > 0 else 0
+            # Analyze each file
+            results = []
+            for file_info in python_files:
+                try:
+                    with open(file_info['full_path'], 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Analyze the file
+                    report = code_reviewer.analyze_code(content, file_info['file'])
+                    results.append({
+                        'file': file_info['file'],
+                        'report': report
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to analyze {file_info['file']}: {e}")
+                    results.append({
+                        'file': file_info['file'],
+                        'error': str(e)
+                    })
+            
+            # Generate summary
+            summary = self._generate_summary(results)
             
             return {
                 "success": True,
-                "repository": repo_name,
-                "local_path": local_path,
-                "summary": {
-                    "total_files": total_files,
-                    "successful_reviews": successful_reviews,
-                    "total_issues": total_issues,
-                    "average_score": round(avg_score, 2)
-                },
-                "results": results
+                "results": results,
+                "summary": summary,
+                "total_files": len(python_files)
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error analyzing local repository: {str(e)}"
+                "error": f"Local analysis failed: {str(e)}"
             }
     
-    def _analyze_remote_repository(self, owner: str, repo: str) -> Dict[str, Any]:
-        """Analyze repository via GitHub API (limited to smaller files)."""
+    def _analyze_remote_repository(self, owner: str, repo: str, branch: str = None) -> Dict[str, Any]:
+        """Analyze a repository using GitHub API only."""
         try:
             # Get repository content
-            content_result = self.get_repository_content(owner, repo)
+            content_result = self.get_repository_content(owner, repo, "", branch)
+            
             if not content_result["success"]:
                 return content_result
             
-            results = []
-            supported_extensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs']
+            if content_result["type"] != "directory":
+                return {
+                    "success": False,
+                    "error": "Repository root is not a directory"
+                }
             
-            # Analyze files (this is a simplified version - for full analysis, clone locally)
-            for item in content_result["content"]:
-                if item.get('type') == 'file':
-                    filename = item.get('name', '')
-                    if any(filename.endswith(ext) for ext in supported_extensions):
-                        # Only analyze smaller files via API
-                        if item.get('size', 0) < 1000000:  # 1MB limit
-                            file_result = self.get_file_content(owner, repo, item.get('path', ''))
-                            if file_result["success"]:
-                                report = code_reviewer.generate_report(
-                                    file_result["content"], 
-                                    file_result["filename"]
-                                )
-                                results.append({
-                                    "file": item.get('path', ''),
-                                    "report": report
-                                })
+            # Find Python files
+            python_files = []
+            self._find_python_files_recursive(owner, repo, "", python_files, branch)
+            
+            # Analyze each file
+            results = []
+            for file_info in python_files:
+                try:
+                    file_content = self.get_file_content(owner, repo, file_info['path'], branch)
+                    if file_content["success"] and file_content["type"] == "file":
+                        content = file_content["content"]
+                        report = code_reviewer.analyze_code(content, file_info['path'])
+                        results.append({
+                            'file': file_info['path'],
+                            'report': report
+                        })
+                except Exception as e:
+                    logger.warning(f"Failed to analyze {file_info['path']}: {e}")
+                    results.append({
+                        'file': file_info['path'],
+                        'error': str(e)
+                    })
+            
+            # Generate summary
+            summary = self._generate_summary(results)
             
             return {
                 "success": True,
-                "repository": f"{owner}/{repo}",
-                "summary": {
-                    "total_files": len(results),
-                    "note": "Limited analysis via API. Use clone_locally=True for full analysis."
-                },
-                "results": results
+                "results": results,
+                "summary": summary,
+                "total_files": len(python_files)
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error analyzing remote repository: {str(e)}"
+                "error": f"Remote analysis failed: {str(e)}"
             }
+    
+    def _find_python_files_recursive(self, owner: str, repo: str, path: str, python_files: List[Dict], branch: str = None):
+        """Recursively find Python files in repository."""
+        try:
+            content_result = self.get_repository_content(owner, repo, path, branch)
+            
+            if not content_result["success"] or content_result["type"] != "directory":
+                return
+            
+            for item in content_result["items"]:
+                if item["type"] == "file" and item["name"].endswith('.py'):
+                    python_files.append({
+                        'path': item['path'],
+                        'name': item['name']
+                    })
+                elif item["type"] == "directory":
+                    # Skip common directories
+                    if item["name"] not in ['.git', '__pycache__', 'node_modules', '.venv', 'venv']:
+                        self._find_python_files_recursive(owner, repo, item["path"], python_files, branch)
+                        
+        except Exception as e:
+            logger.warning(f"Failed to explore directory {path}: {e}")
+    
+    def _generate_summary(self, results: List[Dict]) -> Dict[str, Any]:
+        """Generate summary statistics from analysis results."""
+        total_files = len(results)
+        successful_reviews = len([r for r in results if 'report' in r])
+        
+        if successful_reviews == 0:
+            return {
+                "total_files": total_files,
+                "successful_reviews": 0,
+                "average_score": 0,
+                "overall_grade": "F",
+                "total_issues": 0,
+                "critical_issues": 0,
+                "high_issues": 0,
+                "medium_issues": 0,
+                "low_issues": 0
+            }
+        
+        # Calculate scores and issues
+        scores = []
+        total_issues = 0
+        critical_issues = 0
+        high_issues = 0
+        medium_issues = 0
+        low_issues = 0
+        
+        for result in results:
+            if 'report' in result:
+                report = result['report']
+                scores.append(report.get('score', 0))
+                
+                issues = report.get('issues', {})
+                total_issues += issues.get('total', 0)
+                critical_issues += issues.get('critical', 0)
+                high_issues += issues.get('high', 0)
+                medium_issues += issues.get('medium', 0)
+                low_issues += issues.get('low', 0)
+        
+        average_score = sum(scores) / len(scores) if scores else 0
+        
+        # Determine overall grade
+        if average_score >= 90:
+            overall_grade = "A"
+        elif average_score >= 80:
+            overall_grade = "B"
+        elif average_score >= 70:
+            overall_grade = "C"
+        elif average_score >= 60:
+            overall_grade = "D"
+        else:
+            overall_grade = "F"
+        
+        return {
+            "total_files": total_files,
+            "successful_reviews": successful_reviews,
+            "average_score": round(average_score, 2),
+            "overall_grade": overall_grade,
+            "total_issues": total_issues,
+            "critical_issues": critical_issues,
+            "high_issues": high_issues,
+            "medium_issues": medium_issues,
+            "low_issues": low_issues
+        }
     
     def review_pull_request(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
         """Review a specific pull request."""
@@ -342,53 +530,53 @@ class GitHubCodeReviewer:
             
             # Analyze changed files
             results = []
-            supported_extensions = ['.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.cs']
-            
             for file_info in files_data:
-                filename = file_info.get('filename', '')
-                if any(filename.endswith(ext) for ext in supported_extensions):
+                if file_info['filename'].endswith('.py'):
                     # Get file content
-                    file_result = self.get_file_content(owner, repo, filename)
-                    if file_result["success"]:
-                        report = code_reviewer.generate_report(
-                            file_result["content"], 
-                            filename
-                        )
+                    content_url = f"{self.api_base}/repos/{owner}/{repo}/contents/{file_info['filename']}?ref={pr_data['head']['ref']}"
+                    content_response = requests.get(content_url, headers=self.headers)
+                    
+                    if content_response.status_code == 200:
+                        content_data = content_response.json()
+                        content = base64.b64decode(content_data.get('content', '')).decode('utf-8')
+                        
+                        # Analyze the file
+                        report = code_reviewer.analyze_code(content, file_info['filename'])
                         results.append({
-                            "file": filename,
-                            "status": file_info.get('status'),
-                            "additions": file_info.get('additions'),
-                            "deletions": file_info.get('deletions'),
-                            "report": report
+                            'file': file_info['filename'],
+                            'report': report,
+                            'status': file_info['status'],
+                            'additions': file_info['additions'],
+                            'deletions': file_info['deletions']
                         })
+            
+            # Generate summary
+            summary = self._generate_summary(results)
             
             return {
                 "success": True,
-                "pull_request": {
-                    "number": pr_number,
-                    "title": pr_data.get('title'),
-                    "author": pr_data.get('user', {}).get('login'),
-                    "state": pr_data.get('state'),
-                    "changed_files": len(files_data)
-                },
-                "results": results
+                "pr_number": pr_number,
+                "title": pr_data.get('title'),
+                "author": pr_data.get('user', {}).get('login'),
+                "state": pr_data.get('state'),
+                "results": results,
+                "summary": summary
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Error reviewing pull request: {str(e)}"
+                "error": f"PR review failed: {str(e)}"
             }
     
     def cleanup_local_repository(self, local_path: str):
         """Clean up locally cloned repository."""
-        try:
-            if os.path.exists(local_path):
+        if local_path and os.path.exists(local_path):
+            try:
                 shutil.rmtree(local_path)
-                return True
-        except Exception as e:
-            logger.error(f"Error cleaning up {local_path}: {e}")
-            return False
+                logger.info(f"Cleaned up: {local_path}")
+            except Exception as e:
+                logger.error(f"Failed to clean up {local_path}: {e}")
 
-# Create a global instance
+# Global instance
 github_reviewer = GitHubCodeReviewer() 
