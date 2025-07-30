@@ -5,7 +5,7 @@ GitHub Code Review Agent CLI
 
 A dedicated command-line interface for reviewing GitHub repositories.
 Enhanced with full GitHub access, repository management, and PR commenting.
-Version: 1.2.0
+Version: 1.3.0
 """
 
 import sys
@@ -24,7 +24,7 @@ class CodeReviewCLI:
     
     def __init__(self):
         self.agent = GitHubReviewAgent()
-        self.version = "1.2.0"
+        self.version = "1.3.0"
     
     def print_banner(self):
         """Print the CLI banner."""
@@ -47,6 +47,8 @@ class CodeReviewCLI:
         print("  review-pr <owner/repo> <pr#>          - Review a specific pull request")
         print("  comment-pr <owner/repo> <pr#> [options] - Review and comment on PR")
         print("  add-comment <owner/repo> <pr#> <comment> - Add a single comment to PR")
+        print("  list-prs [options]                    - List all accessible pull requests")
+        print("  select-pr                             - Interactive PR selection and commenting")
         print("  test-connection                       - Test GitHub connection")
         print("  help                                  - Show this help")
         print("  version                               - Show version information")
@@ -64,6 +66,9 @@ class CodeReviewCLI:
         print("  comment-pr owner/repo 123 --auto-comment")
         print("  comment-pr owner/repo 123 --no-auto-comment")
         print("  add-comment owner/repo 123 \"Great work on this feature!\"")
+        print("  list-prs --state open")
+        print("  list-prs --state closed")
+        print("  select-pr")
         print("\n🔧 Review Options:")
         print("  --type <type>               - Review type: full, security, performance, style")
         print("  --format <format>           - Output format: summary, detailed, json")
@@ -107,6 +112,10 @@ class CodeReviewCLI:
             return self.parse_comment_pr_command(args)
         elif cmd == "add-comment":
             return self.parse_add_comment_command(args)
+        elif cmd == "list-prs":
+            return self.parse_list_prs_command(args)
+        elif cmd == "select-pr":
+            return "select_pr", {}
         elif cmd == "test-connection":
             return "test_connection", {}
         elif cmd == "help":
@@ -303,6 +312,30 @@ class CodeReviewCLI:
         }
         
         return "add_comment", options
+    
+    def parse_list_prs_command(self, args):
+        """Parse list-prs command arguments."""
+        options = {
+            "state": "open",
+            "include_private": True
+        }
+        
+        i = 0
+        while i < len(args):
+            if args[i] == "--state" and i + 1 < len(args):
+                state = args[i + 1].lower()
+                if state in ["open", "closed", "all"]:
+                    options["state"] = state
+                else:
+                    return "error", {"message": "State must be 'open', 'closed', or 'all'"}
+                i += 2
+            elif args[i] == "--public-only":
+                options["include_private"] = False
+                i += 1
+            else:
+                return "error", {"message": f"Unknown option: {args[i]}"}
+        
+        return "list_prs", options
     
     async def execute_review(self, repo_url: str, options: dict) -> bool:
         """Execute repository review."""
@@ -512,6 +545,186 @@ class CodeReviewCLI:
                 
         except Exception as e:
             print(f"❌ Failed to add comment: {e}")
+                            return False
+    
+    async def execute_list_prs(self, options: dict) -> bool:
+        """Execute list pull requests command."""
+        try:
+            print(f"📋 Fetching {options['state']} pull requests...")
+            
+            result = self.agent.list_all_pull_requests(
+                state=options["state"],
+                include_private=options["include_private"]
+            )
+            
+            if result["success"]:
+                prs = result["pull_requests"]
+                print(f"\n📊 Found {len(prs)} {options['state']} pull requests:")
+                print("-" * 100)
+                
+                for i, pr in enumerate(prs, 1):
+                    state_emoji = "🟢" if pr["state"] == "open" else "🔴"
+                    draft_emoji = "📝" if pr.get("draft", False) else ""
+                    repo_visibility = "🔒" if pr.get("repo_private", False) else "🌐"
+                    
+                    print(f"{i:3d}. {state_emoji} {draft_emoji} {repo_visibility} {pr['repository']}#{pr['number']}")
+                    print(f"     📝 {pr['title']}")
+                    print(f"     👤 {pr['author']} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
+                    print(f"     📅 Updated: {pr['updated_at']}")
+                    print(f"     📁 Files: {pr['changed_files']} | 💬 Comments: {pr['comments']}")
+                    print()
+                
+                return True
+            else:
+                print(f"❌ Failed to fetch pull requests: {result.get('error', 'Unknown error')}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed to list pull requests: {e}")
+            return False
+    
+    async def execute_select_pr(self) -> bool:
+        """Execute interactive PR selection and commenting."""
+        try:
+            print("🔍 Interactive PR Selection Mode")
+            print("=" * 50)
+            
+            # First, get all open PRs
+            print("📋 Fetching open pull requests...")
+            result = self.agent.list_all_pull_requests(state="open", include_private=True)
+            
+            if not result["success"]:
+                print(f"❌ Failed to fetch pull requests: {result.get('error', 'Unknown error')}")
+                return False
+            
+            prs = result["pull_requests"]
+            if not prs:
+                print("📭 No open pull requests found.")
+                return True
+            
+            print(f"\n📊 Found {len(prs)} open pull requests:")
+            print("-" * 80)
+            
+            # Display PRs with selection numbers
+            for i, pr in enumerate(prs, 1):
+                draft_emoji = "📝" if pr.get("draft", False) else ""
+                repo_visibility = "🔒" if pr.get("repo_private", False) else "🌐"
+                
+                print(f"{i:2d}. {draft_emoji} {repo_visibility} {pr['repository']}#{pr['number']}")
+                print(f"     📝 {pr['title']}")
+                print(f"     👤 {pr['author']} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
+                print(f"     📅 Updated: {pr['updated_at']}")
+                print(f"     📁 Files: {pr['changed_files']} | 💬 Comments: {pr['comments']}")
+                print()
+            
+            # Get user selection
+            while True:
+                try:
+                    selection = input("🔢 Select a PR number (or 'q' to quit): ").strip()
+                    
+                    if selection.lower() == 'q':
+                        print("👋 Exiting PR selection mode.")
+                        return True
+                    
+                    pr_index = int(selection) - 1
+                    if 0 <= pr_index < len(prs):
+                        selected_pr = prs[pr_index]
+                        break
+                    else:
+                        print(f"❌ Invalid selection. Please choose a number between 1 and {len(prs)}")
+                        
+                except ValueError:
+                    print("❌ Please enter a valid number or 'q' to quit")
+            
+            # Show PR details
+            print(f"\n📋 Selected: {selected_pr['repository']}#{selected_pr['number']}")
+            print(f"📝 Title: {selected_pr['title']}")
+            print(f"👤 Author: {selected_pr['author']}")
+            print(f"🌿 Branch: {selected_pr['head_branch']} → {selected_pr['base_branch']}")
+            print(f"📅 Created: {selected_pr['created_at']}")
+            print(f"📅 Updated: {selected_pr['updated_at']}")
+            print(f"📁 Changed Files: {selected_pr['changed_files']}")
+            print(f"💬 Comments: {selected_pr['comments']}")
+            print(f"🔗 URL: {selected_pr['html_url']}")
+            
+            # Ask what action to take
+            print("\n🎯 What would you like to do?")
+            print("1. Review and comment on this PR")
+            print("2. Add a single comment")
+            print("3. Just review (no comments)")
+            print("4. View PR details")
+            print("5. Cancel")
+            
+            while True:
+                action = input("\n🔢 Choose action (1-5): ").strip()
+                
+                if action == "1":
+                    # Review and comment
+                    return await self.execute_comment_pr({
+                        "owner": selected_pr["repo_owner"],
+                        "repo": selected_pr["repo_name"],
+                        "pr_number": selected_pr["number"],
+                        "auto_comment": True
+                    })
+                    
+                elif action == "2":
+                    # Add single comment
+                    comment = input("💬 Enter your comment: ").strip()
+                    if comment:
+                        return await self.execute_add_comment(
+                            selected_pr["repo_owner"],
+                            selected_pr["repo_name"],
+                            selected_pr["number"],
+                            comment
+                        )
+                    else:
+                        print("❌ Comment cannot be empty")
+                        
+                elif action == "3":
+                    # Just review
+                    return await self.execute_review_pr(
+                        selected_pr["repo_owner"],
+                        selected_pr["repo_name"],
+                        selected_pr["number"]
+                    )
+                    
+                elif action == "4":
+                    # View PR details
+                    details_result = self.agent.get_pull_request_details(
+                        selected_pr["repo_owner"],
+                        selected_pr["repo_name"],
+                        selected_pr["number"]
+                    )
+                    
+                    if details_result["success"]:
+                        pr_details = details_result["pull_request"]
+                        print(f"\n📋 PR Details:")
+                        print(f"   📝 Body: {pr_details.get('body', 'No description')[:200]}...")
+                        print(f"   🏷️  Labels: {', '.join(pr_details.get('labels', []))}")
+                        print(f"   👥 Assignees: {', '.join(pr_details.get('assignees', []))}")
+                        print(f"   👀 Requested Reviewers: {', '.join(pr_details.get('requested_reviewers', []))}")
+                        print(f"   📊 Reviews: {len(pr_details.get('reviews', []))}")
+                        print(f"   💬 Comments: {len(pr_details.get('comments', []))}")
+                    else:
+                        print(f"❌ Failed to get PR details: {details_result.get('error', 'Unknown error')}")
+                    
+                    # Ask again what to do
+                    print("\n🎯 What would you like to do?")
+                    print("1. Review and comment on this PR")
+                    print("2. Add a single comment")
+                    print("3. Just review (no comments)")
+                    print("4. View PR details")
+                    print("5. Cancel")
+                    
+                elif action == "5":
+                    print("👋 Cancelled.")
+                    return True
+                    
+                else:
+                    print("❌ Please choose a number between 1 and 5")
+            
+        except Exception as e:
+            print(f"❌ PR selection failed: {e}")
             return False
     
     async def execute_test_connection(self) -> bool:
@@ -712,6 +925,10 @@ class CodeReviewCLI:
                     success = await self.execute_add_comment(args["owner"], args["repo"], args["pr_number"], args["comment"], args.get("line"), args.get("file"))
                     if success:
                         print("\n🎉 Comment added successfully!")
+                elif cmd == "list_prs":
+                    await self.execute_list_prs(args)
+                elif cmd == "select_pr":
+                    await self.execute_select_pr()
                 elif cmd == "test_connection":
                     await self.execute_test_connection()
                 elif cmd == "error":

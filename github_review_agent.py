@@ -5,7 +5,7 @@ GitHub Repository Code Review Agent
 
 A simple agent that reviews any GitHub repository and returns a comprehensive report.
 Enhanced with full repository and branch access, plus PR commenting capabilities.
-Version: 1.2.0
+Version: 1.3.0
 """
 
 import sys
@@ -27,7 +27,7 @@ class GitHubReviewAgent:
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
         self.reviewer = GitHubCodeReviewer(self.github_token)
-        self.version = "1.2.0"
+        self.version = "1.3.0"
     
     def test_github_connection(self) -> Dict[str, Any]:
         """Test GitHub connection and get user information."""
@@ -40,6 +40,18 @@ class GitHubReviewAgent:
     def list_repository_branches(self, owner: str, repo: str) -> Dict[str, Any]:
         """List all branches for a specific repository."""
         return self.reviewer.get_repository_branches(owner, repo)
+    
+    def list_repository_pull_requests(self, owner: str, repo: str, state: str = "open") -> Dict[str, Any]:
+        """List all pull requests for a specific repository."""
+        return self.reviewer.get_repository_pull_requests(owner, repo, state)
+    
+    def list_all_pull_requests(self, state: str = "open", include_private: bool = True) -> Dict[str, Any]:
+        """List all pull requests from all accessible repositories."""
+        return self.reviewer.get_all_accessible_pull_requests(state, include_private)
+    
+    def get_pull_request_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get detailed information about a specific pull request."""
+        return self.reviewer.get_pull_request_details(owner, repo, pr_number)
     
     def extract_repo_info(self, repo_url: str) -> Dict[str, str]:
         """Extract owner and repo name from various URL formats."""

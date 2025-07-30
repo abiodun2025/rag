@@ -136,6 +136,196 @@ class GitHubCodeReviewer:
                 "repositories": []
             }
     
+    def get_repository_pull_requests(self, owner: str, repo: str, state: str = "open") -> Dict[str, Any]:
+        """Get all pull requests for a specific repository."""
+        try:
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls"
+            params = {"state": state, "sort": "updated", "direction": "desc"}
+            
+            response = requests.get(url, headers=self.headers, params=params)
+            
+            if response.status_code == 200:
+                prs = response.json()
+                pr_list = []
+                
+                for pr in prs:
+                    pr_info = {
+                        "number": pr.get('number'),
+                        "title": pr.get('title'),
+                        "state": pr.get('state'),
+                        "author": pr.get('user', {}).get('login'),
+                        "author_avatar": pr.get('user', {}).get('avatar_url'),
+                        "created_at": pr.get('created_at'),
+                        "updated_at": pr.get('updated_at'),
+                        "merged_at": pr.get('merged_at'),
+                        "closed_at": pr.get('closed_at'),
+                        "head_branch": pr.get('head', {}).get('ref'),
+                        "base_branch": pr.get('base', {}).get('ref'),
+                        "head_sha": pr.get('head', {}).get('sha'),
+                        "base_sha": pr.get('base', {}).get('sha'),
+                        "draft": pr.get('draft', False),
+                        "mergeable": pr.get('mergeable'),
+                        "mergeable_state": pr.get('mergeable_state'),
+                        "comments": pr.get('comments', 0),
+                        "review_comments": pr.get('review_comments', 0),
+                        "commits": pr.get('commits', 0),
+                        "additions": pr.get('additions', 0),
+                        "deletions": pr.get('deletions', 0),
+                        "changed_files": pr.get('changed_files', 0),
+                        "labels": [label.get('name') for label in pr.get('labels', [])],
+                        "assignees": [assignee.get('login') for assignee in pr.get('assignees', [])],
+                        "requested_reviewers": [reviewer.get('login') for reviewer in pr.get('requested_reviewers', [])],
+                        "html_url": pr.get('html_url'),
+                        "diff_url": pr.get('diff_url'),
+                        "patch_url": pr.get('patch_url'),
+                        "body": pr.get('body', '')
+                    }
+                    pr_list.append(pr_info)
+                
+                return {
+                    "success": True,
+                    "pull_requests": pr_list,
+                    "total_count": len(pr_list),
+                    "repository": f"{owner}/{repo}"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch pull requests: {response.status_code}",
+                    "pull_requests": []
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch pull requests: {str(e)}",
+                "pull_requests": []
+            }
+    
+    def get_all_accessible_pull_requests(self, state: str = "open", include_private: bool = True) -> Dict[str, Any]:
+        """Get all pull requests from all accessible repositories."""
+        try:
+            if not self.github_token:
+                return {
+                    "success": False,
+                    "error": "GitHub token required to access pull requests",
+                    "pull_requests": []
+                }
+            
+            # Get all repositories
+            repos_result = self.get_user_repositories(include_private)
+            if not repos_result["success"]:
+                return repos_result
+            
+            all_prs = []
+            total_repos = len(repos_result["repositories"])
+            
+            for i, repo in enumerate(repos_result["repositories"], 1):
+                try:
+                    owner, repo_name = repo["full_name"].split("/", 1)
+                    prs_result = self.get_repository_pull_requests(owner, repo_name, state)
+                    
+                    if prs_result["success"]:
+                        for pr in prs_result["pull_requests"]:
+                            pr["repository"] = repo["full_name"]
+                            pr["repo_owner"] = owner
+                            pr["repo_name"] = repo_name
+                            pr["repo_private"] = repo["private"]
+                            pr["repo_language"] = repo.get("language", "Unknown")
+                        all_prs.extend(prs_result["pull_requests"])
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to fetch PRs for {repo['full_name']}: {e}")
+                    continue
+            
+            # Sort by updated date (most recent first)
+            all_prs.sort(key=lambda x: x.get('updated_at', ''), reverse=True)
+            
+            return {
+                "success": True,
+                "pull_requests": all_prs,
+                "total_count": len(all_prs),
+                "repositories_checked": total_repos
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch all pull requests: {str(e)}",
+                "pull_requests": []
+            }
+    
+    def get_pull_request_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get detailed information about a specific pull request."""
+        try:
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code == 200:
+                pr = response.json()
+                
+                # Get additional information
+                reviews_url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
+                reviews_response = requests.get(reviews_url, headers=self.headers)
+                reviews = reviews_response.json() if reviews_response.status_code == 200 else []
+                
+                # Get comments
+                comments_url = f"{self.api_base}/repos/{owner}/{repo}/issues/{pr_number}/comments"
+                comments_response = requests.get(comments_url, headers=self.headers)
+                comments = comments_response.json() if comments_response.status_code == 200 else []
+                
+                pr_details = {
+                    "number": pr.get('number'),
+                    "title": pr.get('title'),
+                    "state": pr.get('state'),
+                    "author": pr.get('user', {}).get('login'),
+                    "author_avatar": pr.get('user', {}).get('avatar_url'),
+                    "created_at": pr.get('created_at'),
+                    "updated_at": pr.get('updated_at'),
+                    "merged_at": pr.get('merged_at'),
+                    "closed_at": pr.get('closed_at'),
+                    "head_branch": pr.get('head', {}).get('ref'),
+                    "base_branch": pr.get('base', {}).get('ref'),
+                    "head_sha": pr.get('head', {}).get('sha'),
+                    "base_sha": pr.get('base', {}).get('sha'),
+                    "draft": pr.get('draft', False),
+                    "mergeable": pr.get('mergeable'),
+                    "mergeable_state": pr.get('mergeable_state'),
+                    "comments": pr.get('comments', 0),
+                    "review_comments": pr.get('review_comments', 0),
+                    "commits": pr.get('commits', 0),
+                    "additions": pr.get('additions', 0),
+                    "deletions": pr.get('deletions', 0),
+                    "changed_files": pr.get('changed_files', 0),
+                    "labels": [label.get('name') for label in pr.get('labels', [])],
+                    "assignees": [assignee.get('login') for assignee in pr.get('assignees', [])],
+                    "requested_reviewers": [reviewer.get('login') for reviewer in pr.get('requested_reviewers', [])],
+                    "html_url": pr.get('html_url'),
+                    "diff_url": pr.get('diff_url'),
+                    "patch_url": pr.get('patch_url'),
+                    "body": pr.get('body', ''),
+                    "reviews": reviews,
+                    "comments": comments,
+                    "repository": f"{owner}/{repo}"
+                }
+                
+                return {
+                    "success": True,
+                    "pull_request": pr_details
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch pull request: {response.status_code}",
+                    "message": response.text
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch pull request details: {str(e)}"
+            }
+    
     def get_repository_branches(self, owner: str, repo: str) -> Dict[str, Any]:
         """Get all branches for a specific repository."""
         try:
