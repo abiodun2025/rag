@@ -3626,8 +3626,8 @@ Constraints:
             
             if response.status_code == 200:
                 prs = response.json()
-            return {
-                "success": True,
+                return {
+                    "success": True,
                     "tool_name": "list_pull_requests",
                     "result": f"Found {len(prs)} pull requests",
                     "pull_requests": [
@@ -3686,8 +3686,8 @@ Constraints:
             response = requests.put(url, headers=headers, json=data)
             
             if response.status_code == 200:
-            return {
-                "success": True,
+                return {
+                    "success": True,
                     "tool_name": "merge_pull_request",
                     "result": f"Pull request #{pr_number} merged successfully"
                 }
@@ -3733,8 +3733,8 @@ Constraints:
             
             if response.status_code == 200:
                 pr_data = response.json()
-            return {
-                "success": True,
+                return {
+                    "success": True,
                     "tool_name": "get_pull_request",
                     "result": f"Pull request #{pr_number} details retrieved",
                     "pr_data": pr_data

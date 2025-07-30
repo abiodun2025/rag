@@ -32,10 +32,9 @@ def print_help():
     print("  quit                            - Exit the CLI")
     
     print("\n📋 Workflow Types (Separation of Concerns):")
-    print("  create_pr                       - PR Agent only (creates PR)")
-    print("  pr_with_report                  - PR Agent + Report Agent")
+    print("  pr_with_report                  - PR Agent + Report Agent (creates PR + generates report)")
     print("  create_branch                   - Branch Agent only (creates branch + pushes to GitHub)")
-    print("  branch_and_pr                   - Branch Agent + PR Agent")
+    print("  branch_and_pr                   - Branch Agent + PR Agent (creates branch + creates PR)")
     print("  full_branch_workflow            - Complete workflow (Branch + Push + PR + Report)")
     
     print("\n📋 Agent Responsibilities:")
@@ -45,7 +44,6 @@ def print_help():
     
     print("\n📋 Examples:")
     print("  interactive                     - Step-by-step workflow creation")
-    print("  create create_pr 'My PR' my-branch")
     print("  create pr_with_report 'My Feature' feature-branch")
     print("  create create_branch 'New Feature' new-feature-branch")
     print("  create branch_and_pr 'Feature with PR' feature-pr-branch")
@@ -56,14 +54,7 @@ def print_help():
 def create_workflow(master, workflow_type, title, branch):
     """Create a new workflow."""
     try:
-        if workflow_type == "create_pr":
-            parameters = {
-                "title": title,
-                "description": f"Created by Master Agent CLI\nBranch: {branch}",
-                "source_branch": branch,
-                "target_branch": "main"
-            }
-        elif workflow_type == "pr_with_report":
+        if workflow_type == "pr_with_report":
             parameters = {
                 "title": title,
                 "description": f"""Created by Master Agent CLI
@@ -174,32 +165,28 @@ def create_workflow_interactive(master):
     """Create a workflow interactively with step-by-step prompts."""
     print("\n📋 Step 1: Choose Workflow Type")
     print("Available types:")
-    print("  1. create_pr          - PR Agent only (creates PR)")
-    print("  2. pr_with_report     - PR Agent + Report Agent")
-    print("  3. create_branch      - Branch Agent only (creates branch)")
-    print("  4. branch_and_pr      - Branch Agent + PR Agent")
-    print("  5. full_branch_workflow - Complete workflow (Branch + Push + PR + Report)")
+    print("  1. pr_with_report     - PR Agent + Report Agent (creates PR + generates report)")
+    print("  2. create_branch      - Branch Agent only (creates branch + pushes to GitHub)")
+    print("  3. branch_and_pr      - Branch Agent + PR Agent (creates branch + creates PR)")
+    print("  4. full_branch_workflow - Complete workflow (Branch + Push + PR + Report)")
     
     while True:
         try:
-            choice = input("\nEnter your choice (1-5): ").strip()
+            choice = input("\nEnter your choice (1-4): ").strip()
             if choice == "1":
-                workflow_type = "create_pr"
-                break
-            elif choice == "2":
                 workflow_type = "pr_with_report"
                 break
-            elif choice == "3":
+            elif choice == "2":
                 workflow_type = "create_branch"
                 break
-            elif choice == "4":
+            elif choice == "3":
                 workflow_type = "branch_and_pr"
                 break
-            elif choice == "5":
+            elif choice == "4":
                 workflow_type = "full_branch_workflow"
                 break
             else:
-                print("❌ Invalid choice. Please enter 1-5.")
+                print("❌ Invalid choice. Please enter 1-4.")
         except (ValueError, KeyboardInterrupt):
             print("\n❌ Cancelled workflow creation.")
             return
@@ -219,7 +206,7 @@ def create_workflow_interactive(master):
         return
     
     # Prepare parameters based on workflow type
-    if workflow_type in ["create_pr", "pr_with_report"]:
+    if workflow_type == "pr_with_report":
         parameters = {
             "title": title,
             "description": f"Workflow: {title}",

@@ -23,7 +23,7 @@ def test_simple_workflow():
         # Create a simple workflow
         print("\n2️⃣ Creating simple PR workflow...")
         workflow_id = master.create_workflow(
-            workflow_type="create_pr",
+            workflow_type="pr_with_report",
             parameters={
                 "title": "Test PR from Master Agent",
                 "description": "Testing the master-slave system",
