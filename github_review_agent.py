@@ -4,6 +4,7 @@ GitHub Repository Code Review Agent
 ==================================
 
 A simple agent that reviews any GitHub repository and returns a comprehensive report.
+Version: 1.0.0
 """
 
 import sys
@@ -25,59 +26,47 @@ class GitHubReviewAgent:
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
         self.reviewer = GitHubCodeReviewer(self.github_token)
+        self.version = "1.0.0"
     
     def extract_repo_info(self, repo_url: str) -> Dict[str, str]:
         """Extract owner and repo name from various URL formats."""
-        
-        # Remove trailing slashes and common paths
-        repo_url = repo_url.rstrip('/')
-        repo_url = repo_url.replace('/settings/access', '')
-        repo_url = repo_url.replace('/settings', '')
-        repo_url = repo_url.replace('/issues', '')
-        repo_url = repo_url.replace('/pulls', '')
-        repo_url = repo_url.replace('/blob/main', '')
-        repo_url = repo_url.replace('/blob/master', '')
+        # Clean the URL
+        repo_url = repo_url.strip()
         
         # Handle different URL formats
         if repo_url.startswith('https://github.com/'):
-            parts = repo_url.replace('https://github.com/', '').split('/')
-            if len(parts) >= 2:
-                return {"owner": parts[0], "repo": parts[1]}
+            repo_url = repo_url.replace('https://github.com/', '')
         elif repo_url.startswith('http://github.com/'):
-            parts = repo_url.replace('http://github.com/', '').split('/')
-            if len(parts) >= 2:
-                return {"owner": parts[0], "repo": parts[1]}
-        elif '/' in repo_url and not repo_url.startswith('http'):
-            # Assume it's already in owner/repo format
+            repo_url = repo_url.replace('http://github.com/', '')
+        elif repo_url.startswith('github.com/'):
+            repo_url = repo_url.replace('github.com/', '')
+        
+        # Remove trailing slash and .git
+        repo_url = repo_url.rstrip('/').replace('.git', '')
+        
+        # Split into owner and repo
+        if '/' in repo_url:
             parts = repo_url.split('/')
             if len(parts) >= 2:
-                return {"owner": parts[0], "repo": parts[1]}
+                owner = parts[0]
+                repo = parts[1]
+                return {"owner": owner, "repo": repo}
         
-        raise ValueError(f"Invalid repository URL format: {repo_url}")
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
     
     def review_repository(self, repo_url: str, output_file: str = None, clone_locally: bool = True) -> Dict[str, Any]:
         """Review a GitHub repository and generate a comprehensive report."""
-        
         try:
-            print(f"🔍 Starting code review for: {repo_url}")
-            
             # Extract repository information
             repo_info = self.extract_repo_info(repo_url)
             owner = repo_info["owner"]
             repo = repo_info["repo"]
             
+            print(f"🔍 Starting code review for: {repo_url}")
             print(f"📦 Repository: {owner}/{repo}")
-            
-            # Test GitHub connection
-            if self.github_token:
-                print("🔐 Testing GitHub connection...")
-                connection_test = self.reviewer.test_connection()
-                if not connection_test["success"]:
-                    print(f"⚠️  GitHub connection failed: {connection_test.get('error', 'Unknown error')}")
-                    print("💡 Continuing with public repository access...")
+            print("📊 Analyzing repository...")
             
             # Analyze the repository
-            print("📊 Analyzing repository...")
             analysis_result = self.reviewer.analyze_repository(owner, repo, clone_locally)
             
             if not analysis_result["success"]:

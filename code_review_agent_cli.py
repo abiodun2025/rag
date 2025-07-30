@@ -4,6 +4,7 @@ GitHub Code Review Agent CLI
 ============================
 
 A dedicated command-line interface for reviewing GitHub repositories.
+Version: 1.0.0
 """
 
 import sys
@@ -22,11 +23,12 @@ class CodeReviewCLI:
     
     def __init__(self):
         self.agent = GitHubReviewAgent()
+        self.version = "1.0.0"
     
     def print_banner(self):
         """Print the CLI banner."""
         print("=" * 60)
-        print("🔍 GitHub Code Review Agent CLI")
+        print("🔍 GitHub Code Review Agent CLI v" + self.version)
         print("=" * 60)
         print("Review any GitHub repository with comprehensive analysis!")
         print("Type 'help' for commands or 'exit' to quit")
@@ -37,6 +39,7 @@ class CodeReviewCLI:
         print("\n📋 Available Commands:")
         print("  review <repo_url> [options]  - Review a GitHub repository")
         print("  help                         - Show this help")
+        print("  version                      - Show version information")
         print("  exit                         - Exit the CLI")
         print("\n📝 Examples:")
         print("  review https://github.com/owner/repo")
@@ -48,6 +51,11 @@ class CodeReviewCLI:
         print("  --format <format>           - Output format: summary, detailed, json")
         print("  --no-clone                  - Don't clone locally (faster but less thorough)")
         print("  --output <filename>         - Custom output filename (saves to Downloads folder)")
+        print("\n💡 Tips:")
+        print("  • Reports are automatically saved to your Downloads folder")
+        print("  • Use '--no-clone' for faster analysis of public repositories")
+        print("  • Security reviews focus on vulnerabilities and best practices")
+        print("  • Performance reviews analyze code efficiency and optimization")
     
     def parse_command(self, command: str):
         """Parse user command."""
@@ -62,6 +70,8 @@ class CodeReviewCLI:
             return self.parse_review_command(args)
         elif cmd == "help":
             return "help", {}
+        elif cmd == "version":
+            return "version", {}
         elif cmd == "exit":
             return "exit", {}
         else:
@@ -159,6 +169,8 @@ class CodeReviewCLI:
                 
                 if cmd == "help":
                     self.print_help()
+                elif cmd == "version":
+                    print(f"�� GitHub Code Review Agent CLI v{self.version}")
                 elif cmd == "exit":
                     print("👋 Goodbye!")
                     break
