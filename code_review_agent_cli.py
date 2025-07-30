@@ -4,8 +4,8 @@ GitHub Code Review Agent CLI
 ============================
 
 A dedicated command-line interface for reviewing GitHub repositories.
-Enhanced with full GitHub access and repository management.
-Version: 1.1.0
+Enhanced with full GitHub access, repository management, and PR commenting.
+Version: 1.2.0
 """
 
 import sys
@@ -20,11 +20,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from github_review_agent import GitHubReviewAgent
 
 class CodeReviewCLI:
-    """Command-line interface for GitHub code review with full access."""
+    """Command-line interface for GitHub code review with full access and PR commenting."""
     
     def __init__(self):
         self.agent = GitHubReviewAgent()
-        self.version = "1.1.0"
+        self.version = "1.2.0"
     
     def print_banner(self):
         """Print the CLI banner."""
@@ -33,21 +33,24 @@ class CodeReviewCLI:
         print("=" * 60)
         print("Review any GitHub repository with comprehensive analysis!")
         print("Full access to your GitHub repositories and branches")
+        print("Comment directly on pull requests with automated feedback")
         print("Type 'help' for commands or 'exit' to quit")
         print("=" * 60)
     
     def print_help(self):
         """Print help information."""
         print("\n📋 Available Commands:")
-        print("  review <repo_url> [options]     - Review a GitHub repository")
-        print("  list-repos [--public-only]      - List all your repositories")
-        print("  list-branches <repo>            - List branches for a repository")
-        print("  review-all [options]            - Review all your repositories")
-        print("  review-pr <owner/repo> <pr#>    - Review a specific pull request")
-        print("  test-connection                 - Test GitHub connection")
-        print("  help                            - Show this help")
-        print("  version                         - Show version information")
-        print("  exit                            - Exit the CLI")
+        print("  review <repo_url> [options]           - Review a GitHub repository")
+        print("  list-repos [--public-only]            - List all your repositories")
+        print("  list-branches <repo>                  - List branches for a repository")
+        print("  review-all [options]                  - Review all your repositories")
+        print("  review-pr <owner/repo> <pr#>          - Review a specific pull request")
+        print("  comment-pr <owner/repo> <pr#> [options] - Review and comment on PR")
+        print("  add-comment <owner/repo> <pr#> <comment> - Add a single comment to PR")
+        print("  test-connection                       - Test GitHub connection")
+        print("  help                                  - Show this help")
+        print("  version                               - Show version information")
+        print("  exit                                  - Exit the CLI")
         print("\n📝 Examples:")
         print("  review https://github.com/owner/repo")
         print("  review https://github.com/owner/repo --type security")
@@ -58,18 +61,28 @@ class CodeReviewCLI:
         print("  list-branches owner/repo")
         print("  review-all --type security")
         print("  review-pr owner/repo 123")
+        print("  comment-pr owner/repo 123 --auto-comment")
+        print("  comment-pr owner/repo 123 --no-auto-comment")
+        print("  add-comment owner/repo 123 \"Great work on this feature!\"")
         print("\n🔧 Review Options:")
         print("  --type <type>               - Review type: full, security, performance, style")
         print("  --format <format>           - Output format: summary, detailed, json")
         print("  --no-clone                  - Don't clone locally (faster but less thorough)")
         print("  --output <filename>         - Custom output filename (saves to Downloads folder)")
         print("  --branch <branch>           - Review specific branch")
+        print("\n🔧 PR Commenting Options:")
+        print("  --auto-comment              - Automatically add line-specific comments (default)")
+        print("  --no-auto-comment           - Don't add automatic comments")
+        print("  --line <line_number>        - Specify line for single comment")
+        print("  --file <file_path>          - Specify file for single comment")
         print("\n💡 Tips:")
         print("  • Reports are automatically saved to your Downloads folder")
         print("  • Use '--no-clone' for faster analysis of public repositories")
         print("  • Security reviews focus on vulnerabilities and best practices")
         print("  • Performance reviews analyze code efficiency and optimization")
         print("  • Set GITHUB_TOKEN environment variable for private repository access")
+        print("  • PR comments are automatically formatted with severity levels")
+        print("  • Line-specific comments appear directly on the code in GitHub")
     
     def parse_command(self, command: str):
         """Parse user command and return action and arguments."""
@@ -90,6 +103,10 @@ class CodeReviewCLI:
             return self.parse_review_all_command(args)
         elif cmd == "review-pr":
             return self.parse_review_pr_command(args)
+        elif cmd == "comment-pr":
+            return self.parse_comment_pr_command(args)
+        elif cmd == "add-comment":
+            return self.parse_add_comment_command(args)
         elif cmd == "test-connection":
             return "test_connection", {}
         elif cmd == "help":
@@ -215,6 +232,77 @@ class CodeReviewCLI:
             options["output_file"] = args[3]
         
         return "review_pr", options
+    
+    def parse_comment_pr_command(self, args):
+        """Parse comment-pr command arguments."""
+        if len(args) < 2:
+            return "error", {"message": "Repository and PR number required (format: owner/repo pr_number)"}
+        
+        repo_name = args[0]
+        if "/" not in repo_name:
+            return "error", {"message": "Repository must be in format: owner/repo"}
+        
+        try:
+            pr_number = int(args[1])
+        except ValueError:
+            return "error", {"message": "PR number must be a valid integer"}
+        
+        owner, repo = repo_name.split("/", 1)
+        options = {
+            "owner": owner,
+            "repo": repo,
+            "pr_number": pr_number,
+            "auto_comment": True,
+            "output_file": None
+        }
+        
+        # Parse additional options
+        i = 2
+        while i < len(args):
+            if args[i] == "--auto-comment":
+                options["auto_comment"] = True
+                i += 1
+            elif args[i] == "--no-auto-comment":
+                options["auto_comment"] = False
+                i += 1
+            elif args[i] == "--output" and i + 1 < len(args):
+                options["output_file"] = args[i + 1]
+                i += 2
+            else:
+                return "error", {"message": f"Unknown option: {args[i]}"}
+        
+        return "comment_pr", options
+    
+    def parse_add_comment_command(self, args):
+        """Parse add-comment command arguments."""
+        if len(args) < 3:
+            return "error", {"message": "Repository, PR number, and comment required (format: owner/repo pr_number \"comment\")"}
+        
+        repo_name = args[0]
+        if "/" not in repo_name:
+            return "error", {"message": "Repository must be in format: owner/repo"}
+        
+        try:
+            pr_number = int(args[1])
+        except ValueError:
+            return "error", {"message": "PR number must be a valid integer"}
+        
+        # Extract comment (everything after the first two arguments)
+        comment = " ".join(args[2:])
+        if not comment:
+            return "error", {"message": "Comment text is required"}
+        
+        owner, repo = repo_name.split("/", 1)
+        options = {
+            "owner": owner,
+            "repo": repo,
+            "pr_number": pr_number,
+            "comment": comment,
+            "line": None,
+            "file": None
+        }
+        
+        return "add_comment", options
     
     async def execute_review(self, repo_url: str, options: dict) -> bool:
         """Execute repository review."""
@@ -370,6 +458,62 @@ class CodeReviewCLI:
             print(f"❌ PR review failed: {e}")
             return False
     
+    async def execute_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True, output_file: str = None) -> bool:
+        """Execute pull request review with comments."""
+        try:
+            print(f"🔍 Starting PR review with comments for #{pr_number} in {owner}/{repo}...")
+            
+            # Generate output filename if not provided
+            if not output_file:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_file = f"pr_comment_review_{owner}_{repo}_{pr_number}_{timestamp}.json"
+            
+            result = self.agent.review_and_comment_pr(
+                owner=owner,
+                repo=repo,
+                pr_number=pr_number,
+                auto_comment=auto_comment,
+                output_file=output_file
+            )
+            
+            if result["success"]:
+                self.print_pr_comment_summary(result)
+                return True
+            else:
+                print(f"❌ PR review and comment failed: {result.get('error', 'Unknown error')}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ PR review and comment failed: {e}")
+            return False
+    
+    async def execute_add_comment(self, owner: str, repo: str, pr_number: int, comment: str, line: int = None, file: str = None) -> bool:
+        """Execute add single comment command."""
+        try:
+            print(f"💬 Adding comment to PR #{pr_number} in {owner}/{repo}...")
+            
+            result = self.agent.create_pr_comment(
+                owner=owner,
+                repo=repo,
+                pr_number=pr_number,
+                comment=comment,
+                line=line,
+                path=file
+            )
+            
+            if result["success"]:
+                print(f"✅ Comment added successfully!")
+                print(f"🔗 View comment: {result.get('url', 'N/A')}")
+                return True
+            else:
+                print(f"❌ Failed to add comment: {result.get('error', 'Unknown error')}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed to add comment: {e}")
+            return False
+    
     async def execute_test_connection(self) -> bool:
         """Execute GitHub connection test."""
         try:
@@ -488,6 +632,40 @@ class CodeReviewCLI:
         
         print("="*80)
     
+    def print_pr_comment_summary(self, result: dict):
+        """Print a summary of the PR review with comments results."""
+        pr_review = result.get("pr_review", {})
+        summary = pr_review.get("summary", {})
+        
+        print("\n" + "="*80)
+        print("🔍 PULL REQUEST REVIEW WITH COMMENTS REPORT")
+        print("="*80)
+        print(f"📦 Repository: {result.get('repository', 'Unknown')}")
+        print(f"🔢 PR Number: #{result.get('pr_number', 'Unknown')}")
+        print(f"📝 Title: {result.get('pr_title', 'Unknown')}")
+        print(f"👤 Author: {result.get('pr_author', 'Unknown')}")
+        print(f"📊 State: {result.get('pr_state', 'Unknown')}")
+        print(f"📅 Timestamp: {result.get('timestamp', 'Unknown')}")
+        print(f"📊 Overall Grade: {summary.get('overall_grade', 'N/A')} ({summary.get('average_score', 0)}/100)")
+        print()
+        
+        print("💬 COMMENTING RESULTS:")
+        print(f"   ✅ Review Created: {'Yes' if result.get('review_created', False) else 'No'}")
+        print(f"   🔗 Review URL: {result.get('review_url', 'N/A')}")
+        print(f"   💭 Comments Added: {result.get('comments_added', 0)}")
+        print()
+        
+        print("📈 SUMMARY STATISTICS:")
+        print(f"   📁 Changed Files: {pr_review.get('changed_files', 0)}")
+        print(f"   🚨 Total Issues: {summary.get('total_issues', 0)}")
+        print(f"   🔴 Critical: {summary.get('critical_issues', 0)}")
+        print(f"   🟠 High: {summary.get('high_issues', 0)}")
+        print(f"   🟡 Medium: {summary.get('medium_issues', 0)}")
+        print(f"   🟢 Low: {summary.get('low_issues', 0)}")
+        print()
+        
+        print("="*80)
+    
     async def run(self):
         """Run the CLI."""
         self.print_banner()
@@ -526,6 +704,14 @@ class CodeReviewCLI:
                     success = await self.execute_review_pr(args["owner"], args["repo"], args["pr_number"], args.get("output_file"))
                     if success:
                         print("\n🎉 PR review completed! Check the Downloads folder for the detailed report.")
+                elif cmd == "comment_pr":
+                    success = await self.execute_comment_pr(args["owner"], args["repo"], args["pr_number"], args["auto_comment"], args.get("output_file"))
+                    if success:
+                        print("\n🎉 PR review with comments completed! Check the Downloads folder for the detailed report.")
+                elif cmd == "add_comment":
+                    success = await self.execute_add_comment(args["owner"], args["repo"], args["pr_number"], args["comment"], args.get("line"), args.get("file"))
+                    if success:
+                        print("\n🎉 Comment added successfully!")
                 elif cmd == "test_connection":
                     await self.execute_test_connection()
                 elif cmd == "error":

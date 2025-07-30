@@ -4,8 +4,8 @@ GitHub Repository Code Review Agent
 ==================================
 
 A simple agent that reviews any GitHub repository and returns a comprehensive report.
-Enhanced with full repository and branch access.
-Version: 1.1.0
+Enhanced with full repository and branch access, plus PR commenting capabilities.
+Version: 1.2.0
 """
 
 import sys
@@ -22,12 +22,12 @@ from agent.github_code_reviewer import GitHubCodeReviewer
 from agent.code_reviewer import code_reviewer
 
 class GitHubReviewAgent:
-    """Agent for reviewing GitHub repositories with full access."""
+    """Agent for reviewing GitHub repositories with full access and PR commenting."""
     
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
         self.reviewer = GitHubCodeReviewer(self.github_token)
-        self.version = "1.1.0"
+        self.version = "1.2.0"
     
     def test_github_connection(self) -> Dict[str, Any]:
         """Test GitHub connection and get user information."""
@@ -144,6 +144,98 @@ class GitHubReviewAgent:
                 "pr_number": pr_number,
                 "timestamp": datetime.now().isoformat()
             }
+    
+    def review_and_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Review a pull request and add comments directly to the PR."""
+        try:
+            print(f"🔍 Starting PR review with comments for: {owner}/{repo}#{pr_number}")
+            print("📊 Analyzing and commenting on pull request...")
+            
+            # Review and comment on the pull request
+            result = self.reviewer.review_and_comment_pr(owner, repo, pr_number, auto_comment)
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result["error"],
+                    "repository": f"{owner}/{repo}",
+                    "pr_number": pr_number,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_pr_comment_report(result, owner, repo, pr_number)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"PR review and comment failed: {str(e)}",
+                "repository": f"{owner}/{repo}",
+                "pr_number": pr_number,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def create_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str, commit_id: str = None, path: str = None, line: int = None) -> Dict[str, Any]:
+        """Create a single comment on a pull request."""
+        try:
+            print(f"💬 Creating comment on PR #{pr_number} in {owner}/{repo}...")
+            
+            result = self.reviewer.create_pr_comment(owner, repo, pr_number, comment, commit_id, path, line)
+            
+            if result["success"]:
+                print(f"✅ Comment created successfully: {result.get('url', 'N/A')}")
+            else:
+                print(f"❌ Failed to create comment: {result.get('error', 'Unknown error')}")
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create comment: {str(e)}"
+            }
+    
+    def create_pr_review(self, owner: str, repo: str, pr_number: int, review_body: str, comments: List[Dict] = None, event: str = "COMMENT") -> Dict[str, Any]:
+        """Create a review on a pull request with optional comments."""
+        try:
+            print(f"📝 Creating review on PR #{pr_number} in {owner}/{repo}...")
+            
+            review_data = {
+                "body": review_body,
+                "event": event  # COMMENT, APPROVE, REQUEST_CHANGES
+            }
+            
+            if comments:
+                review_data["comments"] = comments
+            
+            result = self.reviewer.create_pr_review(owner, repo, pr_number, review_data)
+            
+            if result["success"]:
+                print(f"✅ Review created successfully: {result.get('url', 'N/A')}")
+            else:
+                print(f"❌ Failed to create review: {result.get('error', 'Unknown error')}")
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create review: {str(e)}"
+            }
+    
+    def get_pr_commits(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get commits for a pull request."""
+        return self.reviewer.get_pr_commits(owner, repo, pr_number)
+    
+    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get files changed in a pull request."""
+        return self.reviewer.get_pr_files(owner, repo, pr_number)
     
     def review_user_repositories(self, review_type: str = "full", include_private: bool = True, output_file: str = None) -> Dict[str, Any]:
         """Review all repositories for the authenticated user."""
@@ -284,6 +376,26 @@ class GitHubReviewAgent:
             "summary": summary,
             "changed_files": len(pr_result.get("results", [])),
             "results": pr_result.get("results", [])
+        }
+    
+    def _generate_pr_comment_report(self, result: Dict[str, Any], owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Generate a report for PR review with comments."""
+        pr_review = result.get("pr_review", {})
+        review_created = result.get("review_created", {})
+        
+        return {
+            "success": True,
+            "repository": f"{owner}/{repo}",
+            "pr_number": pr_number,
+            "pr_title": pr_review.get("title"),
+            "pr_author": pr_review.get("author"),
+            "pr_state": pr_review.get("state"),
+            "timestamp": datetime.now().isoformat(),
+            "review_created": review_created.get("success", False),
+            "review_url": review_created.get("url"),
+            "comments_added": result.get("comments_added", 0),
+            "summary": result.get("summary", ""),
+            "pr_review": pr_review
         }
     
     def _generate_user_repos_report(self, results: List[Dict[str, Any]], review_type: str) -> Dict[str, Any]:

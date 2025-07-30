@@ -4,7 +4,7 @@ GitHub Code Reviewer
 ===================
 
 Integration with GitHub to perform code reviews on real repositories.
-Enhanced with full repository and branch access.
+Enhanced with full repository and branch access, plus PR commenting capabilities.
 """
 
 import os
@@ -23,7 +23,7 @@ from .code_reviewer import code_reviewer
 logger = logging.getLogger(__name__)
 
 class GitHubCodeReviewer:
-    """GitHub integration for code review with full repository access."""
+    """GitHub integration for code review with full repository access and PR commenting."""
     
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
@@ -568,6 +568,264 @@ class GitHubCodeReviewer:
                 "success": False,
                 "error": f"PR review failed: {str(e)}"
             }
+    
+    def create_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str, commit_id: str = None, path: str = None, line: int = None) -> Dict[str, Any]:
+        """Create a comment on a pull request."""
+        try:
+            if not self.github_token:
+                return {
+                    "success": False,
+                    "error": "GitHub token required to create comments"
+                }
+            
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/comments"
+            
+            comment_data = {
+                "body": comment
+            }
+            
+            # If line-specific comment
+            if commit_id and path and line:
+                comment_data.update({
+                    "commit_id": commit_id,
+                    "path": path,
+                    "line": line
+                })
+            
+            response = requests.post(url, headers=self.headers, json=comment_data)
+            
+            if response.status_code in [200, 201]:
+                return {
+                    "success": True,
+                    "comment_id": response.json().get('id'),
+                    "url": response.json().get('html_url'),
+                    "message": "Comment created successfully"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to create comment: {response.status_code}",
+                    "message": response.text
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create comment: {str(e)}"
+            }
+    
+    def create_pr_review(self, owner: str, repo: str, pr_number: int, review_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a review on a pull request with comments."""
+        try:
+            if not self.github_token:
+                return {
+                    "success": False,
+                    "error": "GitHub token required to create reviews"
+                }
+            
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
+            
+            response = requests.post(url, headers=self.headers, json=review_data)
+            
+            if response.status_code in [200, 201]:
+                return {
+                    "success": True,
+                    "review_id": response.json().get('id'),
+                    "url": response.json().get('html_url'),
+                    "message": "Review created successfully"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to create review: {response.status_code}",
+                    "message": response.text
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create review: {str(e)}"
+            }
+    
+    def get_pr_commits(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get commits for a pull request."""
+        try:
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/commits"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code == 200:
+                commits = response.json()
+                return {
+                    "success": True,
+                    "commits": commits,
+                    "total_count": len(commits)
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch commits: {response.status_code}",
+                    "commits": []
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch commits: {str(e)}",
+                "commits": []
+            }
+    
+    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get files changed in a pull request."""
+        try:
+            url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/files"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code == 200:
+                files = response.json()
+                return {
+                    "success": True,
+                    "files": files,
+                    "total_count": len(files)
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch files: {response.status_code}",
+                    "files": []
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to fetch files: {str(e)}",
+                "files": []
+            }
+    
+    def review_and_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True) -> Dict[str, Any]:
+        """Review a pull request and optionally add comments."""
+        try:
+            print(f"🔍 Reviewing PR #{pr_number} in {owner}/{repo}...")
+            
+            # Get PR details
+            pr_result = self.review_pull_request(owner, repo, pr_number)
+            if not pr_result["success"]:
+                return pr_result
+            
+            # Get PR files for commenting
+            files_result = self.get_pr_files(owner, repo, pr_number)
+            if not files_result["success"]:
+                return files_result
+            
+            # Get PR commits
+            commits_result = self.get_pr_commits(owner, repo, pr_number)
+            if not commits_result["success"]:
+                return commits_result
+            
+            # Prepare review data
+            review_comments = []
+            review_summary = self._generate_pr_review_summary(pr_result)
+            
+            if auto_comment and commits_result["commits"]:
+                latest_commit = commits_result["commits"][-1]["sha"]
+                
+                # Create line-specific comments for issues
+                for result in pr_result.get("results", []):
+                    if "report" in result and "issues" in result["report"]:
+                        file_path = result["file"]
+                        issues = result["report"]["issues"]
+                        
+                        # Add comments for critical and high issues
+                        for severity in ["critical", "high"]:
+                            for issue in issues.get(severity, []):
+                                if isinstance(issue, dict) and "line" in issue:
+                                    comment_body = self._format_issue_comment(issue, severity)
+                                    review_comments.append({
+                                        "path": file_path,
+                                        "line": issue["line"],
+                                        "body": comment_body
+                                    })
+            
+            # Create the review
+            review_data = {
+                "body": review_summary,
+                "event": "COMMENT"  # Can be COMMENT, APPROVE, REQUEST_CHANGES
+            }
+            
+            if review_comments:
+                review_data["comments"] = review_comments
+            
+            review_result = self.create_pr_review(owner, repo, pr_number, review_data)
+            
+            return {
+                "success": True,
+                "pr_review": pr_result,
+                "review_created": review_result,
+                "comments_added": len(review_comments),
+                "summary": review_summary
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"PR review and comment failed: {str(e)}"
+            }
+    
+    def _generate_pr_review_summary(self, pr_result: Dict[str, Any]) -> str:
+        """Generate a summary for PR review."""
+        summary = pr_result.get("summary", {})
+        
+        summary_text = f"""## 🔍 Code Review Summary
+
+**Repository:** {pr_result.get('title', 'Unknown PR')}
+**Author:** {pr_result.get('author', 'Unknown')}
+**Overall Grade:** {summary.get('overall_grade', 'N/A')} ({summary.get('average_score', 0)}/100)
+
+### 📊 Statistics
+- **Files Analyzed:** {summary.get('total_files', 0)}
+- **Total Issues:** {summary.get('total_issues', 0)}
+- **Critical Issues:** {summary.get('critical_issues', 0)}
+- **High Priority Issues:** {summary.get('high_issues', 0)}
+- **Medium Issues:** {summary.get('medium_issues', 0)}
+- **Low Issues:** {summary.get('low_issues', 0)}
+
+### 🎯 Recommendations
+"""
+        
+        # Add recommendations based on issues
+        if summary.get('critical_issues', 0) > 0:
+            summary_text += f"- 🔴 **Critical:** Address {summary['critical_issues']} critical issues immediately\n"
+        
+        if summary.get('high_issues', 0) > 0:
+            summary_text += f"- 🟠 **High:** Fix {summary['high_issues']} high priority issues\n"
+        
+        if summary.get('average_score', 0) < 70:
+            summary_text += "- 🟡 **Quality:** Consider improving overall code quality\n"
+        
+        summary_text += "\n---\n*This review was generated automatically by the Code Review Agent*"
+        
+        return summary_text
+    
+    def _format_issue_comment(self, issue: Dict[str, Any], severity: str) -> str:
+        """Format an issue into a comment."""
+        severity_emoji = {
+            "critical": "🔴",
+            "high": "🟠",
+            "medium": "🟡",
+            "low": "🟢"
+        }.get(severity, "ℹ️")
+        
+        comment = f"""{severity_emoji} **{severity.upper()} Priority Issue**
+
+**Issue:** {issue.get('message', 'Unknown issue')}
+
+**Category:** {issue.get('category', 'Unknown')}
+
+**Suggestion:** {issue.get('suggestion', 'Consider reviewing this code')}
+
+---
+*Automated review comment*"""
+        
+        return comment
     
     def cleanup_local_repository(self, local_path: str):
         """Clean up locally cloned repository."""
