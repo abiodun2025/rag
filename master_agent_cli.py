@@ -26,6 +26,7 @@ def print_help():
     print("  interactive                      - Create workflow step by step")
     print("  branches                         - List all available branches")
     print("  check-commits <branch>          - Check if branch has new commits")
+    print("  prs                              - List existing pull requests")
     print("  status <workflow_id>            - Check workflow status")
     print("  agents                          - Show agent status")
     print("  queue                           - Show task queue status")
@@ -529,6 +530,76 @@ def check_branch_commits(master, branch_name):
     except Exception as e:
         print(f"❌ Error checking branch commits: {e}")
 
+def list_prs(master):
+    """List existing pull requests."""
+    try:
+        print("\n🔍 Fetching existing pull requests...")
+        
+        response = requests.post(
+            "http://127.0.0.1:5000/call",
+            json={
+                "tool": "list_pull_requests",
+                "arguments": {"state": "open"}
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("success"):
+                prs = result.get("pull_requests", [])
+                
+                if not prs:
+                    print("✅ No open pull requests found")
+                    return
+                
+                print(f"\n✅ Found {len(prs)} open pull request(s):")
+                print("=" * 80)
+                
+                for i, pr in enumerate(prs, 1):
+                    title = pr.get("title", "No title")
+                    number = pr.get("number", "N/A")
+                    state = pr.get("state", "unknown")
+                    source_branch = pr.get("head", {}).get("ref", "unknown")
+                    target_branch = pr.get("base", {}).get("ref", "unknown")
+                    created_at = pr.get("created_at", "")
+                    updated_at = pr.get("updated_at", "")
+                    
+                    # Format dates
+                    if created_at:
+                        created_date = created_at.split('T')[0] if 'T' in created_at else created_at
+                    else:
+                        created_date = "Unknown"
+                    
+                    if updated_at:
+                        updated_date = updated_at.split('T')[0] if 'T' in updated_at else updated_at
+                    else:
+                        updated_date = "Unknown"
+                    
+                    print(f"   {i:2d}. #{number} {title}")
+                    print(f"       🔄 {source_branch} → {target_branch}")
+                    print(f"       📅 Created: {created_date} | Updated: {updated_date}")
+                    print(f"       📊 State: {state.upper()}")
+                    
+                    # Show labels if any
+                    labels = pr.get("labels", [])
+                    if labels:
+                        label_names = [label.get("name", "") for label in labels]
+                        print(f"       🏷️  Labels: {', '.join(label_names)}")
+                    
+                    print()  # Empty line for readability
+                
+                print("=" * 80)
+                print("💡 Legend: 🔄 = Branch flow | 📅 = Dates | 📊 = Status | 🏷️ = Labels")
+                
+            else:
+                print(f"❌ Error: {result.get('error')}")
+        else:
+            print(f"❌ HTTP error: {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error listing pull requests: {e}")
+
 def main():
     """Main CLI loop."""
     print_banner()
@@ -586,6 +657,9 @@ def main():
                 
                 branch_name = parts[1]
                 check_branch_commits(master, branch_name)
+            
+            elif cmd == 'prs':
+                list_prs(master)
             
             elif cmd == 'status':
                 if len(parts) < 2:
