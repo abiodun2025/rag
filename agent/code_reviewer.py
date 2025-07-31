@@ -581,54 +581,83 @@ class CodeReviewer:
     
     def generate_report(self, code: str, filename: str = "") -> Dict[str, Any]:
         """Generate a comprehensive code review report."""
-        
-        language = self.detect_language(code, filename)
-        structure = self.analyze_code_structure(code, language)
-        issues = self.identify_issues(code, language)
-        suggestions = self.suggest_improvements(code, language, issues)
-        
-        # Calculate metrics
-        total_issues = len(issues)
-        critical_issues = len([i for i in issues if i["severity"] == "critical"])
-        high_issues = len([i for i in issues if i["severity"] == "high"])
-        medium_issues = len([i for i in issues if i["severity"] == "medium"])
-        low_issues = len([i for i in issues if i["severity"] == "low"])
-        
-        # Calculate overall score (0-100, higher is better)
-        score = 100
-        score -= critical_issues * 20
-        score -= high_issues * 10
-        score -= medium_issues * 5
-        score -= low_issues * 2
-        score = max(0, score)
-        
-        return {
-            "filename": filename,
-            "language": language,
-            "timestamp": datetime.now().isoformat(),
-            "summary": {
-                "lines_of_code": structure["lines_of_code"],
-                "functions": len(structure["functions"]),
-                "classes": len(structure["classes"]),
-                "imports": len(structure["imports"]),
-                "complexity_score": structure["complexity_score"],
-                "nesting_depth": structure["nesting_depth"]
-            },
-            "issues": {
-                "total": total_issues,
-                "critical": critical_issues,
-                "high": high_issues,
-                "medium": medium_issues,
-                "low": low_issues,
-                "by_category": self._group_issues_by_category(issues),
-                "by_severity": self._group_issues_by_severity(issues),
-                "details": issues
-            },
-            "suggestions": suggestions,
-            "score": score,
-            "grade": self._calculate_grade(score),
-            "recommendations": self._generate_recommendations(issues, suggestions)
-        }
+        try:
+            # Detect language
+            language = self.detect_language(code, filename)
+            
+            # Analyze code structure
+            structure = self.analyze_code_structure(code, language)
+            
+            # Identify issues
+            issues = self.identify_issues(code, language)
+            
+            # Generate suggestions
+            suggestions = self.suggest_improvements(code, language, issues)
+            
+            # Calculate metrics
+            total_issues = len(issues)
+            critical_issues = len([i for i in issues if i.get('severity') == 'critical'])
+            high_issues = len([i for i in issues if i.get('severity') == 'high'])
+            medium_issues = len([i for i in issues if i.get('severity') == 'medium'])
+            low_issues = len([i for i in issues if i.get('severity') == 'low'])
+            
+            # Calculate score (100 - deductions for issues)
+            score = 100
+            score -= critical_issues * 10
+            score -= high_issues * 5
+            score -= medium_issues * 2
+            score -= low_issues * 1
+            score = max(0, score)
+            
+            # Generate grade
+            grade = self._calculate_grade(score)
+            
+            # Generate recommendations
+            recommendations = self._generate_recommendations(issues, suggestions)
+            
+            return {
+                "filename": filename,
+                "language": language,
+                "score": score,
+                "grade": grade,
+                "structure": structure,
+                "issues": {
+                    "total": total_issues,
+                    "critical": critical_issues,
+                    "high": high_issues,
+                    "medium": medium_issues,
+                    "low": low_issues,
+                    "details": issues
+                },
+                "suggestions": suggestions,
+                "recommendations": recommendations,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error generating report: {e}")
+            return {
+                "filename": filename,
+                "language": "unknown",
+                "score": 0,
+                "grade": "F",
+                "error": str(e),
+                "issues": {
+                    "total": 0,
+                    "critical": 0,
+                    "high": 0,
+                    "medium": 0,
+                    "low": 0,
+                    "details": []
+                },
+                "suggestions": [],
+                "recommendations": ["Error occurred during analysis"],
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def analyze_code(self, code: str, filename: str = "") -> Dict[str, Any]:
+        """Alias for generate_report to maintain compatibility."""
+        return self.generate_report(code, filename)
     
     def _group_issues_by_category(self, issues: List[Dict[str, Any]]) -> Dict[str, int]:
         """Group issues by category."""

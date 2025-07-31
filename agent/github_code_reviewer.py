@@ -924,16 +924,19 @@ class GitHubCodeReviewer:
                         file_path = result["file"]
                         issues = result["report"]["issues"]
                         
+                        # Get all issues from the details list
+                        issue_details = issues.get("details", [])
+                        
                         # Add comments for critical and high issues
-                        for severity in ["critical", "high"]:
-                            for issue in issues.get(severity, []):
-                                if isinstance(issue, dict) and "line" in issue:
-                                    comment_body = self._format_issue_comment(issue, severity)
-                                    review_comments.append({
-                                        "path": file_path,
-                                        "line": issue["line"],
-                                        "body": comment_body
-                                    })
+                        for issue in issue_details:
+                            severity = issue.get("severity", "medium")
+                            if severity in ["critical", "high"] and "line" in issue:
+                                comment_body = self._format_issue_comment(issue, severity)
+                                review_comments.append({
+                                    "path": file_path,
+                                    "line": issue["line"],
+                                    "body": comment_body
+                                })
             
             # Create the review
             review_data = {
@@ -1016,6 +1019,88 @@ class GitHubCodeReviewer:
 *Automated review comment*"""
         
         return comment
+    
+    def comment_all_pull_requests(self, state: str = "open", include_private: bool = True, auto_comment: bool = True) -> Dict[str, Any]:
+        """Comment on all accessible pull requests."""
+        try:
+            print(f"🔍 Starting automated commenting on all {state} pull requests...")
+            
+            # Get all pull requests
+            prs_result = self.get_all_accessible_pull_requests(state, include_private)
+            if not prs_result["success"]:
+                return prs_result
+            
+            prs = prs_result["pull_requests"]
+            if not prs:
+                return {
+                    "success": True,
+                    "message": f"No {state} pull requests found to comment on",
+                    "total_prs": 0,
+                    "commented_prs": 0,
+                    "results": []
+                }
+            
+            print(f"📊 Found {len(prs)} {state} pull requests to process")
+            
+            results = []
+            commented_count = 0
+            
+            for i, pr in enumerate(prs, 1):
+                try:
+                    print(f"📝 Processing PR {i}/{len(prs)}: {pr['repository']}#{pr['number']}")
+                    
+                    # Comment on this PR
+                    comment_result = self.review_and_comment_pr(
+                        owner=pr["repo_owner"],
+                        repo=pr["repo_name"],
+                        pr_number=pr["number"],
+                        auto_comment=auto_comment
+                    )
+                    
+                    result = {
+                        "repository": pr["repository"],
+                        "pr_number": pr["number"],
+                        "title": pr["title"],
+                        "author": pr["author"],
+                        "success": comment_result["success"],
+                        "comments_added": comment_result.get("comments_added", 0),
+                        "error": comment_result.get("error") if not comment_result["success"] else None
+                    }
+                    
+                    if comment_result["success"]:
+                        commented_count += 1
+                        print(f"✅ Successfully commented on {pr['repository']}#{pr['number']}")
+                    else:
+                        print(f"❌ Failed to comment on {pr['repository']}#{pr['number']}: {comment_result.get('error', 'Unknown error')}")
+                    
+                    results.append(result)
+                    
+                except Exception as e:
+                    print(f"❌ Error processing {pr['repository']}#{pr['number']}: {e}")
+                    results.append({
+                        "repository": pr["repository"],
+                        "pr_number": pr["number"],
+                        "title": pr["title"],
+                        "author": pr["author"],
+                        "success": False,
+                        "comments_added": 0,
+                        "error": str(e)
+                    })
+            
+            return {
+                "success": True,
+                "message": f"Completed commenting on {len(prs)} pull requests",
+                "total_prs": len(prs),
+                "commented_prs": commented_count,
+                "failed_prs": len(prs) - commented_count,
+                "results": results
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to comment on pull requests: {str(e)}"
+            }
     
     def cleanup_local_repository(self, local_path: str):
         """Clean up locally cloned repository."""

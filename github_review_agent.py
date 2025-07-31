@@ -249,6 +249,37 @@ class GitHubReviewAgent:
         """Get files changed in a pull request."""
         return self.reviewer.get_pr_files(owner, repo, pr_number)
     
+    def comment_all_pull_requests(self, state: str = "open", include_private: bool = True, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Comment on all accessible pull requests."""
+        try:
+            print(f"🔍 Starting automated commenting on all {state} pull requests...")
+            
+            # Comment on all pull requests
+            result = self.reviewer.comment_all_pull_requests(state, include_private, auto_comment)
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result["error"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_all_prs_comment_report(result, state)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to comment on all pull requests: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
     def review_user_repositories(self, review_type: str = "full", include_private: bool = True, output_file: str = None) -> Dict[str, Any]:
         """Review all repositories for the authenticated user."""
         try:
@@ -468,6 +499,30 @@ class GitHubReviewAgent:
                 key=lambda x: x.get("review", {}).get("summary", {}).get("average_score", 0),
                 reverse=True
             )[:5]
+        }
+    
+    def _generate_all_prs_comment_report(self, result: Dict[str, Any], state: str) -> Dict[str, Any]:
+        """Generate a report for commenting on all pull requests."""
+        successful_comments = [r for r in result.get("results", []) if r.get("success")]
+        failed_comments = [r for r in result.get("results", []) if not r.get("success")]
+        
+        total_comments = sum(r.get("comments_added", 0) for r in successful_comments)
+        
+        return {
+            "success": True,
+            "operation": "comment_all_pull_requests",
+            "state": state,
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_prs": result.get("total_prs", 0),
+                "commented_prs": result.get("commented_prs", 0),
+                "failed_prs": result.get("failed_prs", 0),
+                "total_comments_added": total_comments,
+                "success_rate": round((result.get("commented_prs", 0) / result.get("total_prs", 1)) * 100, 2)
+            },
+            "results": result.get("results", []),
+            "successful_comments": successful_comments,
+            "failed_comments": failed_comments
         }
     
     def _save_report(self, report: Dict[str, Any], output_file: str):

@@ -49,6 +49,7 @@ class CodeReviewCLI:
         print("  add-comment <owner/repo> <pr#> <comment> - Add a single comment to PR")
         print("  list-prs [options]                    - List all accessible pull requests")
         print("  select-pr                             - Interactive PR selection and commenting")
+        print("  comment-all-prs [options]             - Comment on all accessible pull requests")
         print("  test-connection                       - Test GitHub connection")
         print("  help                                  - Show this help")
         print("  version                               - Show version information")
@@ -69,6 +70,9 @@ class CodeReviewCLI:
         print("  list-prs --state open")
         print("  list-prs --state closed")
         print("  select-pr")
+        print("  comment-all-prs")
+        print("  comment-all-prs --state open")
+        print("  comment-all-prs --public-only")
         print("\n🔧 Review Options:")
         print("  --type <type>               - Review type: full, security, performance, style")
         print("  --format <format>           - Output format: summary, detailed, json")
@@ -116,6 +120,8 @@ class CodeReviewCLI:
             return self.parse_list_prs_command(args)
         elif cmd == "select-pr":
             return "select_pr", {}
+        elif cmd == "comment-all-prs":
+            return self.parse_comment_all_prs_command(args)
         elif cmd == "test-connection":
             return "test_connection", {}
         elif cmd == "help":
@@ -337,6 +343,34 @@ class CodeReviewCLI:
         
         return "list_prs", options
     
+    def parse_comment_all_prs_command(self, args):
+        """Parse comment-all-prs command arguments."""
+        options = {
+            "state": "open",
+            "include_private": True,
+            "auto_comment": True
+        }
+        
+        i = 0
+        while i < len(args):
+            if args[i] == "--state" and i + 1 < len(args):
+                state = args[i + 1].lower()
+                if state in ["open", "closed", "all"]:
+                    options["state"] = state
+                else:
+                    return "error", {"message": "State must be 'open', 'closed', or 'all'"}
+                i += 2
+            elif args[i] == "--public-only":
+                options["include_private"] = False
+                i += 1
+            elif args[i] == "--no-auto-comment":
+                options["auto_comment"] = False
+                i += 1
+            else:
+                return "error", {"message": f"Unknown option: {args[i]}"}
+        
+        return "comment_all_prs", options
+    
     async def execute_review(self, repo_url: str, options: dict) -> bool:
         """Execute repository review."""
         try:
@@ -410,27 +444,51 @@ class CodeReviewCLI:
             
             result = self.agent.list_repository_branches(owner, repo)
             
-            if result["success"]:
-                branches = result["branches"]
+            # Debug: Print the raw result
+            print(f"🔍 Debug: Result type: {type(result)}")
+            print(f"🔍 Debug: Result keys: {result.keys() if result else 'None'}")
+            print(f"🔍 Debug: Success: {result.get('success') if result else 'None'}")
+            print(f"🔍 Debug: Branches type: {type(result.get('branches')) if result else 'None'}")
+            print(f"🔍 Debug: Branches length: {len(result.get('branches', [])) if result and result.get('branches') else 'None'}")
+            
+            if result and result.get("success"):
+                branches = result.get("branches", [])
+                if branches is None:
+                    branches = []
+                
                 print(f"\n📊 Found {len(branches)} branches:")
                 print("-" * 60)
                 
-                for i, branch in enumerate(branches, 1):
-                    protected = "🔒" if branch["protected"] else "🔓"
-                    commit_msg = branch["commit"]["message"][:50] + "..." if len(branch["commit"]["message"]) > 50 else branch["commit"]["message"]
-                    
-                    print(f"{i:2d}. {protected} {branch['name']}")
-                    print(f"     📝 {commit_msg}")
-                    print(f"     📅 {branch['commit']['date']}")
-                    print()
+                if branches:
+                    for i, branch in enumerate(branches, 1):
+                        print(f"🔍 Debug: Branch {i}: {branch}")
+                        protected = "🔒" if branch.get("protected", False) else "🔓"
+                        commit_info = branch.get("commit", {})
+                        commit_msg = commit_info.get("message", "No message")
+                        
+                        # Handle None commit message
+                        if commit_msg is None:
+                            commit_msg = "No commit message"
+                        else:
+                            commit_msg = commit_msg[:50] + "..." if len(commit_msg) > 50 else commit_msg
+                        
+                        print(f"{i:2d}. {protected} {branch.get('name', 'Unknown')}")
+                        print(f"     📝 {commit_msg}")
+                        print(f"     📅 {commit_info.get('date', 'Unknown date')}")
+                        print()
+                else:
+                    print("📭 No branches found.")
                 
                 return True
             else:
-                print(f"❌ Failed to fetch branches: {result.get('error', 'Unknown error')}")
+                error_msg = result.get('error', 'Unknown error') if result else 'No response from API'
+                print(f"❌ Failed to fetch branches: {error_msg}")
                 return False
                 
         except Exception as e:
             print(f"❌ Failed to list branches: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     async def execute_review_all(self, options: dict) -> bool:
@@ -545,7 +603,7 @@ class CodeReviewCLI:
                 
         except Exception as e:
             print(f"❌ Failed to add comment: {e}")
-                            return False
+            return False
     
     async def execute_list_prs(self, options: dict) -> bool:
         """Execute list pull requests command."""
@@ -879,6 +937,74 @@ class CodeReviewCLI:
         
         print("="*80)
     
+    async def execute_comment_all_prs(self, options: dict) -> bool:
+        """Execute comment on all accessible pull requests."""
+        try:
+            print("🔍 Starting comment on all accessible pull requests...")
+            
+            # Get all open PRs
+            result = self.agent.list_all_pull_requests(state="open", include_private=True)
+            
+            if not result["success"]:
+                print(f"❌ Failed to fetch pull requests: {result.get('error', 'Unknown error')}")
+                return False
+            
+            prs = result["pull_requests"]
+            if not prs:
+                print("📭 No open pull requests found to comment on.")
+                return True
+            
+            print(f"\n📊 Found {len(prs)} open pull requests to comment on:")
+            print("-" * 80)
+            
+            for i, pr in enumerate(prs, 1):
+                draft_emoji = "📝" if pr.get("draft", False) else ""
+                repo_visibility = "🔒" if pr.get("repo_private", False) else "🌐"
+                
+                print(f"{i:2d}. {draft_emoji} {repo_visibility} {pr['repository']}#{pr['number']}")
+                print(f"     📝 {pr['title']}")
+                print(f"     👤 {pr['author']} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
+                print(f"     📅 Updated: {pr['updated_at']}")
+                print(f"     📁 Files: {pr['changed_files']} | 💬 Comments: {pr['comments']}")
+                print()
+            
+            # Get user confirmation
+            while True:
+                confirm = input("🔄 Are you sure you want to comment on ALL these PRs? (y/N): ").strip().lower()
+                if confirm in ["y", "yes"]:
+                    break
+                elif confirm in ["n", "no"]:
+                    print("👋 Cancelled comment on all PRs.")
+                    return True
+                else:
+                    print("❌ Please enter 'y' or 'n'.")
+            
+            # Execute comment on each PR
+            for i, pr in enumerate(prs, 1):
+                print(f"💬 Commenting on PR #{pr['number']} in {pr['repository']}...")
+                comment_result = self.agent.review_and_comment_pr(
+                    owner=pr["repo_owner"],
+                    repo=pr["repo_name"],
+                    pr_number=pr["number"],
+                    auto_comment=True, # Always auto-comment for this command
+                    output_file=None # No specific output file for this command
+                )
+                
+                if comment_result["success"]:
+                    print(f"✅ PR #{pr['number']} commented successfully!")
+                    print(f"🔗 Review URL: {comment_result.get('review_url', 'N/A')}")
+                    print(f"💬 Comments Added: {comment_result.get('comments_added', 0)}")
+                else:
+                    print(f"❌ Failed to comment on PR #{pr['number']}: {comment_result.get('error', 'Unknown error')}")
+                print() # Add a newline for better readability
+            
+            print("\n🎉 All accessible pull requests commented!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to comment on all PRs: {e}")
+            return False
+    
     async def run(self):
         """Run the CLI."""
         self.print_banner()
@@ -929,6 +1055,8 @@ class CodeReviewCLI:
                     await self.execute_list_prs(args)
                 elif cmd == "select_pr":
                     await self.execute_select_pr()
+                elif cmd == "comment_all_prs":
+                    await self.execute_comment_all_prs(args)
                 elif cmd == "test_connection":
                     await self.execute_test_connection()
                 elif cmd == "error":
