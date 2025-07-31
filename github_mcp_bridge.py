@@ -35,6 +35,21 @@ class GitHubMCPBridge:
                 return self._create_local_url(arguments)
             elif tool_name == "save_report":
                 return self._save_report(arguments)
+            # Branch management tools
+            elif tool_name == "create_branch":
+                return self._create_branch(arguments)
+            elif tool_name == "checkout_branch":
+                return self._checkout_branch(arguments)
+            elif tool_name == "push_branch":
+                return self._push_branch(arguments)
+            elif tool_name == "delete_branch":
+                return self._delete_branch(arguments)
+            elif tool_name == "list_branches":
+                return self._list_branches(arguments)
+            elif tool_name == "create_branch_from_base":
+                return self._create_branch_from_base(arguments)
+            elif tool_name == "check_branch_commits":
+                return self._check_branch_commits_tool(arguments)
             else:
                 return {
                     "success": False,
@@ -302,6 +317,525 @@ class GitHubMCPBridge:
             "timestamp": datetime.now().isoformat()
         }
 
+    def _create_branch(self, arguments: dict) -> dict:
+        """Create a new branch from main."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "create_branch",
+                    "error": "Not in a git repository"
+                }
+            
+            # Create and checkout the new branch from main
+            try:
+                # First, determine which base branch to use (main or master)
+                check_main = subprocess.run(
+                    ["git", "show-ref", "--verify", "--quiet", "refs/heads/main"],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                check_master = subprocess.run(
+                    ["git", "show-ref", "--verify", "--quiet", "refs/heads/master"],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                # Determine the base branch
+                if check_main.returncode == 0:
+                    base_branch = "main"
+                elif check_master.returncode == 0:
+                    base_branch = "master"
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch",
+                        "error": "Neither 'main' nor 'master' branch exists"
+                    }
+                
+                # Checkout to the base branch
+                checkout_base = subprocess.run(
+                    ["git", "checkout", base_branch],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if checkout_base.returncode != 0:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch",
+                        "error": f"Failed to checkout to {base_branch}: {checkout_base.stderr}"
+                    }
+                
+                # Now create the new branch from main/master
+                result = subprocess.run(
+                    ["git", "checkout", "-b", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "success": True,
+                        "tool_name": "create_branch",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from {base_branch}",
+                        "branch_name": branch_name,
+                        "current_branch": branch_name,
+                        "created_from": base_branch
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch",
+                        "error": f"Failed to create branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "create_branch",
+                "error": f"Failed to create branch: {str(e)}"
+            }
+
+    def _create_branch_from_base(self, arguments: dict) -> dict:
+        """Create a new branch from a specified base branch."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            base_branch = arguments.get("base_branch", "main")
+            
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": "Not in a git repository"
+                }
+            
+            try:
+                # Checkout to the base branch
+                checkout_base = subprocess.run(
+                    ["git", "checkout", base_branch],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if checkout_base.returncode != 0:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch_from_base",
+                        "error": f"Failed to checkout to {base_branch}: {checkout_base.stderr}"
+                    }
+                
+                # Create the new branch from the base branch
+                result = subprocess.run(
+                    ["git", "checkout", "-b", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "success": True,
+                        "tool_name": "create_branch_from_base",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from {base_branch}",
+                        "branch_name": branch_name,
+                        "current_branch": branch_name,
+                        "created_from": base_branch
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "create_branch_from_base",
+                        "error": f"Failed to create branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "create_branch_from_base",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "create_branch_from_base",
+                "error": f"Failed to create branch: {str(e)}"
+            }
+
+    def _checkout_branch(self, arguments: dict) -> dict:
+        """Checkout to an existing branch."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "checkout_branch",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "checkout_branch",
+                    "error": "Not in a git repository"
+                }
+            
+            try:
+                result = subprocess.run(
+                    ["git", "checkout", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "success": True,
+                        "tool_name": "checkout_branch",
+                        "result": f"Successfully checked out branch '{branch_name}'",
+                        "current_branch": branch_name
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "checkout_branch",
+                        "error": f"Failed to checkout branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "checkout_branch",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "checkout_branch",
+                "error": f"Failed to checkout branch: {str(e)}"
+            }
+
+    def _push_branch(self, arguments: dict) -> dict:
+        """Push a branch to remote repository."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "push_branch",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "push_branch",
+                    "error": "Not in a git repository"
+                }
+            
+            try:
+                # Push the branch
+                result = subprocess.run(
+                    ["git", "push", "origin", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "success": True,
+                        "tool_name": "push_branch",
+                        "result": f"Successfully pushed branch '{branch_name}' to remote",
+                        "branch_name": branch_name
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "push_branch",
+                        "error": f"Failed to push branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "push_branch",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "push_branch",
+                "error": f"Failed to push branch: {str(e)}"
+            }
+
+    def _delete_branch(self, arguments: dict) -> dict:
+        """Delete a branch."""
+        try:
+            import subprocess
+            import os
+            
+            branch_name = arguments.get("branch_name")
+            if not branch_name:
+                return {
+                    "success": False,
+                    "tool_name": "delete_branch",
+                    "error": "Branch name is required"
+                }
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "delete_branch",
+                    "error": "Not in a git repository"
+                }
+            
+            try:
+                # Delete the branch locally
+                result = subprocess.run(
+                    ["git", "branch", "-D", branch_name],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    # Also try to delete from remote
+                    remote_result = subprocess.run(
+                        ["git", "push", "origin", "--delete", branch_name],
+                        capture_output=True,
+                        text=True,
+                        cwd=os.getcwd()
+                    )
+                    
+                    remote_message = ""
+                    if remote_result.returncode == 0:
+                        remote_message = " and from remote"
+                    else:
+                        remote_message = " (remote deletion failed)"
+                    
+                    return {
+                        "success": True,
+                        "tool_name": "delete_branch",
+                        "result": f"Successfully deleted branch '{branch_name}' locally{remote_message}",
+                        "branch_name": branch_name
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "delete_branch",
+                        "error": f"Failed to delete branch: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "delete_branch",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "delete_branch",
+                "error": f"Failed to delete branch: {str(e)}"
+            }
+
+    def _list_branches(self, arguments: dict) -> dict:
+        """List all branches."""
+        try:
+            import subprocess
+            import os
+            
+            # Check if we're in a git repository
+            if not os.path.exists(".git"):
+                return {
+                    "success": False,
+                    "tool_name": "list_branches",
+                    "error": "Not in a git repository"
+                }
+            
+            try:
+                # Get all branches
+                result = subprocess.run(
+                    ["git", "branch", "-a"],
+                    capture_output=True,
+                    text=True,
+                    cwd=os.getcwd()
+                )
+                
+                if result.returncode == 0:
+                    branches = []
+                    for line in result.stdout.strip().split('\n'):
+                        if line.strip():
+                            # Parse branch information
+                            if line.startswith('*'):
+                                # Current branch
+                                branch_name = line[2:].strip()
+                                branches.append({
+                                    "name": branch_name,
+                                    "current": True,
+                                    "type": "local"
+                                })
+                            elif line.startswith('remotes/'):
+                                # Remote branch
+                                parts = line.split('/')
+                                if len(parts) >= 3:
+                                    remote_name = parts[1]
+                                    branch_name = '/'.join(parts[2:])
+                                    branches.append({
+                                        "name": branch_name,
+                                        "remote": remote_name,
+                                        "current": False,
+                                        "type": "remote"
+                                    })
+                            else:
+                                # Local branch
+                                branch_name = line.strip()
+                                branches.append({
+                                    "name": branch_name,
+                                    "current": False,
+                                    "type": "local"
+                                })
+                    
+                    return {
+                        "success": True,
+                        "tool_name": "list_branches",
+                        "result": f"Found {len(branches)} branches",
+                        "branches": branches
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "tool_name": "list_branches",
+                        "error": f"Failed to list branches: {result.stderr}"
+                    }
+                    
+            except Exception as e:
+                return {
+                    "success": False,
+                    "tool_name": "list_branches",
+                    "error": f"Git command failed: {str(e)}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "list_branches",
+                "error": f"Failed to list branches: {str(e)}"
+            }
+
+    def _check_branch_commits_tool(self, arguments: dict) -> dict:
+        """Check if a branch has new commits compared to another branch."""
+        try:
+            source_branch = arguments.get("source_branch")
+            target_branch = arguments.get("target_branch", "main")
+            
+            if not source_branch:
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": "Source branch is required"
+                }
+            
+            # Use GitHub API to compare branches
+            if not all([self.github_token, self.github_owner, self.github_repo]):
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": "GitHub configuration missing"
+                }
+            
+            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/compare/{target_branch}...{source_branch}"
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                comparison = response.json()
+                ahead_by = comparison.get("ahead_by", 0)
+                behind_by = comparison.get("behind_by", 0)
+                
+                has_new_commits = ahead_by > 0
+                
+                return {
+                    "success": True,
+                    "tool_name": "check_branch_commits",
+                    "result": f"Branch comparison completed",
+                    "details": {
+                        "source_branch": source_branch,
+                        "target_branch": target_branch,
+                        "has_new_commits": has_new_commits,
+                        "ahead_by": ahead_by,
+                        "behind_by": behind_by,
+                        "status": comparison.get("status", "unknown")
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": f"Failed to compare branches: {response.status_code}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "check_branch_commits",
+                "error": f"Failed to check branch commits: {str(e)}"
+            }
+
     def get_tools(self) -> dict:
         """Get available tools."""
         return {
@@ -311,7 +845,14 @@ class GitHubMCPBridge:
                 {"name": "merge_pull_request", "description": "Merge a pull request on GitHub"},
                 {"name": "generate_report", "description": "Generate a report"},
                 {"name": "create_local_url", "description": "Create a local URL for a report"},
-                {"name": "save_report", "description": "Save a report to local storage"}
+                {"name": "save_report", "description": "Save a report to local storage"},
+                {"name": "create_branch", "description": "Create a new git branch from main"},
+                {"name": "create_branch_from_base", "description": "Create a new git branch from a specified base branch"},
+                {"name": "checkout_branch", "description": "Checkout to an existing git branch"},
+                {"name": "push_branch", "description": "Push a branch to remote repository"},
+                {"name": "delete_branch", "description": "Delete a git branch"},
+                {"name": "list_branches", "description": "List all git branches"},
+                {"name": "check_branch_commits", "description": "Check if a branch has new commits compared to another branch"}
             ]
         }
 
