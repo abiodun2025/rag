@@ -205,8 +205,46 @@ Subject: {msg['Subject']}
             }
     
     def sendmail_simple(self, to_email: str, subject: str, message: str) -> Dict[str, Any]:
-        """Send simple email."""
-        return self.sendmail(to_email, subject, message)
+        """Send simple email via Gmail SMTP."""
+        try:
+            # Try to use Gmail SMTP for better delivery
+            gmail_user = os.getenv('GMAIL_USER')
+            gmail_password = os.getenv('GMAIL_APP_PASSWORD')
+            
+            if gmail_user and gmail_password:
+                # Use Gmail SMTP
+                import smtplib
+                from email.mime.text import MIMEText
+                from email.mime.multipart import MIMEMultipart
+                
+                msg = MIMEMultipart()
+                msg['From'] = gmail_user
+                msg['To'] = to_email
+                msg['Subject'] = subject
+                msg.attach(MIMEText(message, 'plain'))
+                
+                server = smtplib.SMTP('smtp.gmail.com', 587)
+                server.starttls()
+                server.login(gmail_user, gmail_password)
+                
+                text = msg.as_string()
+                server.sendmail(gmail_user, to_email, text)
+                server.quit()
+                
+                logger.info(f"📧 EMAIL SENT via Gmail SMTP to {to_email}")
+                return {
+                    "success": True,
+                    "tool_name": "sendmail_simple",
+                    "result": f"Email sent successfully to {to_email} via Gmail SMTP"
+                }
+            else:
+                # Fallback to sendmail
+                return self.sendmail(to_email, subject, message)
+                
+        except Exception as e:
+            logger.error(f"📧 Gmail SMTP failed: {e}")
+            # Fallback to sendmail
+            return self.sendmail(to_email, subject, message)
     
     def handle_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP tool request."""
@@ -324,7 +362,7 @@ class MCPHTTPHandler(BaseHTTPRequestHandler):
         """Custom logging."""
         logger.info(f"HTTP {format % args}")
 
-def run_server(host='127.0.0.1', port=5000):
+def run_server(host='127.0.0.1', port=5001):
     """Run the HTTP server."""
     server = HTTPServer((host, port), MCPHTTPHandler)
     logger.info(f"🚀 Starting MCP HTTP Server on http://{host}:{port}")

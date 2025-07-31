@@ -68,15 +68,25 @@ def send_email_via_gmail(to_email: str, subject: str, message: str, from_email: 
         return False
 
 def test_email_delivery():
-    """Test email delivery to mywork461@gmail.com"""
+    """Test email delivery to olaoluwa@multiplatformservices.com"""
     
-    print("📧 Testing Email Delivery to mywork461@gmail.com")
+    print("📧 Testing Email Delivery to olaoluwa@multiplatformservices.com")
     print("=" * 60)
     
     # Test email
-    to_email = "mywork461@gmail.com"
-    subject = "Meeting Tonight - Test Email"
-    message = "We have a meeting tonight let me know if you coming thanks!"
+    to_email = "olaoluwa@multiplatformservices.com"
+    subject = "Test Email from Smart Agent"
+    message = f"""Hello!
+
+This is a test email sent by the Smart Agent system.
+
+Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+If you receive this email, the email delivery system is working correctly!
+
+Best regards,
+Smart Agent System
+"""
     
     print(f"📝 Sending email:")
     print(f"   To: {to_email}")
@@ -88,7 +98,7 @@ def test_email_delivery():
     
     if success:
         print("\n🎉 Email delivery test successful!")
-        print("📧 Check your email at mywork461@gmail.com")
+        print("📧 Check your email at olaoluwa@multiplatformservices.com")
     else:
         print("\n❌ Email delivery test failed!")
         print("🔧 Please configure Gmail credentials as shown above")
