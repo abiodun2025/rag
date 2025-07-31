@@ -17,6 +17,7 @@ import logging
 from datetime import datetime
 import subprocess
 import shutil
+import re
 
 from .code_reviewer import code_reviewer
 
@@ -692,7 +693,7 @@ class GitHubCodeReviewer:
         }
     
     def review_pull_request(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
-        """Review a specific pull request."""
+        """Review a specific pull request by analyzing the diff/changes."""
         try:
             # Get PR details
             pr_url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}"
@@ -706,7 +707,19 @@ class GitHubCodeReviewer:
             
             pr_data = response.json()
             
-            # Get PR files
+            # Get PR diff (the actual changes)
+            diff_url = f"{pr_url}.diff"
+            diff_response = requests.get(diff_url, headers=self.headers)
+            
+            if diff_response.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"Failed to fetch PR diff: {diff_response.status_code}"
+                }
+            
+            diff_content = diff_response.text
+            
+            # Get PR files for metadata
             files_url = f"{pr_url}/files"
             files_response = requests.get(files_url, headers=self.headers)
             
@@ -718,26 +731,23 @@ class GitHubCodeReviewer:
             
             files_data = files_response.json()
             
-            # Analyze changed files
+            # Analyze the diff and changed files
             results = []
             for file_info in files_data:
                 if file_info['filename'].endswith('.py'):
-                    # Get file content
-                    content_url = f"{self.api_base}/repos/{owner}/{repo}/contents/{file_info['filename']}?ref={pr_data['head']['ref']}"
-                    content_response = requests.get(content_url, headers=self.headers)
+                    # Extract the diff for this specific file
+                    file_diff = self._extract_file_diff(diff_content, file_info['filename'])
                     
-                    if content_response.status_code == 200:
-                        content_data = content_response.json()
-                        content = base64.b64decode(content_data.get('content', '')).decode('utf-8')
-                        
-                        # Analyze the file
-                        report = code_reviewer.analyze_code(content, file_info['filename'])
+                    if file_diff:
+                        # Analyze the diff content
+                        report = self._analyze_diff_content(file_diff, file_info['filename'])
                         results.append({
                             'file': file_info['filename'],
                             'report': report,
                             'status': file_info['status'],
                             'additions': file_info['additions'],
-                            'deletions': file_info['deletions']
+                            'deletions': file_info['deletions'],
+                            'diff': file_diff
                         })
             
             # Generate summary
@@ -758,6 +768,196 @@ class GitHubCodeReviewer:
                 "success": False,
                 "error": f"PR review failed: {str(e)}"
             }
+    
+    def _extract_file_diff(self, diff_content: str, filename: str) -> str:
+        """Extract the diff for a specific file from the full diff."""
+        lines = diff_content.split('\n')
+        file_diff = []
+        in_file = False
+        
+        for line in lines:
+            if line.startswith(f'diff --git a/{filename} b/{filename}'):
+                in_file = True
+                file_diff.append(line)
+            elif in_file and line.startswith('diff --git'):
+                # Found next file, stop here
+                break
+            elif in_file:
+                file_diff.append(line)
+        
+        return '\n'.join(file_diff) if file_diff else None
+    
+    def _analyze_diff_content(self, diff_content: str, filename: str) -> Dict[str, Any]:
+        """Analyze the diff content for code review issues."""
+        try:
+            # Parse the diff to extract added/modified lines
+            added_lines = []
+            modified_lines = []
+            removed_lines = []
+            
+            lines = diff_content.split('\n')
+            current_line_number = 0
+            
+            for line in lines:
+                if line.startswith('@@'):
+                    # Parse the @@ line to get line numbers
+                    match = re.search(r'@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@', line)
+                    if match:
+                        old_start = int(match.group(1))
+                        new_start = int(match.group(3))
+                        current_line_number = new_start
+                elif line.startswith('+') and not line.startswith('+++'):
+                    # Added line
+                    added_lines.append({
+                        'line_number': current_line_number,
+                        'content': line[1:],
+                        'type': 'added'
+                    })
+                    current_line_number += 1
+                elif line.startswith('-') and not line.startswith('---'):
+                    # Removed line
+                    removed_lines.append({
+                        'line_number': current_line_number,
+                        'content': line[1:],
+                        'type': 'removed'
+                    })
+                elif line.startswith(' '):
+                    # Context line (unchanged)
+                    current_line_number += 1
+            
+            # Analyze the changes for issues
+            issues = []
+            
+            # Analyze added lines for potential issues
+            for line_info in added_lines:
+                line_issues = self._analyze_line_for_issues(line_info['content'], line_info['line_number'], 'added')
+                issues.extend(line_issues)
+            
+            # Analyze removed lines for potential issues
+            for line_info in removed_lines:
+                line_issues = self._analyze_line_for_issues(line_info['content'], line_info['line_number'], 'removed')
+                issues.extend(line_issues)
+            
+            # Group issues by severity
+            critical_issues = [i for i in issues if i.get('severity') == 'critical']
+            high_issues = [i for i in issues if i.get('severity') == 'high']
+            medium_issues = [i for i in issues if i.get('severity') == 'medium']
+            low_issues = [i for i in issues if i.get('severity') == 'low']
+            
+            # Calculate score based on changes
+            total_issues = len(issues)
+            score = 100
+            score -= len(critical_issues) * 10
+            score -= len(high_issues) * 5
+            score -= len(medium_issues) * 2
+            score -= len(low_issues) * 1
+            score = max(0, score)
+            
+            return {
+                "filename": filename,
+                "language": "python",
+                "score": score,
+                "grade": self._calculate_grade(score),
+                "changes": {
+                    "added_lines": len(added_lines),
+                    "removed_lines": len(removed_lines),
+                    "total_changes": len(added_lines) + len(removed_lines)
+                },
+                "issues": {
+                    "total": total_issues,
+                    "critical": len(critical_issues),
+                    "high": len(high_issues),
+                    "medium": len(medium_issues),
+                    "low": len(low_issues),
+                    "details": issues
+                },
+                "diff_summary": {
+                    "added_lines": added_lines,
+                    "removed_lines": removed_lines
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "filename": filename,
+                "language": "python",
+                "score": 0,
+                "grade": "F",
+                "error": str(e),
+                "issues": {
+                    "total": 0,
+                    "critical": 0,
+                    "high": 0,
+                    "medium": 0,
+                    "low": 0,
+                    "details": []
+                }
+            }
+    
+    def _analyze_line_for_issues(self, line_content: str, line_number: int, change_type: str) -> List[Dict[str, Any]]:
+        """Analyze a single line for potential issues."""
+        issues = []
+        
+        # Security issues
+        if any(pattern in line_content.lower() for pattern in ['eval(', 'exec(', 'os.system(', 'subprocess.call(']):
+            issues.append({
+                'line': line_number,
+                'severity': 'critical',
+                'category': 'security',
+                'message': f'Potential security vulnerability: {change_type} line contains dangerous function call',
+                'suggestion': 'Use safer alternatives and validate inputs'
+            })
+        
+        # Performance issues
+        if 'for ' in line_content and ' in ' in line_content and 'range(' in line_content:
+            if 'range(len(' in line_content:
+                issues.append({
+                    'line': line_number,
+                    'severity': 'medium',
+                    'category': 'performance',
+                    'message': f'Performance issue: {change_type} line uses inefficient range(len()) pattern',
+                    'suggestion': 'Use enumerate() instead of range(len())'
+                })
+        
+        # Code style issues
+        if len(line_content) > 120:
+            issues.append({
+                'line': line_number,
+                'severity': 'low',
+                'category': 'style',
+                'message': f'Style issue: {change_type} line is too long ({len(line_content)} characters)',
+                'suggestion': 'Break long lines to improve readability'
+            })
+        
+        # Error handling issues
+        if 'try:' in line_content and change_type == 'added':
+            # Check if there's proper exception handling
+            pass  # Could add more sophisticated checks
+        
+        # Documentation issues
+        if line_content.strip().startswith('def ') and not any(doc in line_content for doc in ['"""', "'''"]):
+            issues.append({
+                'line': line_number,
+                'severity': 'medium',
+                'category': 'documentation',
+                'message': f'Documentation issue: {change_type} function definition without docstring',
+                'suggestion': 'Add a docstring to describe the function purpose and parameters'
+            })
+        
+        return issues
+    
+    def _calculate_grade(self, score: int) -> str:
+        """Calculate grade based on score."""
+        if score >= 90:
+            return "A"
+        elif score >= 80:
+            return "B"
+        elif score >= 70:
+            return "C"
+        elif score >= 60:
+            return "D"
+        else:
+            return "F"
     
     def create_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str, commit_id: str = None, path: str = None, line: int = None) -> Dict[str, Any]:
         """Create a comment on a pull request."""
@@ -918,11 +1118,12 @@ class GitHubCodeReviewer:
             if auto_comment and commits_result["commits"]:
                 latest_commit = commits_result["commits"][-1]["sha"]
                 
-                # Create line-specific comments for issues
+                # Create line-specific comments for issues based on diff
                 for result in pr_result.get("results", []):
                     if "report" in result and "issues" in result["report"]:
                         file_path = result["file"]
                         issues = result["report"]["issues"]
+                        diff_summary = result["report"].get("diff_summary", {})
                         
                         # Get all issues from the details list
                         issue_details = issues.get("details", [])
@@ -932,11 +1133,20 @@ class GitHubCodeReviewer:
                             severity = issue.get("severity", "medium")
                             if severity in ["critical", "high"] and "line" in issue:
                                 comment_body = self._format_issue_comment(issue, severity)
-                                review_comments.append({
-                                    "path": file_path,
-                                    "line": issue["line"],
-                                    "body": comment_body
-                                })
+                                
+                                # Find the corresponding line in the diff
+                                line_number = issue["line"]
+                                added_lines = diff_summary.get("added_lines", [])
+                                
+                                # Check if this line was actually added in the diff
+                                line_found = any(line["line_number"] == line_number for line in added_lines)
+                                
+                                if line_found:
+                                    review_comments.append({
+                                        "path": file_path,
+                                        "line": line_number,
+                                        "body": comment_body
+                                    })
             
             # Create the review
             review_data = {
@@ -967,14 +1177,30 @@ class GitHubCodeReviewer:
         """Generate a summary for PR review."""
         summary = pr_result.get("summary", {})
         
+        # Calculate total changes across all files
+        total_additions = 0
+        total_deletions = 0
+        total_files_changed = len(pr_result.get("results", []))
+        
+        for result in pr_result.get("results", []):
+            if "report" in result and "changes" in result["report"]:
+                changes = result["report"]["changes"]
+                total_additions += changes.get("added_lines", 0)
+                total_deletions += changes.get("removed_lines", 0)
+        
         summary_text = f"""## 🔍 Code Review Summary
 
 **Repository:** {pr_result.get('title', 'Unknown PR')}
 **Author:** {pr_result.get('author', 'Unknown')}
 **Overall Grade:** {summary.get('overall_grade', 'N/A')} ({summary.get('average_score', 0)}/100)
 
-### 📊 Statistics
-- **Files Analyzed:** {summary.get('total_files', 0)}
+### 📊 Change Analysis
+- **Files Changed:** {total_files_changed}
+- **Lines Added:** {total_additions}
+- **Lines Removed:** {total_deletions}
+- **Net Changes:** {total_additions - total_deletions}
+
+### 🎯 Issues Found
 - **Total Issues:** {summary.get('total_issues', 0)}
 - **Critical Issues:** {summary.get('critical_issues', 0)}
 - **High Priority Issues:** {summary.get('high_issues', 0)}
@@ -994,7 +1220,10 @@ class GitHubCodeReviewer:
         if summary.get('average_score', 0) < 70:
             summary_text += "- 🟡 **Quality:** Consider improving overall code quality\n"
         
-        summary_text += "\n---\n*This review was generated automatically by the Code Review Agent*"
+        if total_additions > 100:
+            summary_text += "- 📏 **Size:** This is a large PR. Consider breaking it into smaller changes\n"
+        
+        summary_text += "\n---\n*This review analyzes the actual changes (diff) between branches*"
         
         return summary_text
     
@@ -1007,16 +1236,27 @@ class GitHubCodeReviewer:
             "low": "🟢"
         }.get(severity, "ℹ️")
         
+        category_emoji = {
+            "security": "🔒",
+            "performance": "⚡",
+            "style": "🎨",
+            "documentation": "📝",
+            "error_handling": "⚠️",
+            "architecture": "🏗️"
+        }.get(issue.get('category', ''), "💡")
+        
         comment = f"""{severity_emoji} **{severity.upper()} Priority Issue**
+
+{category_emoji} **Category:** {issue.get('category', 'Code Quality').title()}
 
 **Issue:** {issue.get('message', 'Unknown issue')}
 
-**Category:** {issue.get('category', 'Unknown')}
-
 **Suggestion:** {issue.get('suggestion', 'Consider reviewing this code')}
 
+**Line Analysis:** This line was added/modified in your PR. Please review the suggested improvement.
+
 ---
-*Automated review comment*"""
+*Automated code review comment*"""
         
         return comment
     
