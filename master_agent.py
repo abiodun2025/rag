@@ -323,6 +323,35 @@ class MasterAgent:
             "total_tasks": len(self.tasks)
         }
     
+    def _execute_branch_listing(self) -> Dict[str, Any]:
+        """Execute branch listing via MCP bridge."""
+        try:
+            logger.info("🔍 Executing branch listing via MCP bridge")
+            
+            response = requests.post(
+                f"{self.mcp_bridge_url}/call",
+                json={
+                    "tool": "list_branches",
+                    "arguments": {}
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info("✅ Branch listing completed successfully")
+                return result
+            else:
+                logger.error(f"❌ Failed to list branches: {response.status_code} - {response.text}")
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Network error during branch listing: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during branch listing: {e}")
+            return {"success": False, "error": str(e)}
+    
     def stop(self):
         """Stop the master agent."""
         self.running = False
