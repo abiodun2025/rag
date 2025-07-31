@@ -174,7 +174,7 @@ def create_workflow_interactive(master):
                     print(f"   {i:2d}. {protection} {branch_name} (main branch)")
                     continue
                 
-                # Check if branch has new commits
+                # Check if branch has new commits and existing PRs
                 try:
                     commit_response = requests.post(
                         "http://127.0.0.1:5000/call",
@@ -193,7 +193,40 @@ def create_workflow_interactive(master):
                             
                             if has_commits:
                                 ahead_by = details.get("ahead_by", 0)
-                                print(f"   {i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                
+                                # Check if PR already exists for this branch
+                                pr_response = requests.post(
+                                    "http://127.0.0.1:5000/call",
+                                    json={
+                                        "tool": "list_pull_requests",
+                                        "arguments": {"state": "open"}
+                                    },
+                                    timeout=10
+                                )
+                                
+                                if pr_response.status_code == 200:
+                                    pr_result = pr_response.json()
+                                    if pr_result.get("success"):
+                                        prs = pr_result.get("pull_requests", [])
+                                        existing_pr = None
+                                        
+                                        # Find PR for this branch
+                                        for pr in prs:
+                                            if pr.get("head", {}).get("ref") == branch_name:
+                                                existing_pr = pr
+                                                break
+                                        
+                                        if existing_pr:
+                                            pr_number = existing_pr.get("number", "N/A")
+                                            pr_title = existing_pr.get("title", "No title")
+                                            print(f"   {i:2d}. {protection} {branch_name} 🔄 PR #{pr_number} open")
+                                            print(f"       📝 {pr_title}")
+                                        else:
+                                            print(f"   {i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                    else:
+                                        print(f"   {i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                else:
+                                    print(f"   {i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
                             else:
                                 print(f"   {i:2d}. {protection} {branch_name} ⚠️  no new commits")
                         else:
@@ -212,7 +245,7 @@ def create_workflow_interactive(master):
                 print()  # Empty line for readability
             
             print("=" * 70)
-            print("💡 Legend: ✅ = Ready for PR | ⚠️ = Needs commits | ❌ = Error")
+            print("💡 Legend: ✅ = Ready for PR | 🔄 = Open PR | ⚠️ = Needs commits | ❌ = Error")
         else:
             print("⚠️  Could not fetch branches. You can still enter a branch name manually.")
     except Exception as e:
@@ -427,7 +460,7 @@ def list_branches(master):
                     print(f"{i:2d}. {protection} {branch_name} (main branch)")
                     continue
                 
-                # Check if branch has new commits
+                # Check if branch has new commits and existing PRs
                 try:
                     commit_response = requests.post(
                         "http://127.0.0.1:5000/call",
@@ -446,7 +479,40 @@ def list_branches(master):
                             
                             if has_commits:
                                 ahead_by = details.get("ahead_by", 0)
-                                print(f"{i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                
+                                # Check if PR already exists for this branch
+                                pr_response = requests.post(
+                                    "http://127.0.0.1:5000/call",
+                                    json={
+                                        "tool": "list_pull_requests",
+                                        "arguments": {"state": "open"}
+                                    },
+                                    timeout=10
+                                )
+                                
+                                if pr_response.status_code == 200:
+                                    pr_result = pr_response.json()
+                                    if pr_result.get("success"):
+                                        prs = pr_result.get("pull_requests", [])
+                                        existing_pr = None
+                                        
+                                        # Find PR for this branch
+                                        for pr in prs:
+                                            if pr.get("head", {}).get("ref") == branch_name:
+                                                existing_pr = pr
+                                                break
+                                        
+                                        if existing_pr:
+                                            pr_number = existing_pr.get("number", "N/A")
+                                            pr_title = existing_pr.get("title", "No title")
+                                            print(f"{i:2d}. {protection} {branch_name} 🔄 PR #{pr_number} open")
+                                            print(f"    📝 {pr_title}")
+                                        else:
+                                            print(f"{i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                    else:
+                                        print(f"{i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                                else:
+                                    print(f"{i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
                             else:
                                 print(f"{i:2d}. {protection} {branch_name} ⚠️  no new commits")
                         else:
@@ -468,6 +534,7 @@ def list_branches(master):
             print("=" * 80)
             print("💡 Legend:")
             print("   ✅ = Ready for PR creation (has new commits)")
+            print("   🔄 = Open PR exists (PR already created)")
             print("   ⚠️  = Needs commits first (no new commits)")
             print("   ❌ = Error checking commit status")
             print("   🔓 = Unprotected branch")
