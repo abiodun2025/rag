@@ -1,0 +1,567 @@
+#!/usr/bin/env python3
+"""
+GitHub Repository Code Review Agent
+==================================
+
+A simple agent that reviews any GitHub repository and returns a comprehensive report.
+Enhanced with full repository and branch access, plus PR commenting capabilities.
+Version: 1.3.0
+"""
+
+import sys
+import os
+import json
+import argparse
+from datetime import datetime
+from typing import Dict, Any, List
+
+# Add the current directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from agent.github_code_reviewer import GitHubCodeReviewer
+from agent.code_reviewer import code_reviewer
+
+class GitHubReviewAgent:
+    """Agent for reviewing GitHub repositories with full access and PR commenting."""
+    
+    def __init__(self, github_token: str = None):
+        self.github_token = github_token or os.getenv('GITHUB_TOKEN')
+        self.reviewer = GitHubCodeReviewer(self.github_token)
+        self.version = "1.3.0"
+    
+    def test_github_connection(self) -> Dict[str, Any]:
+        """Test GitHub connection and get user information."""
+        return self.reviewer.test_connection()
+    
+    def list_user_repositories(self, include_private: bool = True) -> Dict[str, Any]:
+        """List all repositories for the authenticated user."""
+        return self.reviewer.get_user_repositories(include_private)
+    
+    def list_repository_branches(self, owner: str, repo: str) -> Dict[str, Any]:
+        """List all branches for a specific repository."""
+        return self.reviewer.get_repository_branches(owner, repo)
+    
+    def list_repository_pull_requests(self, owner: str, repo: str, state: str = "open") -> Dict[str, Any]:
+        """List all pull requests for a specific repository."""
+        return self.reviewer.get_repository_pull_requests(owner, repo, state)
+    
+    def list_all_pull_requests(self, state: str = "open", include_private: bool = True) -> Dict[str, Any]:
+        """List all pull requests from all accessible repositories."""
+        return self.reviewer.get_all_accessible_pull_requests(state, include_private)
+    
+    def get_pull_request_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get detailed information about a specific pull request."""
+        return self.reviewer.get_pull_request_details(owner, repo, pr_number)
+    
+    def extract_repo_info(self, repo_url: str) -> Dict[str, str]:
+        """Extract owner and repo name from various URL formats."""
+        # Clean the URL
+        repo_url = repo_url.strip()
+        
+        # Handle different URL formats
+        if repo_url.startswith('https://github.com/'):
+            repo_url = repo_url.replace('https://github.com/', '')
+        elif repo_url.startswith('http://github.com/'):
+            repo_url = repo_url.replace('http://github.com/', '')
+        elif repo_url.startswith('github.com/'):
+            repo_url = repo_url.replace('github.com/', '')
+        
+        # Remove trailing slash and .git
+        repo_url = repo_url.rstrip('/').replace('.git', '')
+        
+        # Split into owner and repo
+        if '/' in repo_url:
+            parts = repo_url.split('/')
+            if len(parts) >= 2:
+                owner = parts[0]
+                repo = parts[1]
+                return {"owner": owner, "repo": repo}
+        
+        raise ValueError(f"Invalid GitHub repository URL: {repo_url}")
+    
+    def review_repository(self, repo_url: str, output_file: str = None, clone_locally: bool = True, branch: str = None) -> Dict[str, Any]:
+        """Review a GitHub repository and generate a comprehensive report."""
+        try:
+            # Extract repository information
+            repo_info = self.extract_repo_info(repo_url)
+            owner = repo_info["owner"]
+            repo = repo_info["repo"]
+            
+            print(f"🔍 Starting code review for: {repo_url}")
+            print(f"📦 Repository: {owner}/{repo}")
+            if branch:
+                print(f"🌿 Branch: {branch}")
+            print("📊 Analyzing repository...")
+            
+            # Analyze the repository
+            analysis_result = self.reviewer.analyze_repository(owner, repo, clone_locally, branch)
+            
+            if not analysis_result["success"]:
+                return {
+                    "success": False,
+                    "error": analysis_result["error"],
+                    "repository": f"{owner}/{repo}",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_comprehensive_report(analysis_result, repo_url, branch)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Review failed: {str(e)}",
+                "repository": repo_url,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def review_pull_request(self, owner: str, repo: str, pr_number: int, output_file: str = None) -> Dict[str, Any]:
+        """Review a specific pull request."""
+        try:
+            print(f"🔍 Starting pull request review for: {owner}/{repo}#{pr_number}")
+            print("📊 Analyzing pull request changes...")
+            
+            # Review the pull request
+            pr_result = self.reviewer.review_pull_request(owner, repo, pr_number)
+            
+            if not pr_result["success"]:
+                return {
+                    "success": False,
+                    "error": pr_result["error"],
+                    "repository": f"{owner}/{repo}",
+                    "pr_number": pr_number,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_pr_report(pr_result, owner, repo, pr_number)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"PR review failed: {str(e)}",
+                "repository": f"{owner}/{repo}",
+                "pr_number": pr_number,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def review_and_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Review a pull request and add comments directly to the PR."""
+        try:
+            print(f"🔍 Starting PR review with comments for: {owner}/{repo}#{pr_number}")
+            print("📊 Analyzing and commenting on pull request...")
+            
+            # Review and comment on the pull request
+            result = self.reviewer.review_and_comment_pr(owner, repo, pr_number, auto_comment)
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result["error"],
+                    "repository": f"{owner}/{repo}",
+                    "pr_number": pr_number,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_pr_comment_report(result, owner, repo, pr_number)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"PR review and comment failed: {str(e)}",
+                "repository": f"{owner}/{repo}",
+                "pr_number": pr_number,
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def create_pr_comment(self, owner: str, repo: str, pr_number: int, comment: str, commit_id: str = None, path: str = None, line: int = None) -> Dict[str, Any]:
+        """Create a single comment on a pull request."""
+        try:
+            print(f"💬 Creating comment on PR #{pr_number} in {owner}/{repo}...")
+            
+            result = self.reviewer.create_pr_comment(owner, repo, pr_number, comment, commit_id, path, line)
+            
+            if result["success"]:
+                print(f"✅ Comment created successfully: {result.get('url', 'N/A')}")
+            else:
+                print(f"❌ Failed to create comment: {result.get('error', 'Unknown error')}")
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create comment: {str(e)}"
+            }
+    
+    def create_pr_review(self, owner: str, repo: str, pr_number: int, review_body: str, comments: List[Dict] = None, event: str = "COMMENT") -> Dict[str, Any]:
+        """Create a review on a pull request with optional comments."""
+        try:
+            print(f"📝 Creating review on PR #{pr_number} in {owner}/{repo}...")
+            
+            review_data = {
+                "body": review_body,
+                "event": event  # COMMENT, APPROVE, REQUEST_CHANGES
+            }
+            
+            if comments:
+                review_data["comments"] = comments
+            
+            result = self.reviewer.create_pr_review(owner, repo, pr_number, review_data)
+            
+            if result["success"]:
+                print(f"✅ Review created successfully: {result.get('url', 'N/A')}")
+            else:
+                print(f"❌ Failed to create review: {result.get('error', 'Unknown error')}")
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to create review: {str(e)}"
+            }
+    
+    def get_pr_commits(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get commits for a pull request."""
+        return self.reviewer.get_pr_commits(owner, repo, pr_number)
+    
+    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Get files changed in a pull request."""
+        return self.reviewer.get_pr_files(owner, repo, pr_number)
+    
+    def comment_all_pull_requests(self, state: str = "open", include_private: bool = True, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Comment on all accessible pull requests."""
+        try:
+            print(f"🔍 Starting automated commenting on all {state} pull requests...")
+            
+            # Comment on all pull requests
+            result = self.reviewer.comment_all_pull_requests(state, include_private, auto_comment)
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result["error"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Generate comprehensive report
+            report = self._generate_all_prs_comment_report(result, state)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to comment on all pull requests: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def review_user_repositories(self, review_type: str = "full", include_private: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Review all repositories for the authenticated user."""
+        try:
+            print("🔍 Starting review of all user repositories...")
+            
+            # Get user repositories
+            repos_result = self.list_user_repositories(include_private)
+            
+            if not repos_result["success"]:
+                return {
+                    "success": False,
+                    "error": repos_result["error"],
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            repositories = repos_result["repositories"]
+            print(f"📦 Found {len(repositories)} repositories to review")
+            
+            # Review each repository
+            results = []
+            for i, repo_info in enumerate(repositories, 1):
+                repo_name = repo_info["full_name"]
+                print(f"📊 Reviewing {i}/{len(repositories)}: {repo_name}")
+                
+                try:
+                    # Review the repository
+                    repo_result = self.review_repository(
+                        repo_name, 
+                        output_file=None, 
+                        clone_locally=False,  # Use API for faster bulk review
+                        branch=repo_info.get("default_branch", "main")
+                    )
+                    
+                    if repo_result["success"]:
+                        results.append({
+                            "repository": repo_name,
+                            "info": repo_info,
+                            "review": repo_result
+                        })
+                    else:
+                        results.append({
+                            "repository": repo_name,
+                            "info": repo_info,
+                            "error": repo_result.get("error", "Unknown error")
+                        })
+                        
+                except Exception as e:
+                    results.append({
+                        "repository": repo_name,
+                        "info": repo_info,
+                        "error": str(e)
+                    })
+            
+            # Generate comprehensive report
+            report = self._generate_user_repos_report(results, review_type)
+            
+            # Save report if output file specified
+            if output_file:
+                self._save_report(report, output_file)
+            
+            return report
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"User repositories review failed: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def _generate_comprehensive_report(self, analysis_result: Dict[str, Any], repo_url: str, branch: str = None) -> Dict[str, Any]:
+        """Generate a comprehensive report from analysis results."""
+        summary = analysis_result.get("summary", {})
+        
+        # Find critical and high priority issues
+        critical_issues = []
+        high_priority_issues = []
+        recommendations = []
+        
+        for result in analysis_result.get("results", []):
+            if "report" in result:
+                report = result["report"]
+                file_path = result["file"]
+                
+                # Collect critical issues
+                for issue in report.get("issues", {}).get("critical", []):
+                    critical_issues.append({
+                        "file": file_path,
+                        "issue": issue
+                    })
+                
+                # Collect high priority issues
+                for issue in report.get("issues", {}).get("high", []):
+                    high_priority_issues.append({
+                        "file": file_path,
+                        "issue": issue
+                    })
+        
+        # Generate recommendations
+        if summary.get("critical_issues", 0) > 0:
+            recommendations.append(f"🔴 CRITICAL: Address {summary['critical_issues']} critical issues immediately")
+        
+        if summary.get("high_issues", 0) > 0:
+            recommendations.append(f"🟠 HIGH: Address {summary['high_issues']} high priority issues")
+        
+        if summary.get("average_score", 0) < 70:
+            recommendations.append("🟡 QUALITY: Consider improving overall code quality")
+        
+        if summary.get("total_files", 0) > 0 and summary.get("successful_reviews", 0) < summary.get("total_files", 0):
+            recommendations.append("🟡 COVERAGE: Some files could not be analyzed")
+        
+        return {
+            "success": True,
+            "repository": analysis_result.get("repository", repo_url),
+            "repository_url": repo_url,
+            "branch": branch or "default",
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "critical_issues": critical_issues[:10],  # Top 10 critical issues
+            "high_priority_issues": high_priority_issues[:10],  # Top 10 high priority issues
+            "recommendations": recommendations,
+            "total_files_analyzed": len(analysis_result.get("results", [])),
+            "local_path": analysis_result.get("local_path")
+        }
+    
+    def _generate_pr_report(self, pr_result: Dict[str, Any], owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Generate a report for pull request review."""
+        summary = pr_result.get("summary", {})
+        
+        return {
+            "success": True,
+            "repository": f"{owner}/{repo}",
+            "pr_number": pr_number,
+            "pr_title": pr_result.get("title"),
+            "pr_author": pr_result.get("author"),
+            "pr_state": pr_result.get("state"),
+            "timestamp": datetime.now().isoformat(),
+            "summary": summary,
+            "changed_files": len(pr_result.get("results", [])),
+            "results": pr_result.get("results", [])
+        }
+    
+    def _generate_pr_comment_report(self, result: Dict[str, Any], owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
+        """Generate a report for PR review with comments."""
+        pr_review = result.get("pr_review", {})
+        review_created = result.get("review_created", {})
+        
+        return {
+            "success": True,
+            "repository": f"{owner}/{repo}",
+            "pr_number": pr_number,
+            "pr_title": pr_review.get("title"),
+            "pr_author": pr_review.get("author"),
+            "pr_state": pr_review.get("state"),
+            "timestamp": datetime.now().isoformat(),
+            "review_created": review_created.get("success", False),
+            "review_url": review_created.get("url"),
+            "comments_added": result.get("comments_added", 0),
+            "summary": result.get("summary", ""),
+            "pr_review": pr_review
+        }
+    
+    def _generate_user_repos_report(self, results: List[Dict[str, Any]], review_type: str) -> Dict[str, Any]:
+        """Generate a report for user repositories review."""
+        successful_reviews = [r for r in results if "review" in r]
+        failed_reviews = [r for r in results if "error" in r]
+        
+        # Calculate overall statistics
+        total_repos = len(results)
+        successful_count = len(successful_reviews)
+        failed_count = len(failed_reviews)
+        
+        # Calculate average scores
+        scores = []
+        total_issues = 0
+        critical_issues = 0
+        high_issues = 0
+        
+        for result in successful_reviews:
+            if "review" in result and "summary" in result["review"]:
+                summary = result["review"]["summary"]
+                scores.append(summary.get("average_score", 0))
+                total_issues += summary.get("total_issues", 0)
+                critical_issues += summary.get("critical_issues", 0)
+                high_issues += summary.get("high_issues", 0)
+        
+        avg_score = sum(scores) / len(scores) if scores else 0
+        
+        # Determine overall grade
+        if avg_score >= 90:
+            overall_grade = "A"
+        elif avg_score >= 80:
+            overall_grade = "B"
+        elif avg_score >= 70:
+            overall_grade = "C"
+        elif avg_score >= 60:
+            overall_grade = "D"
+        else:
+            overall_grade = "F"
+        
+        return {
+            "success": True,
+            "review_type": review_type,
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_repositories": total_repos,
+                "successful_reviews": successful_count,
+                "failed_reviews": failed_count,
+                "average_score": round(avg_score, 2),
+                "overall_grade": overall_grade,
+                "total_issues": total_issues,
+                "critical_issues": critical_issues,
+                "high_issues": high_issues
+            },
+            "repositories": results,
+            "top_repositories": sorted(
+                successful_reviews, 
+                key=lambda x: x.get("review", {}).get("summary", {}).get("average_score", 0),
+                reverse=True
+            )[:5]
+        }
+    
+    def _generate_all_prs_comment_report(self, result: Dict[str, Any], state: str) -> Dict[str, Any]:
+        """Generate a report for commenting on all pull requests."""
+        successful_comments = [r for r in result.get("results", []) if r.get("success")]
+        failed_comments = [r for r in result.get("results", []) if not r.get("success")]
+        
+        total_comments = sum(r.get("comments_added", 0) for r in successful_comments)
+        
+        return {
+            "success": True,
+            "operation": "comment_all_pull_requests",
+            "state": state,
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_prs": result.get("total_prs", 0),
+                "commented_prs": result.get("commented_prs", 0),
+                "failed_prs": result.get("failed_prs", 0),
+                "total_comments_added": total_comments,
+                "success_rate": round((result.get("commented_prs", 0) / result.get("total_prs", 1)) * 100, 2)
+            },
+            "results": result.get("results", []),
+            "successful_comments": successful_comments,
+            "failed_comments": failed_comments
+        }
+    
+    def _save_report(self, report: Dict[str, Any], output_file: str):
+        """Save report to file."""
+        try:
+            # If output_file doesn't have a path, save to Downloads folder
+            if not os.path.dirname(output_file):
+                # Get Downloads folder path
+                downloads_path = os.path.expanduser("~/Downloads")
+                output_file = os.path.join(downloads_path, output_file)
+            
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, default=str)
+            print(f"📄 Report saved to: {output_file}")
+        except Exception as e:
+            print(f"⚠️  Failed to save report: {e}")
+    
+    def cleanup_local_repository(self, local_path: str):
+        """Clean up locally cloned repository."""
+        if local_path:
+            self.reviewer.cleanup_local_repository(local_path)
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize the agent
+    agent = GitHubReviewAgent()
+    
+    # Test GitHub connection
+    connection = agent.test_github_connection()
+    if connection["success"]:
+        print(f"✅ Connected to GitHub as: {connection['user']}")
+        print(f"📊 Public repos: {connection['public_repos']}")
+        print(f"🔒 Private repos: {connection['private_repos']}")
+    else:
+        print(f"❌ GitHub connection failed: {connection['error']}")
+    
+    # Example: Review a repository
+    # result = agent.review_repository("https://github.com/owner/repo")
+    # print(json.dumps(result, indent=2)) 
