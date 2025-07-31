@@ -48,6 +48,8 @@ class GitHubMCPBridge:
                 return self._list_branches(arguments)
             elif tool_name == "create_branch_from_base":
                 return self._create_branch_from_base(arguments)
+            elif tool_name == "check_branch_commits":
+                return self._check_branch_commits_tool(arguments)
             else:
                 return {
                     "success": False,
@@ -306,6 +308,15 @@ class GitHubMCPBridge:
                 "error": f"Failed to save report: {str(e)}"
             }
 
+    def get_health(self) -> dict:
+        """Get health status."""
+        return {
+            "status": "healthy",
+            "server": "github_mcp_bridge",
+            "github_configured": bool(all([self.github_token, self.github_owner, self.github_repo])),
+            "timestamp": datetime.now().isoformat()
+        }
+
     def _create_branch(self, arguments: dict) -> dict:
         """Create a new branch from main."""
         try:
@@ -434,9 +445,8 @@ class GitHubMCPBridge:
                     "error": "Not in a git repository"
                 }
             
-            # Create and checkout the new branch from the specified base
             try:
-                # First, checkout to the base branch
+                # Checkout to the base branch
                 checkout_base = subprocess.run(
                     ["git", "checkout", base_branch],
                     capture_output=True,
@@ -448,10 +458,10 @@ class GitHubMCPBridge:
                     return {
                         "success": False,
                         "tool_name": "create_branch_from_base",
-                        "error": f"Failed to checkout to base branch '{base_branch}': {checkout_base.stderr}"
+                        "error": f"Failed to checkout to {base_branch}: {checkout_base.stderr}"
                     }
                 
-                # Now create the new branch from the base branch
+                # Create the new branch from the base branch
                 result = subprocess.run(
                     ["git", "checkout", "-b", branch_name],
                     capture_output=True,
@@ -463,7 +473,7 @@ class GitHubMCPBridge:
                     return {
                         "success": True,
                         "tool_name": "create_branch_from_base",
-                        "result": f"Successfully created and checked out branch '{branch_name}' from '{base_branch}'",
+                        "result": f"Successfully created and checked out branch '{branch_name}' from {base_branch}",
                         "branch_name": branch_name,
                         "current_branch": branch_name,
                         "created_from": base_branch
@@ -512,7 +522,6 @@ class GitHubMCPBridge:
                 }
             
             try:
-                # Checkout the branch
                 result = subprocess.run(
                     ["git", "checkout", branch_name],
                     capture_output=True,
@@ -524,8 +533,8 @@ class GitHubMCPBridge:
                     return {
                         "success": True,
                         "tool_name": "checkout_branch",
-                        "result": f"Successfully checked out to branch '{branch_name}'",
-                        "branch_name": branch_name
+                        "result": f"Successfully checked out branch '{branch_name}'",
+                        "current_branch": branch_name
                     }
                 else:
                     return {
@@ -651,7 +660,7 @@ class GitHubMCPBridge:
                     if remote_result.returncode == 0:
                         remote_message = " and from remote"
                     else:
-                        remote_message = " (remote deletion may have failed)"
+                        remote_message = " (remote deletion failed)"
                     
                     return {
                         "success": True,
@@ -695,7 +704,7 @@ class GitHubMCPBridge:
                 }
             
             try:
-                # List all branches
+                # Get all branches
                 result = subprocess.run(
                     ["git", "branch", "-a"],
                     capture_output=True,
@@ -704,24 +713,44 @@ class GitHubMCPBridge:
                 )
                 
                 if result.returncode == 0:
-                    branches = result.stdout.strip().split('\n')
-                    branch_list = []
-                    
-                    for branch in branches:
-                        if branch.strip():
-                            # Remove the * prefix for current branch
-                            clean_branch = branch.strip().replace('* ', '')
-                            is_current = branch.strip().startswith('* ')
-                            branch_list.append({
-                                "name": clean_branch,
-                                "is_current": is_current
-                            })
+                    branches = []
+                    for line in result.stdout.strip().split('\n'):
+                        if line.strip():
+                            # Parse branch information
+                            if line.startswith('*'):
+                                # Current branch
+                                branch_name = line[2:].strip()
+                                branches.append({
+                                    "name": branch_name,
+                                    "current": True,
+                                    "type": "local"
+                                })
+                            elif line.startswith('remotes/'):
+                                # Remote branch
+                                parts = line.split('/')
+                                if len(parts) >= 3:
+                                    remote_name = parts[1]
+                                    branch_name = '/'.join(parts[2:])
+                                    branches.append({
+                                        "name": branch_name,
+                                        "remote": remote_name,
+                                        "current": False,
+                                        "type": "remote"
+                                    })
+                            else:
+                                # Local branch
+                                branch_name = line.strip()
+                                branches.append({
+                                    "name": branch_name,
+                                    "current": False,
+                                    "type": "local"
+                                })
                     
                     return {
                         "success": True,
                         "tool_name": "list_branches",
-                        "result": f"Found {len(branch_list)} branches",
-                        "branches": branch_list
+                        "result": f"Found {len(branches)} branches",
+                        "branches": branches
                     }
                 else:
                     return {
@@ -744,14 +773,68 @@ class GitHubMCPBridge:
                 "error": f"Failed to list branches: {str(e)}"
             }
 
-    def get_health(self) -> dict:
-        """Get health status."""
-        return {
-            "status": "healthy",
-            "server": "github_mcp_bridge",
-            "github_configured": bool(all([self.github_token, self.github_owner, self.github_repo])),
-            "timestamp": datetime.now().isoformat()
-        }
+    def _check_branch_commits_tool(self, arguments: dict) -> dict:
+        """Check if a branch has new commits compared to another branch."""
+        try:
+            source_branch = arguments.get("source_branch")
+            target_branch = arguments.get("target_branch", "main")
+            
+            if not source_branch:
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": "Source branch is required"
+                }
+            
+            # Use GitHub API to compare branches
+            if not all([self.github_token, self.github_owner, self.github_repo]):
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": "GitHub configuration missing"
+                }
+            
+            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/compare/{target_branch}...{source_branch}"
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                comparison = response.json()
+                ahead_by = comparison.get("ahead_by", 0)
+                behind_by = comparison.get("behind_by", 0)
+                
+                has_new_commits = ahead_by > 0
+                
+                return {
+                    "success": True,
+                    "tool_name": "check_branch_commits",
+                    "result": f"Branch comparison completed",
+                    "details": {
+                        "source_branch": source_branch,
+                        "target_branch": target_branch,
+                        "has_new_commits": has_new_commits,
+                        "ahead_by": ahead_by,
+                        "behind_by": behind_by,
+                        "status": comparison.get("status", "unknown")
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "tool_name": "check_branch_commits",
+                    "error": f"Failed to compare branches: {response.status_code}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "tool_name": "check_branch_commits",
+                "error": f"Failed to check branch commits: {str(e)}"
+            }
 
     def get_tools(self) -> dict:
         """Get available tools."""
@@ -768,7 +851,8 @@ class GitHubMCPBridge:
                 {"name": "checkout_branch", "description": "Checkout to an existing git branch"},
                 {"name": "push_branch", "description": "Push a branch to remote repository"},
                 {"name": "delete_branch", "description": "Delete a git branch"},
-                {"name": "list_branches", "description": "List all git branches"}
+                {"name": "list_branches", "description": "List all git branches"},
+                {"name": "check_branch_commits", "description": "Check if a branch has new commits compared to another branch"}
             ]
         }
 

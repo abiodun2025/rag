@@ -87,19 +87,9 @@ class MasterAgent:
             last_heartbeat=datetime.now().isoformat()
         )
         
-        # Branch Agent - Only handles branch operations
-        self.slave_agents["branch_agent"] = SlaveAgent(
-            agent_id="branch_agent",
-            name="Branch Agent",
-            capabilities=["create_branch", "create_branch_from_base", "checkout_branch", "push_branch", "delete_branch", "list_branches"],
-            status="available",
-            last_heartbeat=datetime.now().isoformat()
-        )
-        
         logger.info(f"✅ Initialized {len(self.slave_agents)} slave agents with separation of concerns")
         logger.info("   - PR Agent: Creates pull requests")
         logger.info("   - Report Agent: Generates local URL reports")
-        logger.info("   - Branch Agent: Handles branch operations")
     
     def create_workflow(self, workflow_type: str, parameters: Dict[str, Any], priority: int = 2) -> str:
         """Create a new workflow with multiple tasks."""
@@ -127,84 +117,19 @@ class MasterAgent:
                     created_at=datetime.now().isoformat()
                 )
             ]
-        elif workflow_type == "create_branch":
-            # Create a new branch and push it to GitHub
-            tasks = [
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_branch",
-                    task_type="create_branch",
-                    priority=priority,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_push_branch",
-                    task_type="push_branch",
-                    priority=priority + 1,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                )
-            ]
-        elif workflow_type == "branch_and_pr":
-            # Create branch and then create PR
-            tasks = [
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_branch",
-                    task_type="create_branch",
-                    priority=priority,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_pr",
-                    task_type="create_pr",
-                    priority=priority + 1,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                )
-            ]
-        elif workflow_type == "full_branch_workflow":
-            # Complete branch workflow: create branch, push, create PR, generate report
-            tasks = [
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_branch",
-                    task_type="create_branch",
-                    priority=priority,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_push_branch",
-                    task_type="push_branch",
-                    priority=priority + 1,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_create_pr",
-                    task_type="create_pr",
-                    priority=priority + 2,
-                    parameters=parameters,
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                ),
-                WorkflowTask(
-                    task_id=f"{workflow_id}_generate_report",
-                    task_type="generate_report",
-                    priority=priority + 3,
-                    parameters={"pr_number": "{{PR_NUMBER}}"},
-                    status="pending",
-                    created_at=datetime.now().isoformat()
-                )
-            ]
+        
         else:
-            raise ValueError(f"Unknown workflow type: {workflow_type}")
+            # Single task workflow (create_pr)
+            tasks = [
+                WorkflowTask(
+                    task_id=f"{workflow_id}_task",
+                    task_type=workflow_type,
+                    priority=priority,
+                    parameters=parameters,
+                    status="pending",
+                    created_at=datetime.now().isoformat()
+                )
+            ]
         
         # Add tasks to queue and tracking
         for task in tasks:
@@ -276,20 +201,16 @@ class MasterAgent:
         try:
             logger.info(f"🚀 Executing task {task.task_id} via {task.assigned_agent}")
             
-            # Map task types to MCP tools
+            # Map task types to MCP bridge tools
             tool_mapping = {
                 "create_pr": "create_pull_request",
-                "merge_pr": "merge_pull_request", 
+                "code_review": "automated_code_review",
+                "merge_pr": "merge_pull_request",
+                "analyze_code": "automated_code_review",
                 "list_prs": "list_pull_requests",
                 "generate_report": "generate_report",
                 "create_local_url": "create_local_url",
-                "save_report": "save_report",
-                "create_branch": "create_branch",
-                "create_branch_from_base": "create_branch_from_base",
-                "checkout_branch": "checkout_branch",
-                "push_branch": "push_branch",
-                "delete_branch": "delete_branch",
-                "list_branches": "list_branches"
+                "save_report": "save_report"
             }
             
             tool_name = tool_mapping.get(task.task_type, task.task_type)
@@ -401,6 +322,35 @@ class MasterAgent:
             "failed_tasks": len(failed_tasks),
             "total_tasks": len(self.tasks)
         }
+    
+    def _execute_branch_listing(self) -> Dict[str, Any]:
+        """Execute branch listing via MCP bridge."""
+        try:
+            logger.info("🔍 Executing branch listing via MCP bridge")
+            
+            response = requests.post(
+                f"{self.mcp_bridge_url}/call",
+                json={
+                    "tool": "list_branches",
+                    "arguments": {}
+                },
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info("✅ Branch listing completed successfully")
+                return result
+            else:
+                logger.error(f"❌ Failed to list branches: {response.status_code} - {response.text}")
+                return {"success": False, "error": f"HTTP {response.status_code}"}
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Network error during branch listing: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during branch listing: {e}")
+            return {"success": False, "error": str(e)}
     
     def stop(self):
         """Stop the master agent."""
