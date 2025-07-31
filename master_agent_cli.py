@@ -7,6 +7,7 @@ Command-line interface for the master agent to create and monitor workflows.
 import sys
 import time
 import json
+import requests
 from datetime import datetime
 from master_agent import MasterAgent
 
@@ -149,24 +150,68 @@ def create_workflow_interactive(master):
         else:
             print("❌ Title cannot be empty. Please try again.")
     
-    # Step 3: List available branches
+    # Step 3: List available branches with commit status
     print(f"\n📋 Step 3: Available Branches")
     print(f"Workflow: {workflow_type}")
     print(f"Title: {title}")
     
     try:
-        print("\n🔍 Fetching available branches...")
+        print("\n🔍 Fetching available branches with commit status...")
         response = master._execute_branch_listing()
         if response and response.get("success"):
             branches = response.get("branches", [])
             print(f"\n✅ Found {len(branches)} branches:")
+            print("=" * 70)
+            
+            # Check commit status for each branch
             for i, branch in enumerate(branches, 1):
+                branch_name = branch["name"]
                 protection = "🔒" if branch.get("protected") else "🔓"
-                print(f"   {i:2d}. {protection} {branch['name']}")
-                if branch.get("commit_message"):
-                    # Truncate long commit messages
-                    msg = branch["commit_message"][:60] + "..." if len(branch["commit_message"]) > 60 else branch["commit_message"]
-                    print(f"       📝 {msg}")
+                
+                # Skip main branch for commit checking
+                if branch_name == "main":
+                    print(f"   {i:2d}. {protection} {branch_name} (main branch)")
+                    continue
+                
+                # Check if branch has new commits
+                try:
+                    commit_response = requests.post(
+                        "http://127.0.0.1:5000/call",
+                        json={
+                            "tool": "check_branch_commits",
+                            "arguments": {"source_branch": branch_name, "target_branch": "main"}
+                        },
+                        timeout=10
+                    )
+                    
+                    if commit_response.status_code == 200:
+                        commit_result = commit_response.json()
+                        if commit_result.get("success"):
+                            details = commit_result.get("details", {})
+                            has_commits = details.get("has_new_commits", False)
+                            
+                            if has_commits:
+                                ahead_by = details.get("ahead_by", 0)
+                                print(f"   {i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                            else:
+                                print(f"   {i:2d}. {protection} {branch_name} ⚠️  no new commits")
+                        else:
+                            print(f"   {i:2d}. {protection} {branch_name} ❌ error checking commits")
+                    else:
+                        print(f"   {i:2d}. {protection} {branch_name} ❌ HTTP error")
+                        
+                except Exception as e:
+                    print(f"   {i:2d}. {protection} {branch_name} ❌ exception: {e}")
+                
+                # Show commit SHA if available
+                if branch.get("commit_sha"):
+                    sha_short = branch["commit_sha"][:8]
+                    print(f"       🔗 SHA: {sha_short}")
+                
+                print()  # Empty line for readability
+            
+            print("=" * 70)
+            print("💡 Legend: ✅ = Ready for PR | ⚠️ = Needs commits | ❌ = Error")
         else:
             print("⚠️  Could not fetch branches. You can still enter a branch name manually.")
     except Exception as e:
@@ -361,7 +406,7 @@ def list_workflows(master):
         print(f"❌ Failed to list workflows: {e}")
 
 def list_branches(master):
-    """List all available branches."""
+    """List all available branches with commit status."""
     try:
         print("\n🔍 Fetching available branches...")
         response = master._execute_branch_listing()
@@ -369,22 +414,64 @@ def list_branches(master):
         if response and response.get("success"):
             branches = response.get("branches", [])
             print(f"\n✅ Found {len(branches)} branches:")
-            print("=" * 60)
+            print("=" * 80)
             
+            # Check commit status for each branch
             for i, branch in enumerate(branches, 1):
+                branch_name = branch["name"]
                 protection = "🔒" if branch.get("protected") else "🔓"
-                print(f"{i:2d}. {protection} {branch['name']}")
                 
-                if branch.get("commit_message"):
-                    # Truncate long commit messages
-                    msg = branch["commit_message"][:80] + "..." if len(branch["commit_message"]) > 80 else branch["commit_message"]
-                    print(f"    📝 {msg}")
+                # Skip main branch for commit checking
+                if branch_name == "main":
+                    print(f"{i:2d}. {protection} {branch_name} (main branch)")
+                    continue
                 
+                # Check if branch has new commits
+                try:
+                    commit_response = requests.post(
+                        "http://127.0.0.1:5000/call",
+                        json={
+                            "tool": "check_branch_commits",
+                            "arguments": {"source_branch": branch_name, "target_branch": "main"}
+                        },
+                        timeout=10
+                    )
+                    
+                    if commit_response.status_code == 200:
+                        commit_result = commit_response.json()
+                        if commit_result.get("success"):
+                            details = commit_result.get("details", {})
+                            has_commits = details.get("has_new_commits", False)
+                            
+                            if has_commits:
+                                ahead_by = details.get("ahead_by", 0)
+                                print(f"{i:2d}. {protection} {branch_name} ✅ {ahead_by} new commits")
+                            else:
+                                print(f"{i:2d}. {protection} {branch_name} ⚠️  no new commits")
+                        else:
+                            print(f"{i:2d}. {protection} {branch_name} ❌ error checking commits")
+                    else:
+                        print(f"{i:2d}. {protection} {branch_name} ❌ HTTP error")
+                        
+                except Exception as e:
+                    print(f"{i:2d}. {protection} {branch_name} ❌ exception: {e}")
+                
+                # Show commit details if available
                 if branch.get("commit_sha"):
                     sha_short = branch["commit_sha"][:8]
                     print(f"    🔗 SHA: {sha_short}")
                 
                 print()  # Empty line for readability
+            
+            # Summary
+            print("=" * 80)
+            print("💡 Legend:")
+            print("   ✅ = Ready for PR creation (has new commits)")
+            print("   ⚠️  = Needs commits first (no new commits)")
+            print("   ❌ = Error checking commit status")
+            print("   🔓 = Unprotected branch")
+            print("   🔒 = Protected branch")
+            
         else:
             error_msg = response.get("error", "Unknown error") if response else "No response"
             print(f"❌ Failed to fetch branches: {error_msg}")
