@@ -1,0 +1,118 @@
+{
+  "success": true,
+  "repository": "olaoluwagureje1/my-mcp-server",
+  "repository_url": "https://github.com/olaoluwagureje1/my-mcp-server",
+  "timestamp": "2025-07-29T12:47:25.959602",
+  "summary": {
+    "total_files": 8,
+    "successful_reviews": 8,
+    "average_score": 94.25,
+    "overall_grade": "A",
+    "total_issues": 14,
+    "critical_issues": 0,
+    "high_issues": 0,
+    "medium_issues": 6,
+    "low_issues": 8
+  },
+  "file_analysis": [
+    {
+      "file": "worker-configuration.d.ts",
+      "score": 68,
+      "grade": "D",
+      "language": "javascript",
+      "issues_count": 7,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 6,
+      "low_issues": 1
+    },
+    {
+      "file": "src/workers-oauth-utils.ts",
+      "score": 98,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 1,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 1
+    },
+    {
+      "file": "src/index_sentry.ts",
+      "score": 96,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 2,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 2
+    },
+    {
+      "file": "src/utils.ts",
+      "score": 98,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 1,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 1
+    },
+    {
+      "file": "src/simple-math.ts",
+      "score": 100,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 0,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 0
+    },
+    {
+      "file": "src/database.ts",
+      "score": 96,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 2,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 2
+    },
+    {
+      "file": "src/index.ts",
+      "score": 98,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 1,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 1
+    },
+    {
+      "file": "src/github-handler.ts",
+      "score": 100,
+      "grade": "A",
+      "language": "javascript",
+      "issues_count": 0,
+      "critical_issues": 0,
+      "high_issues": 0,
+      "medium_issues": 0,
+      "low_issues": 0
+    }
+  ],
+  "critical_issues": [],
+  "high_priority_issues": [],
+  "recommendations": [
+    {
+      "priority": "medium",
+      "message": "\ud83d\udfe1 MEDIUM: Improve 1 files with low scores",
+      "details": "Focus on files with scores below 70 for significant improvements."
+    }
+  ],
+  "local_path": "/var/folders/hs/xxz94tzx3lv7_2_zr0pttb_m0000gp/T/github_review_9o2ylhh6",
+  "note": "Use cleanup_local_repository() to remove cloned repository"
+}
