@@ -4,11 +4,8 @@ GitHub Code Review Agent CLI
 ============================
 
 A dedicated command-line interface for reviewing GitHub repositories.
-<<<<<<< Updated upstream
-=======
 Enhanced with full GitHub access, repository management, and PR commenting.
 Version: 1.4.0
->>>>>>> Stashed changes
 """
 
 import sys
@@ -27,10 +24,7 @@ class CodeReviewCLI:
     
     def __init__(self):
         self.agent = GitHubReviewAgent()
-<<<<<<< Updated upstream
-=======
         self.version = "1.4.0"
->>>>>>> Stashed changes
     
     def print_banner(self):
         """Print the CLI banner."""
@@ -44,11 +38,6 @@ class CodeReviewCLI:
     def print_help(self):
         """Print help information."""
         print("\n📋 Available Commands:")
-<<<<<<< Updated upstream
-        print("  review <repo_url> [options]  - Review a GitHub repository")
-        print("  help                         - Show this help")
-        print("  exit                         - Exit the CLI")
-=======
         print("  review <repo_url> [options]           - Review a GitHub repository")
         print("  list-repos [--public-only]            - List all your repositories")
         print("  list-branches <repo>                  - List branches for a repository")
@@ -65,15 +54,11 @@ class CodeReviewCLI:
         print("  help                                  - Show this help")
         print("  version                               - Show version information")
         print("  exit                                  - Exit the CLI")
->>>>>>> Stashed changes
         print("\n📝 Examples:")
         print("  review https://github.com/owner/repo")
         print("  review https://github.com/owner/repo --type security")
         print("  review https://github.com/owner/repo --format detailed")
         print("  review https://github.com/owner/repo --no-clone")
-<<<<<<< Updated upstream
-        print("\n🔧 Options:")
-=======
         print("  list-repos")
         print("  list-repos --public-only")
         print("  list-branches owner/repo")
@@ -91,13 +76,10 @@ class CodeReviewCLI:
         print("  comment-all-prs --state open")
         print("  comment-all-prs --public-only")
         print("\n🔧 Review Options:")
->>>>>>> Stashed changes
         print("  --type <type>               - Review type: full, security, performance, style")
         print("  --format <format>           - Output format: summary, detailed, json")
         print("  --no-clone                  - Don't clone locally (faster but less thorough)")
         print("  --output <filename>         - Custom output filename (saves to Downloads folder)")
-<<<<<<< Updated upstream
-=======
         print("  --branch <branch>           - Review specific branch")
         print("\n🔧 PR Commenting Options:")
         print("  --auto-comment              - Automatically add line-specific comments (default)")
@@ -114,7 +96,6 @@ class CodeReviewCLI:
         print("  • Line-specific comments appear directly on the code in GitHub")
         print("  • Commit-by-commit review analyzes each commit's changes individually")
         print("  • Use review-commits for detailed analysis of PR history")
->>>>>>> Stashed changes
     
     def parse_command(self, command: str):
         """Parse user command."""
@@ -127,8 +108,6 @@ class CodeReviewCLI:
         
         if cmd == "review":
             return self.parse_review_command(args)
-<<<<<<< Updated upstream
-=======
         elif cmd == "list-repos":
             return self.parse_list_repos_command(args)
         elif cmd == "list-branches":
@@ -153,7 +132,6 @@ class CodeReviewCLI:
             return self.parse_comment_all_prs_command(args)
         elif cmd == "test-connection":
             return "test_connection", {}
->>>>>>> Stashed changes
         elif cmd == "help":
             return "help", {}
         elif cmd == "exit":
@@ -189,19 +167,70 @@ class CodeReviewCLI:
         
         return "review", {"repo_url": repo_url, **options}
     
-    async def execute_review(self, repo_url: str, options: dict):
-        """Execute the review command."""
-        print(f"\n🔍 Starting code review for: {repo_url}")
-        print("⏳ This may take a few minutes...")
+    def parse_list_repos_command(self, args):
+        """Parse list-repos command arguments."""
+        options = {"include_private": True}
+        
+        i = 0
+        while i < len(args):
+            if args[i] == "--public-only":
+                options["include_private"] = False
+                i += 1
+            else:
+                return "error", {"message": f"Unknown option: {args[i]}"}
+        
+        return "list_repos", options
+    
+    def parse_list_branches_command(self, args):
+        """Parse list-branches command arguments."""
+        if not args:
+            return "error", {"message": "Repository name required (format: owner/repo)"}
+        
+        repo_name = args[0]
+        if "/" not in repo_name:
+            return "error", {"message": "Repository must be in format: owner/repo"}
+        
+        owner, repo = repo_name.split("/", 1)
+        return "list_branches", {"owner": owner, "repo": repo}
+    
+    def parse_review_all_command(self, args):
+        """Parse review-all command arguments."""
+        options = {
+            "review_type": "full",
+            "output_format": "summary",
+            "clone_locally": True,
+            "include_private": True
+        }
+        
+        i = 0
+        while i < len(args):
+            if args[i] == "--type" and i + 1 < len(args):
+                options["review_type"] = args[i + 1]
+                i += 2
+            elif args[i] == "--format" and i + 1 < len(args):
+                options["output_format"] = args[i + 1]
+                i += 2
+            elif args[i] == "--no-clone":
+                options["clone_locally"] = False
+                i += 1
+            elif args[i] == "--public-only":
+                options["include_private"] = False
+                i += 1
+            else:
+                return "error", {"message": f"Unknown option: {args[i]}"}
+        
+        return "review_all", options
+    
+    def parse_review_pr_command(self, args):
+        """Parse review-pr command arguments."""
+        if len(args) < 2:
+            return "error", {"message": "Repository and PR number required (format: owner/repo pr_number)"}
+        
+        repo_name = args[0]
+        if "/" not in repo_name:
+            return "error", {"message": "Repository must be in format: owner/repo"}
         
         try:
-<<<<<<< Updated upstream
-            # Set default options
-            review_type = options.get("review_type", "full")
-            output_format = options.get("output_format", "summary")
-            clone_locally = options.get("clone_locally", True)
-            output_file = options.get("output_file")
-=======
             pr_number = int(args[1])
         except ValueError:
             return "error", {"message": "PR number must be a valid integer"}
@@ -374,10 +403,16 @@ class CodeReviewCLI:
         return "comment_all_prs", options
     
     async def execute_review(self, repo_url: str, options: dict) -> bool:
-        """Execute repository review."""
+        """Execute the review command."""
+        print(f"\n🔍 Starting code review for: {repo_url}")
+        print("⏳ This may take a few minutes...")
+        
         try:
-            print(f"🔍 Starting review of: {repo_url}")
->>>>>>> Stashed changes
+            # Set default options
+            review_type = options.get("review_type", "full")
+            output_format = options.get("output_format", "summary")
+            clone_locally = options.get("clone_locally", True)
+            output_file = options.get("output_file")
             
             # Generate default output filename if not provided
             if not output_file:
@@ -413,9 +448,43 @@ class CodeReviewCLI:
                 return False
                 
         except Exception as e:
-<<<<<<< Updated upstream
             print(f"\n❌ Error during code review: {str(e)}")
-=======
+            return False
+    
+    async def execute_list_repos(self, args):
+        """Execute list repositories command."""
+        try:
+            print("🔍 Fetching repositories...")
+            
+            include_private = True
+            if len(args) > 0 and args[0] == "--public-only":
+                include_private = False
+            
+            result = self.agent.list_user_repositories(include_private=include_private)
+            
+            if result["success"]:
+                repos = result.get("repositories", [])
+                if repos is None:
+                    repos = []
+                
+                print(f"\n📊 Found {len(repos)} repositories:")
+                print("-" * 60)
+                
+                if repos:
+                    for i, repo in enumerate(repos, 1):
+                        print(f"{i:2d}. {repo.get('name', 'Unknown')}")
+                        print(f"     📁 {repo.get('private', 'Public')}")
+                        print(f"     🔗 {repo.get('html_url', 'N/A')}")
+                        print()
+                else:
+                    print("📭 No repositories found.")
+                
+                return True
+            else:
+                print(f"❌ Failed to list repositories: {result.get('error', 'Unknown error')}")
+                return False
+                
+        except Exception as e:
             print(f"❌ Failed to list repositories: {e}")
             return False
     
@@ -612,19 +681,19 @@ class CodeReviewCLI:
             print(f"❌ Failed to add comment: {e}")
             return False
     
-    async def execute_list_prs(self, options: dict) -> bool:
+    async def execute_list_prs(self, args):
         """Execute list pull requests command."""
         try:
-            print(f"📋 Fetching {options['state']} pull requests...")
+            print(f"📋 Fetching {args['state']} pull requests...")
             
             result = self.agent.list_all_pull_requests(
-                state=options["state"],
-                include_private=options["include_private"]
+                state=args["state"],
+                include_private=args["include_private"]
             )
             
             if result["success"]:
                 prs = result["pull_requests"]
-                print(f"\n📊 Found {len(prs)} {options['state']} pull requests:")
+                print(f"\n📋 Found {len(prs)} {args['state']} pull requests:")
                 print("-" * 100)
                 
                 for i, pr in enumerate(prs, 1):
@@ -632,11 +701,14 @@ class CodeReviewCLI:
                     draft_emoji = "📝" if pr.get("draft", False) else ""
                     repo_visibility = "🔒" if pr.get("repo_private", False) else "🌐"
                     
+                    # Handle author field safely
+                    author = pr.get('user', {}).get('login', 'Unknown') if pr.get('user') else 'Unknown'
+                    
                     print(f"{i:3d}. {state_emoji} {draft_emoji} {repo_visibility} {pr['repository']}#{pr['number']}")
                     print(f"     📝 {pr['title']}")
-                    print(f"     👤 {pr['author']} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
+                    print(f"     👤 {author} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
                     print(f"     📅 Updated: {pr['updated_at']}")
-                    print(f"     📁 Files: {pr['changed_files']} | 💬 Comments: {pr['comments']}")
+                    print(f"     📁 Files: {pr.get('changed_files', 'N/A')} | 💬 Comments: {pr.get('comments', 'N/A')}")
                     print()
                 
                 return True
@@ -675,11 +747,14 @@ class CodeReviewCLI:
                 draft_emoji = "📝" if pr.get("draft", False) else ""
                 repo_visibility = "🔒" if pr.get("repo_private", False) else "🌐"
                 
+                # Handle author field safely
+                author = pr.get('user', {}).get('login', 'Unknown') if pr.get('user') else 'Unknown'
+                
                 print(f"{i:2d}. {draft_emoji} {repo_visibility} {pr['repository']}#{pr['number']}")
                 print(f"     📝 {pr['title']}")
-                print(f"     👤 {pr['author']} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
+                print(f"     👤 {author} | 🌿 {pr['head_branch']} → {pr['base_branch']}")
                 print(f"     📅 Updated: {pr['updated_at']}")
-                print(f"     📁 Files: {pr['changed_files']} | 💬 Comments: {pr['comments']}")
+                print(f"     📁 Files: {pr.get('changed_files', 'N/A')} | 💬 Comments: {pr.get('comments', 'N/A')}")
                 print()
             
             # Get user selection
@@ -704,7 +779,9 @@ class CodeReviewCLI:
             # Show PR details
             print(f"\n📋 Selected: {selected_pr['repository']}#{selected_pr['number']}")
             print(f"📝 Title: {selected_pr['title']}")
-            print(f"👤 Author: {selected_pr['author']}")
+            # Handle author field safely
+            author = selected_pr.get('user', {}).get('login', 'Unknown') if selected_pr.get('user') else 'Unknown'
+            print(f"👤 Author: {author}")
             print(f"🌿 Branch: {selected_pr['head_branch']} → {selected_pr['base_branch']}")
             print(f"📅 Created: {selected_pr['created_at']}")
             print(f"📅 Updated: {selected_pr['updated_at']}")
@@ -867,7 +944,7 @@ class CodeReviewCLI:
         print(f"   ❌ Failed Reviews: {summary.get('failed_reviews', 0)}")
         print(f"   🚨 Total Issues: {summary.get('total_issues', 0)}")
         print(f"   🔴 Critical: {summary.get('critical_issues', 0)}")
-        print(f"   🟠 High: {summary.get('high_issues', 0)}")
+        print(f"   �� High: {summary.get('high_issues', 0)}")
         print()
         
         # Show top repositories
@@ -970,7 +1047,7 @@ class CodeReviewCLI:
             print(f"\n📝 Overall Summary:")
             print(result["overall_summary"])
     
-    async def execute_comment_all_prs(self, options: dict) -> bool:
+    async def execute_comment_all_prs(self, args):
         """Execute comment on all accessible pull requests."""
         try:
             print("🔍 Starting comment on all accessible pull requests...")
@@ -1036,7 +1113,6 @@ class CodeReviewCLI:
             
         except Exception as e:
             print(f"❌ Failed to comment on all PRs: {e}")
->>>>>>> Stashed changes
             return False
     
     async def run(self):
@@ -1061,8 +1137,6 @@ class CodeReviewCLI:
                     success = await self.execute_review(args["repo_url"], args)
                     if success:
                         print("\n🎉 Review completed! Check the Downloads folder for the detailed report.")
-<<<<<<< Updated upstream
-=======
                 elif cmd == "list_repos":
                     await self.execute_list_repos(args)
                 elif cmd == "list_branches":
@@ -1099,7 +1173,6 @@ class CodeReviewCLI:
                     await self.execute_comment_all_prs(args)
                 elif cmd == "test_connection":
                     await self.execute_test_connection()
->>>>>>> Stashed changes
                 elif cmd == "error":
                     print(f"❌ {args['message']}")
                 elif cmd == "unknown":

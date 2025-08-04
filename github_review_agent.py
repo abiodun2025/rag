@@ -4,11 +4,8 @@ GitHub Repository Code Review Agent
 ==================================
 
 A simple agent that reviews any GitHub repository and returns a comprehensive report.
-<<<<<<< Updated upstream
-=======
 Enhanced with full repository and branch access, plus PR commenting capabilities.
 Version: 1.4.0
->>>>>>> Stashed changes
 """
 
 import sys
@@ -16,7 +13,7 @@ import os
 import json
 import argparse
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,8 +27,6 @@ class GitHubReviewAgent:
     def __init__(self, github_token: str = None):
         self.github_token = github_token or os.getenv('GITHUB_TOKEN')
         self.reviewer = GitHubCodeReviewer(self.github_token)
-<<<<<<< Updated upstream
-=======
         self.version = "1.4.0"
     
     def test_github_connection(self) -> Dict[str, Any]:
@@ -57,7 +52,6 @@ class GitHubReviewAgent:
     def get_pull_request_details(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
         """Get detailed information about a specific pull request."""
         return self.reviewer.get_pull_request_details(owner, repo, pr_number)
->>>>>>> Stashed changes
     
     def extract_repo_info(self, repo_url: str) -> Dict[str, str]:
         """Extract owner and repo name from various URL formats."""
@@ -138,9 +132,6 @@ class GitHubReviewAgent:
                 "timestamp": datetime.now().isoformat()
             }
     
-<<<<<<< Updated upstream
-    def _generate_comprehensive_report(self, analysis_result: Dict[str, Any], repo_url: str) -> Dict[str, Any]:
-=======
     def review_pull_request(self, owner: str, repo: str, pr_number: int, output_file: str = None) -> Dict[str, Any]:
         """Review a specific pull request."""
         try:
@@ -428,7 +419,6 @@ class GitHubReviewAgent:
             }
     
     def _generate_comprehensive_report(self, analysis_result: Dict[str, Any], repo_url: str, branch: str = None) -> Dict[str, Any]:
->>>>>>> Stashed changes
         """Generate a comprehensive report from analysis results."""
         
         summary = analysis_result["summary"]
@@ -481,13 +471,13 @@ class GitHubReviewAgent:
                     elif issue.get('severity') == 'low':
                         low_issues.append(issue_info)
         
-<<<<<<< Updated upstream
         # Calculate overall metrics
         total_files = len(file_reports)
         successful_reviews = len([f for f in file_reports if f['score'] > 0])
         avg_score = sum([f['score'] for f in file_reports]) / total_files if total_files > 0 else 0
-=======
+        
         # Generate recommendations
+        recommendations = []
         if summary.get("critical_issues", 0) > 0:
             recommendations.append(f"🔴 CRITICAL: Address {summary['critical_issues']} critical issues immediately")
         
@@ -508,7 +498,7 @@ class GitHubReviewAgent:
             "timestamp": datetime.now().isoformat(),
             "summary": summary,
             "critical_issues": critical_issues[:10],  # Top 10 critical issues
-            "high_priority_issues": high_priority_issues[:10],  # Top 10 high priority issues
+            "high_priority_issues": high_issues[:10],  # Top 10 high priority issues
             "recommendations": recommendations,
             "total_files_analyzed": len(analysis_result.get("results", [])),
             "local_path": analysis_result.get("local_path")
@@ -576,7 +566,6 @@ class GitHubReviewAgent:
                 high_issues += summary.get("high_issues", 0)
         
         avg_score = sum(scores) / len(scores) if scores else 0
->>>>>>> Stashed changes
         
         # Determine overall grade
         if avg_score >= 90:
