@@ -1031,32 +1031,48 @@ class GitHubCodeReviewer:
             # Generate review summary
             review_summary = self._generate_pr_review_summary(analysis_results, pr_data, total_score, total_issues)
             
-            # Create line-specific comments if auto_comment is enabled
+            # Create file-specific comments if auto_comment is enabled
             comments_added = 0
             review_url = None
             
             if auto_comment:
-                # Add line-specific comments for each issue found
+                # Add one comprehensive comment per file with all suggestions
                 for analysis_result in analysis_results:
                     file_analysis = analysis_result['analysis']
                     filename = analysis_result['file']
                     
                     if file_analysis.get('issues'):
+                        # Create one comprehensive comment for the file
+                        comment_body = f"## Code Review Suggestions for {filename}\n\n"
+                        
+                        # Group issues by category
+                        issues_by_category = {}
                         for issue in file_analysis['issues']:
-                            line_number = issue.get('line')
-                            if line_number:
-                                # Create line-specific comment
-                                comment_body = f"**{issue.get('category', 'Issue').title()}**: {issue.get('message', '')}\n\n**Suggestion**: {issue.get('suggestion', '')}"
-                                
-                                comment_result = self.create_pull_request_comment(
-                                    owner, repo, pr_number, comment_body, line_number, filename
-                                )
-                                
-                                if comment_result["success"]:
-                                    comments_added += 1
-                                    print(f"✅ Line {line_number} comment added for {filename}")
-                                else:
-                                    print(f"⚠️  Failed to add line {line_number} comment: {comment_result['error']}")
+                            category = issue.get('category', 'general')
+                            if category not in issues_by_category:
+                                issues_by_category[category] = []
+                            issues_by_category[category].append(issue)
+                        
+                        # Add suggestions by category
+                        for category, issues in issues_by_category.items():
+                            comment_body += f"### {category.title()} Issues:\n"
+                            for issue in issues:
+                                line_num = issue.get('line', 'N/A')
+                                message = issue.get('message', '')
+                                suggestion = issue.get('suggestion', '')
+                                comment_body += f"- **Line {line_num}**: {message}\n  - *Suggestion*: {suggestion}\n"
+                            comment_body += "\n"
+                        
+                        # Add the comment to the file (using line 1 as the anchor)
+                        comment_result = self.create_pull_request_comment(
+                            owner, repo, pr_number, comment_body, 1, filename
+                        )
+                        
+                        if comment_result["success"]:
+                            comments_added += 1
+                            print(f"✅ File comment added for {filename}")
+                        else:
+                            print(f"⚠️  Failed to add file comment: {comment_result['error']}")
                 
                 # Also create a general review summary
                 review_result = self.create_pull_request_review(
