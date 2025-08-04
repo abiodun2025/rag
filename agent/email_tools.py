@@ -310,4 +310,8 @@ def search_emails(query: str, max_results: int = 10) -> Dict[str, Any]:
         return {
             'status': 'error',
             'error': str(e)
-        } 
+        }
+
+def send_email(to: str, subject: str, body: str) -> Dict[str, Any]:
+    """Send email using Gmail API (alias for compose_email)"""
+    return compose_email(to, subject, body) 

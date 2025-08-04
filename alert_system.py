@@ -449,6 +449,42 @@ class AlertSystem:
                 severity=AlertSeverity.LOW,
                 channels=[AlertChannel.EMAIL],
                 cooldown_minutes=1
+            ),
+            AlertRule(
+                rule_id="agent_execution_failed",
+                name="Agent Execution Failed",
+                description="Alert when an agent method fails to execute",
+                condition="agent_execution_failed",
+                severity=AlertSeverity.HIGH,
+                channels=[AlertChannel.EMAIL, AlertChannel.SLACK],
+                cooldown_minutes=2
+            ),
+            AlertRule(
+                rule_id="tool_execution_failed",
+                name="Tool Execution Failed",
+                description="Alert when a tool fails to execute",
+                condition="tool_execution_failed",
+                severity=AlertSeverity.MEDIUM,
+                channels=[AlertChannel.EMAIL],
+                cooldown_minutes=2
+            ),
+            AlertRule(
+                rule_id="agent_performance_degradation",
+                name="Agent Performance Degradation",
+                description="Alert when an agent takes too long to execute",
+                condition="agent_performance_degradation",
+                severity=AlertSeverity.MEDIUM,
+                channels=[AlertChannel.EMAIL],
+                cooldown_minutes=5
+            ),
+            AlertRule(
+                rule_id="tool_performance_degradation",
+                name="Tool Performance Degradation",
+                description="Alert when a tool takes too long to execute",
+                condition="tool_performance_degradation",
+                severity=AlertSeverity.MEDIUM,
+                channels=[AlertChannel.EMAIL],
+                cooldown_minutes=5
             )
         ]
         

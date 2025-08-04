@@ -98,7 +98,7 @@ class MCPClient:
                     },
                     {
                         "name": "sendmail_simple",
-                        "description": "Simple email sending",
+                        "description": "Send simple email via sendmail",
                         "parameters": {
                             "to_email": {"type": "string", "description": "Recipient email address"},
                             "subject": {"type": "string", "description": "Email subject"},
@@ -107,58 +107,21 @@ class MCPClient:
                     }
                 ]
                 logger.info(f"Using fallback tool definitions: {len(self.available_tools)} tools")
+            
+            return self.available_tools
+            
         except Exception as e:
             logger.error(f"Failed to discover tools: {e}")
-            # Use fallback tools
-            self.available_tools = [
-                {
-                    "name": "count_r",
-                    "description": "Count 'r' letters in a word",
-                    "parameters": {"word": {"type": "string", "description": "Word to count 'r' letters in"}}
-                },
-                {
-                    "name": "list_desktop_contents",
-                    "description": "List desktop files/folders",
-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
-                },
-                {
-                    "name": "get_desktop_path",
-                    "description": "Get desktop path",
-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
-                },
-                {
-                    "name": "open_gmail",
-                    "description": "Open Gmail in browser",
-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
-                },
-                {
-                    "name": "open_gmail_compose",
-                    "description": "Open Gmail compose window",
-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
-                },
-                {
-                    "name": "sendmail",
-                    "description": "Send email via sendmail",
-                    "parameters": {
-                        "to_email": {"type": "string", "description": "Recipient email address"},
-                        "subject": {"type": "string", "description": "Email subject"},
-                        "body": {"type": "string", "description": "Email body content"},
-                        "from_email": {"type": "string", "description": "Sender email address (optional)"}
-                    }
-                },
-                {
-                    "name": "sendmail_simple",
-                    "description": "Simple email sending",
-                    "parameters": {
-                        "to_email": {"type": "string", "description": "Recipient email address"},
-                        "subject": {"type": "string", "description": "Email subject"},
-                        "message": {"type": "string", "description": "Email message"}
-                    }
-                }
-            ]
-            logger.info(f"Using fallback tool definitions due to error: {len(self.available_tools)} tools")
-        
-        return self.available_tools
+            return []
+    
+    async def list_tools(self) -> Dict[str, Any]:
+        """List available tools from MCP server."""
+        try:
+            tools = await self.discover_tools()
+            return {"tools": tools, "count": len(tools)}
+        except Exception as e:
+            logger.error(f"Failed to list tools: {e}")
+            return {"tools": [], "count": 0}
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call a tool on the MCP server with improved error handling."""
