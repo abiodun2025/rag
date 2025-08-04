@@ -627,19 +627,28 @@ class GitHubCodeReviewer:
                     "issues": []
                 }
             
-            # Parse the diff content
+            # Parse the diff content to get actual line numbers
             lines = diff_content.split('\n')
             issues = []
             total_score = 100
+            current_line_number = 0
             
-            for line_num, line in enumerate(lines, 1):
-                # Only analyze added lines (lines starting with +)
-                if line.startswith('+') and not line.startswith('+++'):
+            for line in lines:
+                # Parse diff header to get line numbers
+                if line.startswith('@@'):
+                    # Extract line numbers from diff header
+                    # Format: @@ -old_start,old_count +new_start,new_count @@
+                    import re
+                    match = re.search(r'@@ -(\d+),?\d* \+(\d+),?\d* @@', line)
+                    if match:
+                        current_line_number = int(match.group(2)) - 1  # Start at new line number
+                elif line.startswith('+') and not line.startswith('+++'):
+                    current_line_number += 1
                     # Remove the + prefix and analyze the actual content
                     content = line[1:]
                     
                     # Analyze this line for issues
-                    line_issues = self._analyze_line_for_issues(content, line_num, filename)
+                    line_issues = self._analyze_line_for_issues(content, current_line_number, filename)
                     issues.extend(line_issues)
                     
                     # Calculate score deduction based on issues
@@ -653,6 +662,10 @@ class GitHubCodeReviewer:
                             total_score -= 2
                         elif severity == 'low':
                             total_score -= 1
+                elif line.startswith(' ') or line.startswith('-'):
+                    # Context line or removed line, increment line number for context
+                    if not line.startswith('-'):
+                        current_line_number += 1
             
             # Ensure score doesn't go below 0
             total_score = max(0, total_score)
@@ -1018,23 +1031,44 @@ class GitHubCodeReviewer:
             # Generate review summary
             review_summary = self._generate_pr_review_summary(analysis_results, pr_data, total_score, total_issues)
             
-            # Create review comment if auto_comment is enabled
+            # Create line-specific comments if auto_comment is enabled
             comments_added = 0
             review_url = None
             
             if auto_comment:
-                # Create the review
+                # Add line-specific comments for each issue found
+                for analysis_result in analysis_results:
+                    file_analysis = analysis_result['analysis']
+                    filename = analysis_result['file']
+                    
+                    if file_analysis.get('issues'):
+                        for issue in file_analysis['issues']:
+                            line_number = issue.get('line')
+                            if line_number:
+                                # Create line-specific comment
+                                comment_body = f"**{issue.get('category', 'Issue').title()}**: {issue.get('message', '')}\n\n**Suggestion**: {issue.get('suggestion', '')}"
+                                
+                                comment_result = self.create_pull_request_comment(
+                                    owner, repo, pr_number, comment_body, line_number, filename
+                                )
+                                
+                                if comment_result["success"]:
+                                    comments_added += 1
+                                    print(f"✅ Line {line_number} comment added for {filename}")
+                                else:
+                                    print(f"⚠️  Failed to add line {line_number} comment: {comment_result['error']}")
+                
+                # Also create a general review summary
                 review_result = self.create_pull_request_review(
                     owner, repo, pr_number, "COMMENT", review_summary
                 )
                 
                 if review_result["success"]:
-                    comments_added = 1
                     review_url = review_result["review"]["html_url"]
-                    print(f"✅ Review comment added successfully!")
+                    print(f"✅ Review summary added successfully!")
                     print(f"🔗 Review URL: {review_url}")
                 else:
-                    print(f"⚠️  Failed to add review comment: {review_result['error']}")
+                    print(f"⚠️  Failed to add review summary: {review_result['error']}")
             
             # Save report if output file is specified
             if output_file:
