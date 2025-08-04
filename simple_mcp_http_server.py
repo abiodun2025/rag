@@ -141,14 +141,45 @@ class SimpleMCPServer:
             # Add body to email
             msg.attach(MIMEText(body, 'plain'))
             
-            # For now, just log the email since we don't have SMTP credentials configured
+            # Try to send via Gmail SMTP first (using your credentials)
+            gmail_user = os.getenv('GOOGLE_EMAIL')
+            gmail_password = os.getenv('GOOGLE_PASSWORD')
+            
+            if gmail_user and gmail_password and gmail_user != 'your-email@gmail.com' and gmail_password != 'your-app-password':
+                try:
+                    # Use Gmail SMTP for reliable delivery
+                    server = smtplib.SMTP(smtp_server, smtp_port)
+                    server.starttls()
+                    
+                    # Login with your credentials
+                    server.login(gmail_user, gmail_password)
+                    
+                    # Send email
+                    text = msg.as_string()
+                    server.sendmail(gmail_user, to_email, text)
+                    server.quit()
+                    
+                    logger.info(f"📧 EMAIL SENT via Gmail SMTP to {to_email}")
+                    return {
+                        "success": True,
+                        "tool_name": "sendmail",
+                        "result": f"Email sent successfully to {to_email} via Gmail SMTP",
+                        "note": "Email delivered via Gmail SMTP"
+                    }
+                    
+                except Exception as smtp_error:
+                    logger.warning(f"📧 GMAIL SMTP FAILED: {smtp_error}")
+            else:
+                logger.info("📧 Gmail credentials not configured, trying sendmail...")
+            
+            # Log the email content for debugging
             logger.info(f"📧 EMAIL CONTENT:")
             logger.info(f"   From: {msg['From']}")
             logger.info(f"   To: {msg['To']}")
             logger.info(f"   Subject: {msg['Subject']}")
             logger.info(f"   Body: {body}")
             
-            # Try to send via sendmail first (for local testing)
+            # Try to send via sendmail as fallback
             try:
                 import subprocess
                 email_content = f"""From: {msg['From']}
