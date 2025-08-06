@@ -785,8 +785,8 @@ class CodeReviewCLI:
             print(f"🌿 Branch: {selected_pr['head_branch']} → {selected_pr['base_branch']}")
             print(f"📅 Created: {selected_pr['created_at']}")
             print(f"📅 Updated: {selected_pr['updated_at']}")
-            print(f"📁 Changed Files: {selected_pr['changed_files']}")
-            print(f"💬 Comments: {selected_pr['comments']}")
+            print(f"📁 Changed Files: {selected_pr.get('changed_files', 'N/A')}")
+            print(f"💬 Comments: {selected_pr.get('comments', 'N/A')}")
             print(f"🔗 URL: {selected_pr['html_url']}")
             
             # Ask what action to take

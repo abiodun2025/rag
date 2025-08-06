@@ -1036,55 +1036,105 @@ class GitHubCodeReviewer:
             review_url = None
             
             if auto_comment:
-                # Add one comprehensive comment per file with all suggestions
+                # Get the latest commit SHA for the review
+                commits_result = self.get_pull_request_commits(owner, repo, pr_number)
+                if not commits_result["success"]:
+                    print(f"⚠️  Failed to get PR commits: {commits_result['error']}")
+                    return {"success": False, "error": f"Failed to get PR commits: {commits_result['error']}"}
+                
+                latest_commit_sha = commits_result["commits"][-1]["sha"] if commits_result["commits"] else None
+                
+                # Collect all comments for the review
+                all_comments = []
+                
+                # Create practical line-specific comments (max 5 per file)
                 for analysis_result in analysis_results:
                     file_analysis = analysis_result['analysis']
                     filename = analysis_result['file']
                     
                     if file_analysis.get('issues'):
-                        # Create one comprehensive comment for the file
-                        comment_body = f"## Code Review Suggestions for {filename}\n\n"
-                        
-                        # Group issues by category
+                        # Group issues by category and severity
                         issues_by_category = {}
                         for issue in file_analysis['issues']:
                             category = issue.get('category', 'general')
+                            severity = issue.get('severity', 'low')
+                            
                             if category not in issues_by_category:
                                 issues_by_category[category] = []
                             issues_by_category[category].append(issue)
                         
-                        # Add suggestions by category
-                        for category, issues in issues_by_category.items():
-                            comment_body += f"### {category.title()} Issues:\n"
-                            for issue in issues:
-                                line_num = issue.get('line', 'N/A')
+                        # Sort categories by priority (security first, then performance, etc.)
+                        category_priority = ['security', 'performance', 'error_handling', 'style', 'documentation', 'general']
+                        sorted_categories = sorted(issues_by_category.keys(), 
+                                                 key=lambda x: category_priority.index(x) if x in category_priority else 999)
+                        
+                        comment_count = 0
+                        max_comments_per_file = 5  # Reduced from 10 to 5
+                        
+                        for category in sorted_categories:
+                            if comment_count >= max_comments_per_file:
+                                break
+                            
+                            issues = issues_by_category[category]
+                            # Sort issues by severity (critical, high, medium, low)
+                            severity_order = ['critical', 'high', 'medium', 'low']
+                            issues.sort(key=lambda x: severity_order.index(x.get('severity', 'low')))
+                            
+                            # Take only the most important issues from this category
+                            important_issues = issues[:3]  # Max 3 issues per category
+                            
+                            for issue in important_issues:
+                                if comment_count >= max_comments_per_file:
+                                    break
+                                
+                                line_num = issue.get('line', 0)
+                                if line_num <= 0:
+                                    continue
+                                
                                 message = issue.get('message', '')
                                 suggestion = issue.get('suggestion', '')
-                                comment_body += f"- **Line {line_num}**: {message}\n  - *Suggestion*: {suggestion}\n"
-                            comment_body += "\n"
-                        
-                        # Add the comment to the file (using line 1 as the anchor)
-                        comment_result = self.create_pull_request_comment(
-                            owner, repo, pr_number, comment_body, 1, filename
-                        )
-                        
-                        if comment_result["success"]:
-                            comments_added += 1
-                            print(f"✅ File comment added for {filename}")
-                        else:
-                            print(f"⚠️  Failed to add file comment: {comment_result['error']}")
+                                severity = issue.get('severity', 'low')
+                                
+                                # Create concise comment
+                                severity_emoji = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢'}
+                                emoji = severity_emoji.get(severity, '🟢')
+                                
+                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**: {message}\n\n💡 **Suggestion**: {suggestion}"
+                                
+                                # Add to comments list for the review
+                                all_comments.append({
+                                    "path": filename,
+                                    "line": line_num,
+                                    "body": comment_body
+                                })
+                                
+                                comment_count += 1
                 
-                # Also create a general review summary
-                review_result = self.create_pull_request_review(
-                    owner, repo, pr_number, "COMMENT", review_summary
-                )
-                
-                if review_result["success"]:
-                    review_url = review_result["review"]["html_url"]
-                    print(f"✅ Review summary added successfully!")
-                    print(f"🔗 Review URL: {review_url}")
+                # Create a review with all comments
+                if all_comments:
+                    review_result = self.create_pull_request_review(
+                        owner, repo, pr_number, "COMMENT", review_summary, all_comments, latest_commit_sha
+                    )
+                    
+                    if review_result["success"]:
+                        comments_added = len(all_comments)
+                        review_url = review_result["review"]["html_url"]
+                        print(f"✅ Review with {comments_added} file comments added successfully!")
+                        print(f"🔗 Review URL: {review_url}")
+                    else:
+                        print(f"⚠️  Failed to add review with comments: {review_result['error']}")
                 else:
-                    print(f"⚠️  Failed to add review summary: {review_result['error']}")
+                    # If no issues found, just add the summary
+                    review_result = self.create_pull_request_review(
+                        owner, repo, pr_number, "COMMENT", review_summary, None, latest_commit_sha
+                    )
+                    
+                    if review_result["success"]:
+                        review_url = review_result["review"]["html_url"]
+                        print(f"✅ Review summary added successfully!")
+                        print(f"🔗 Review URL: {review_url}")
+                    else:
+                        print(f"⚠️  Failed to add review summary: {review_result['error']}")
             
             # Save report if output file is specified
             if output_file:
@@ -1402,7 +1452,7 @@ class GitHubCodeReviewer:
             print(f"❌ {error_msg}")
             return {"success": False, "error": error_msg}
     
-    def create_pull_request_review(self, owner, repo, pr_number, event, body, comments=None):
+    def create_pull_request_review(self, owner, repo, pr_number, event, body, comments=None, commit_sha=None):
         """Create a review on a pull request."""
         try:
             url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}/reviews"
@@ -1414,6 +1464,9 @@ class GitHubCodeReviewer:
             
             if comments:
                 data["comments"] = comments
+            
+            if commit_sha:
+                data["commit_id"] = commit_sha
             
             response = requests.post(url, headers=self.headers, json=data)
             response.raise_for_status()
