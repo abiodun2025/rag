@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-08-06T11:11:18.630202",
+  "summary": {
+    "total_components": 8,
+    "working_components": 7,
+    "critical_issues": 0,
+    "success_rate": 87.5
+  },
+  "working_components": [
+    "MCP Server (Port 5000)",
+    "Email Functionality",
+    "Agent Imports",
+    "Agent Configuration",
+    "Database Files",
+    "Git Setup",
+    "Environment Variables"
+  ],
+  "critical_issues": [],
+  "results": {
+    "MCP Server (Port 5000)": true,
+    "Email Functionality": true,
+    "Agent Imports": true,
+    "Agent Configuration": true,
+    "Database Files": true,
+    "Git Setup": true,
+    "Environment Variables": true,
+    "Pytest Tests": "8 failed, 50 passed in 0.43s"
+  }
+}

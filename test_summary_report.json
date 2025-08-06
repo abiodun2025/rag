@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-08-06T11:07:34.597849",
+  "summary": {
+    "total_components": 7,
+    "working_components": 5,
+    "critical_issues": 0,
+    "fixes_needed": 2,
+    "success_rate": 71.42857142857143
+  },
+  "results": {
+    "MCP Server (Port 5000)": true,
+    "Email Functionality": true,
+    "Git Setup": true,
+    "Agent API Server (Port 8000)": false,
+    "Database Files": true,
+    "Environment Variables": false,
+    "Pytest Tests": "8 failed, 50 passed in 0.52s"
+  },
+  "critical_issues": [],
+  "fixes_needed": [
+    "Agent API Server (Port 8000)",
+    "Environment Variables"
+  ]
+}

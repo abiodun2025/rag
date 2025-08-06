@@ -1,0 +1,12 @@
+{
+  "message_id": "6901be48-51f6-4cdd-981e-80999b5644e0",
+  "timestamp": "2025-08-05T15:42:53.402565",
+  "message_type": "user_message",
+  "content": "Save this message to the project",
+  "user_id": null,
+  "session_id": null,
+  "metadata": {
+    "source": "master_agent",
+    "session_id": "a93395f0-e831-4e1e-9a48-dd3825974ce1"
+  }
+}
