@@ -36,35 +36,67 @@ class DatabasePool:
         if not self.database_url:
             raise ValueError("DATABASE_URL environment variable not set")
         
-        self.pool: Optional[Pool] = None
+        # Check if this is a SQLite URL
+        self.is_sqlite = self.database_url.startswith('sqlite://')
+        
+        if self.is_sqlite:
+            logger.info("Using SQLite database for development")
+            self.pool = None
+        else:
+            logger.info("Using PostgreSQL database")
+            self.pool: Optional[Pool] = None
     
     async def initialize(self):
         """Create connection pool."""
-        if not self.pool:
-            self.pool = await asyncpg.create_pool(
-                self.database_url,
-                min_size=5,
-                max_size=20,
-                max_inactive_connection_lifetime=300,
-                command_timeout=60
-            )
-            logger.info("Database connection pool initialized")
+        if self.is_sqlite:
+            # For SQLite, we don't need a pool, just create the database file
+            import sqlite3
+            db_path = self.database_url.replace('sqlite:///', '')
+            conn = sqlite3.connect(db_path)
+            conn.close()
+            logger.info("SQLite database initialized")
+        else:
+            # PostgreSQL pool initialization
+            if not self.pool:
+                self.pool = await asyncpg.create_pool(
+                    self.database_url,
+                    min_size=5,
+                    max_size=20,
+                    max_inactive_connection_lifetime=300,
+                    command_timeout=60
+                )
+                logger.info("Database connection pool initialized")
     
     async def close(self):
         """Close connection pool."""
-        if self.pool:
-            await self.pool.close()
-            self.pool = None
-            logger.info("Database connection pool closed")
+        if self.is_sqlite:
+            # Nothing to close for SQLite
+            logger.info("SQLite database connection closed")
+        else:
+            if self.pool:
+                await self.pool.close()
+                self.pool = None
+                logger.info("Database connection pool closed")
     
     @asynccontextmanager
     async def acquire(self):
         """Acquire a connection from the pool."""
-        if not self.pool:
-            await self.initialize()
-        
-        async with self.pool.acquire() as connection:
-            yield connection
+        if self.is_sqlite:
+            # For SQLite, create a new connection each time
+            import sqlite3
+            db_path = self.database_url.replace('sqlite:///', '')
+            conn = sqlite3.connect(db_path)
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            # PostgreSQL pool acquisition
+            if not self.pool:
+                await self.initialize()
+            
+            async with self.pool.acquire() as connection:
+                yield connection
 
 
 # Global database pool instance
@@ -98,21 +130,52 @@ async def create_session(
     Returns:
         Session ID
     """
-    async with db_pool.acquire() as conn:
+    if db_pool.is_sqlite:
+        # SQLite version
+        import sqlite3
+        import uuid
+        db_path = db_pool.database_url.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Create sessions table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY,
+                user_id TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )
+        """)
+        
+        session_id = str(uuid.uuid4())
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
         
-        result = await conn.fetchrow(
-            """
-            INSERT INTO sessions (user_id, metadata, expires_at)
-            VALUES ($1, $2, $3)
-            RETURNING id::text
-            """,
-            user_id,
-            json.dumps(metadata or {}),
-            expires_at
+        cursor.execute(
+            "INSERT INTO sessions (id, user_id, metadata, expires_at) VALUES (?, ?, ?, ?)",
+            (session_id, user_id, json.dumps(metadata or {}), expires_at.isoformat())
         )
-        
-        return result["id"]
+        conn.commit()
+        conn.close()
+        return session_id
+    else:
+        # PostgreSQL version
+        async with db_pool.acquire() as conn:
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
+            
+            result = await conn.fetchrow(
+                """
+                INSERT INTO sessions (user_id, metadata, expires_at)
+                VALUES ($1, $2, $3)
+                RETURNING id::text
+                """,
+                user_id,
+                json.dumps(metadata or {}),
+                expires_at
+            )
+            
+            return result["id"]
 
 
 async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
@@ -125,34 +188,51 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         Session data or None if not found/expired
     """
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
-            SELECT 
-                id::text,
-                user_id,
-                metadata,
-                created_at,
-                updated_at,
-                expires_at
-            FROM sessions
-            WHERE id = $1::uuid
-            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-            """,
-            session_id
+    if db_pool.is_sqlite:
+        # SQLite version
+        import sqlite3
+        db_path = db_pool.database_url.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "SELECT * FROM sessions WHERE id = ? AND expires_at > ?",
+            (session_id, datetime.now(timezone.utc).isoformat())
         )
+        result = cursor.fetchone()
+        conn.close()
         
         if result:
             return {
-                "id": result["id"],
-                "user_id": result["user_id"],
-                "metadata": json.loads(result["metadata"]),
-                "created_at": result["created_at"].isoformat(),
-                "updated_at": result["updated_at"].isoformat(),
-                "expires_at": result["expires_at"].isoformat() if result["expires_at"] else None
+                "id": result[0],
+                "user_id": result[1],
+                "metadata": json.loads(result[2]) if result[2] else {},
+                "created_at": result[3],
+                "expires_at": result[4]
             }
-        
         return None
+    else:
+        # PostgreSQL version
+        async with db_pool.acquire() as conn:
+            result = await conn.fetchrow(
+                """
+                SELECT id::text, user_id, metadata, created_at, expires_at
+                FROM sessions
+                WHERE id = $1::uuid AND expires_at > $2
+                """,
+                session_id,
+                datetime.now(timezone.utc)
+            )
+            
+            if result:
+                return {
+                    "id": result["id"],
+                    "user_id": result["user_id"],
+                    "metadata": json.loads(result["metadata"]) if result["metadata"] else {},
+                    "created_at": result["created_at"],
+                    "expires_at": result["expires_at"]
+                }
+            return None
 
 
 async def update_session(session_id: str, metadata: Dict[str, Any]) -> bool:
@@ -166,19 +246,35 @@ async def update_session(session_id: str, metadata: Dict[str, Any]) -> bool:
     Returns:
         True if updated, False if not found
     """
-    async with db_pool.acquire() as conn:
-        result = await conn.execute(
-            """
-            UPDATE sessions
-            SET metadata = metadata || $2::jsonb
-            WHERE id = $1::uuid
-            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-            """,
-            session_id,
-            json.dumps(metadata)
-        )
+    if db_pool.is_sqlite:
+        # SQLite version
+        import sqlite3
+        db_path = db_pool.database_url.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        return result.split()[-1] != "0"
+        cursor.execute(
+            "UPDATE sessions SET metadata = metadata || ? WHERE id = ?",
+            (json.dumps(metadata), session_id)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    else:
+        # PostgreSQL version
+        async with db_pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE sessions
+                SET metadata = metadata || $2::jsonb
+                WHERE id = $1::uuid
+                AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                """,
+                session_id,
+                json.dumps(metadata)
+            )
+            
+            return result.split()[-1] != "0"
 
 
 # Message Management Functions
@@ -193,27 +289,57 @@ async def add_message(
     
     Args:
         session_id: Session UUID
-        role: Message role (user/assistant/system)
+        role: Message role (user/assistant)
         content: Message content
         metadata: Optional message metadata
     
     Returns:
         Message ID
     """
-    async with db_pool.acquire() as conn:
-        result = await conn.fetchrow(
-            """
-            INSERT INTO messages (session_id, role, content, metadata)
-            VALUES ($1::uuid, $2, $3, $4)
-            RETURNING id::text
-            """,
-            session_id,
-            role,
-            content,
-            json.dumps(metadata or {})
-        )
+    if db_pool.is_sqlite:
+        # SQLite version
+        import sqlite3
+        import uuid
+        db_path = db_pool.database_url.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
-        return result["id"]
+        # Create messages table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                role TEXT,
+                content TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        message_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO messages (id, session_id, role, content, metadata) VALUES (?, ?, ?, ?, ?)",
+            (message_id, session_id, role, content, json.dumps(metadata or {}))
+        )
+        conn.commit()
+        conn.close()
+        return message_id
+    else:
+        # PostgreSQL version
+        async with db_pool.acquire() as conn:
+            result = await conn.fetchrow(
+                """
+                INSERT INTO messages (session_id, role, content, metadata)
+                VALUES ($1::uuid, $2, $3, $4)
+                RETURNING id::text
+                """,
+                session_id,
+                role,
+                content,
+                json.dumps(metadata or {})
+            )
+            
+            return result["id"]
 
 
 async def get_session_messages(
@@ -230,34 +356,57 @@ async def get_session_messages(
     Returns:
         List of messages ordered by creation time
     """
-    async with db_pool.acquire() as conn:
-        query = """
-            SELECT 
-                id::text,
-                role,
-                content,
-                metadata,
-                created_at
-            FROM messages
-            WHERE session_id = $1::uuid
-            ORDER BY created_at
-        """
+    if db_pool.is_sqlite:
+        # SQLite version
+        import sqlite3
+        db_path = db_pool.database_url.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
         
+        query = "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at"
         if limit:
             query += f" LIMIT {limit}"
         
-        results = await conn.fetch(query, session_id)
+        cursor.execute(query, (session_id,))
+        results = cursor.fetchall()
+        conn.close()
         
         return [
             {
-                "id": row["id"],
-                "role": row["role"],
-                "content": row["content"],
-                "metadata": json.loads(row["metadata"]),
-                "created_at": row["created_at"].isoformat()
+                "id": row[0],
+                "session_id": row[1],
+                "role": row[2],
+                "content": row[3],
+                "metadata": json.loads(row[4]) if row[4] else {},
+                "created_at": row[5]
             }
             for row in results
         ]
+    else:
+        # PostgreSQL version
+        async with db_pool.acquire() as conn:
+            query = """
+                SELECT id::text, session_id::text, role, content, metadata, created_at
+                FROM messages
+                WHERE session_id = $1::uuid
+                ORDER BY created_at
+            """
+            if limit:
+                query += f" LIMIT {limit}"
+            
+            results = await conn.fetch(query, session_id)
+            
+            return [
+                {
+                    "id": row["id"],
+                    "session_id": row["session_id"],
+                    "role": row["role"],
+                    "content": row["content"],
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+                    "created_at": row["created_at"]
+                }
+                for row in results
+            ]
 
 
 # Document Management Functions
@@ -506,9 +655,34 @@ async def test_connection() -> bool:
         True if connection successful
     """
     try:
-        async with db_pool.acquire() as conn:
-            await conn.fetchval("SELECT 1")
-        return True
+        if db_pool.is_sqlite:
+            # Test SQLite connection
+            import sqlite3
+            db_path = db_pool.database_url.replace('sqlite:///', '')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] == 1
+        else:
+            # Test PostgreSQL connection
+            async with db_pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            return True
     except Exception as e:
         logger.error(f"Database connection test failed: {e}")
         return False
+
+def get_db_connection():
+    """Get database connection for synchronous operations."""
+    try:
+        # For development, create a simple SQLite connection
+        import sqlite3
+        db_path = os.getenv('DATABASE_URL', 'rag.db')
+        if db_path.startswith('sqlite:///'):
+            db_path = db_path.replace('sqlite:///', '')
+        return sqlite3.connect(db_path)
+    except Exception as e:
+        logger.error(f"Failed to get database connection: {e}")
+        raise

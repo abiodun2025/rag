@@ -1,0 +1,156 @@
+{
+  "alert_system": {
+    "mcp_server_url": "http://127.0.0.1:5000",
+    "database_path": "alerts.db",
+    "monitoring_interval_seconds": 30,
+    "default_cooldown_minutes": 5
+  },
+  "recipients": {
+    "email": "admin@example.com",
+    "slack_channel": "#alerts",
+    "teams_channel": "alerts",
+    "sms_number": "+1234567890"
+  },
+  "rules": [
+    {
+      "rule_id": "mcp_server_down",
+      "name": "MCP Server Down",
+      "description": "MCP server is not responding",
+      "condition": "not mcp_client.connected",
+      "severity": "critical",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 2
+    },
+    {
+      "rule_id": "agent_blocked",
+      "name": "Agent Blocked",
+      "description": "Agent has been blocked for too long",
+      "condition": "agent_blocked_time > 300",
+      "severity": "high",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 5
+    },
+    {
+      "rule_id": "pr_creation_failed",
+      "name": "PR Creation Failed",
+      "description": "Pull request creation failed",
+      "condition": "pr_status == 'failed'",
+      "severity": "high",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 5
+    },
+    {
+      "rule_id": "pr_creation_success",
+      "name": "PR Creation Success",
+      "description": "Pull request created successfully",
+      "condition": "pr_status == 'success'",
+      "severity": "low",
+      "channels": ["slack"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    },
+    {
+      "rule_id": "workflow_timeout",
+      "name": "Workflow Timeout",
+      "description": "Workflow has been running too long",
+      "condition": "workflow_duration > 1800",
+      "severity": "medium",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 10
+    },
+    {
+      "rule_id": "database_connection_failed",
+      "name": "Database Connection Failed",
+      "description": "Database connection is down",
+      "condition": "not db_connected",
+      "severity": "critical",
+      "channels": ["email", "slack", "sms"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    },
+    {
+      "rule_id": "task_execution_failed",
+      "name": "Task Execution Failed",
+      "description": "A workflow task failed to execute",
+      "condition": "task_status == 'failed'",
+      "severity": "high",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 2
+    },
+    {
+      "rule_id": "agent_unresponsive",
+      "name": "Agent Unresponsive",
+      "description": "An agent has not responded for too long",
+      "condition": "agent_last_heartbeat_age > 300",
+      "severity": "high",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 5
+    },
+    {
+      "rule_id": "workflow_completed",
+      "name": "Workflow Completed",
+      "description": "A workflow completed successfully",
+      "condition": "workflow_status == 'completed'",
+      "severity": "low",
+      "channels": ["slack"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    },
+    {
+      "rule_id": "queue_overflow",
+      "name": "Task Queue Overflow",
+      "description": "Task queue has too many pending tasks",
+      "condition": "pending_tasks_count > 50",
+      "severity": "medium",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 10
+    },
+    {
+      "rule_id": "github_api_error",
+      "name": "GitHub API Error",
+      "description": "GitHub API returned an error",
+      "condition": "github_api_status_code >= 400",
+      "severity": "high",
+      "channels": ["email", "slack"],
+      "enabled": true,
+      "cooldown_minutes": 2
+    },
+    {
+      "rule_id": "workflow_started",
+      "name": "Workflow Started",
+      "description": "Alert when a GitHub workflow starts",
+      "condition": "workflow_started",
+      "severity": "low",
+      "channels": ["email"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    },
+    {
+      "rule_id": "task_started",
+      "name": "Task Started",
+      "description": "Alert when a task starts execution",
+      "condition": "task_started",
+      "severity": "low",
+      "channels": ["email"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    },
+    {
+      "rule_id": "pr_merged",
+      "name": "Pull Request Merged",
+      "description": "Alert when a pull request is merged",
+      "condition": "pr_merged",
+      "severity": "low",
+      "channels": ["email"],
+      "enabled": true,
+      "cooldown_minutes": 1
+    }
+  ]
+} 

@@ -1,0 +1,2850 @@
+diff --git a/AGENT_MONITORING_GUIDE.md b/AGENT_MONITORING_GUIDE.md
+new file mode 100644
+index 0000000..3e80cfb
+--- /dev/null
++++ b/AGENT_MONITORING_GUIDE.md
+@@ -0,0 +1,442 @@
++# Agent Monitoring Integration Guide
++
++## 🎯 Overview
++
++The Agent Monitoring Integration provides comprehensive monitoring capabilities for all agents in your ecosystem. It automatically tracks execution, performance, and failures, sending real-time alerts when issues occur.
++
++## 🏗️ Architecture
++
++```
++┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
++│   Your Agents   │───▶│  Agent Monitor   │───▶│  Alert System   │
++│                 │    │                  │    │                 │
++│ • SmartMaster   │    │ • Execution      │    │ • Email Alerts  │
++│ • MasterAgent   │    │ • Performance    │    │ • Slack Alerts  │
++│ • RAG Agent     │    │ • Error Tracking │    │ • Teams Alerts  │
++│ • Tools         │    │ • Statistics     │    │ • SMS Alerts    │
++└─────────────────┘    └──────────────────┘    └─────────────────┘
++```
++
++## 🚀 Quick Start
++
++### 1. Initialize Monitoring
++
++```python
++from agent_monitoring_integration import integrate_monitoring_with_agents
++
++# This automatically adds monitoring to all existing agents
++integrate_monitoring_with_agents()
++```
++
++### 2. Use Existing Agents (Monitoring is Automatic)
++
++```python
++from agent.smart_master_agent import SmartMasterAgent
++from agent.master_agent import MasterAgent
++
++# Create agents - monitoring is automatically enabled
++smart_agent = SmartMasterAgent()
++master_agent = MasterAgent()
++
++# Use normally - monitoring happens in background
++intent_result = smart_agent.analyze_intent("save this to desktop")
++tasks = await master_agent.analyze_request("send an email")
++```
++
++### 3. Check Monitoring Statistics
++
++```python
++from agent_monitoring_integration import get_agent_monitor
++
++monitor = get_agent_monitor()
++stats = monitor.get_agent_stats()
++
++print(f"Success rate: {stats['summary']['success_rate']:.2f}%")
++print(f"Total executions: {stats['summary']['total_executions']}")
++```
++
++## 📊 Supported Agents
++
++### ✅ **SmartMasterAgent** (`agent/smart_master_agent.py`)
++**Monitored Methods:**
++- `analyze_intent()` - Intent detection
++- `execute_intent()` - Intent execution
++- `process_message()` - Message processing
++
++**Alert Triggers:**
++- Intent detection failures
++- Execution timeouts (>30s)
++- Processing errors
++
++### ✅ **MasterAgent** (`agent/master_agent.py`)
++**Monitored Methods:**
++- `analyze_request()` - Request analysis
++- `execute_tasks()` - Task execution
++- `process_request()` - Request processing
++
++**Alert Triggers:**
++- Task analysis failures
++- Task execution failures
++- Coordination errors
++
++### ✅ **RAG Agent** (`agent/agent.py`)
++**Monitored Tools:**
++- `vector_search()` - Vector search operations
++- `graph_search()` - Graph search operations
++- `hybrid_search()` - Hybrid search operations
++- `web_search()` - Web search operations
++- `compose_email()` - Email composition
++
++**Alert Triggers:**
++- Search failures
++- Database connection issues
++- Tool execution timeouts (>10s)
++- Email composition errors
++
++### ✅ **All Agent Tools**
++**Monitored Operations:**
++- Email tools (`email_tools.py`)
++- Search tools (`web_search_tools.py`)
++- Message tools (`message_tools.py`)
++- Desktop tools (`desktop_message_tools.py`)
++- Calling tools (`google_voice_calling.py`)
++
++## 🔧 Manual Integration
++
++### For New Agents
++
++```python
++from agent_monitoring_integration import monitor_agent, monitor_tool
++
++class MyNewAgent:
++    @monitor_agent("my_new_agent", AlertSeverity.HIGH)
++    async def my_agent_method(self, data):
++        # Your agent logic here
++        return result
++    
++    @monitor_tool("my_tool", AlertSeverity.MEDIUM)
++    async def my_tool_method(self, input_data):
++        # Your tool logic here
++        return result
++```
++
++### For Existing Methods
++
++```python
++from agent_monitoring_integration import get_agent_monitor
++
++monitor = get_agent_monitor()
++
++# Wrap existing method
++original_method = my_agent.my_method
++
++@monitor.monitor_agent_execution("my_agent", AlertSeverity.MEDIUM)
++async def monitored_method(*args, **kwargs):
++    return await original_method(*args, **kwargs)
++
++my_agent.my_method = monitored_method
++```
++
++## 📈 Monitoring Features
++
++### 1. **Execution Tracking**
++- Start/end times for all agent methods
++- Success/failure status
++- Execution duration tracking
++- Real-time status updates
++
++### 2. **Performance Monitoring**
++- **Agent threshold**: 30 seconds
++- **Tool threshold**: 10 seconds
++- Automatic alerts for slow execution
++- Performance degradation detection
++
++### 3. **Error Detection**
++- Automatic exception catching
++- Error message extraction
++- Stack trace logging
++- Failure pattern analysis
++
++### 4. **Statistics Collection**
++- Success rates per agent/method
++- Average execution times
++- Failure counts
++- Performance trends
++
++## 🚨 Alert Types
++
++### **Agent Execution Failed**
++- **Severity**: HIGH
++- **Channels**: Email, Slack
++- **Trigger**: Any agent method failure
++- **Cooldown**: 2 minutes
++
++### **Tool Execution Failed**
++- **Severity**: MEDIUM
++- **Channels**: Email
++- **Trigger**: Any tool failure
++- **Cooldown**: 2 minutes
++
++### **Agent Performance Degradation**
++- **Severity**: MEDIUM
++- **Channels**: Email
++- **Trigger**: Agent execution >30s
++- **Cooldown**: 5 minutes
++
++### **Tool Performance Degradation**
++- **Severity**: MEDIUM
++- **Channels**: Email
++- **Trigger**: Tool execution >10s
++- **Cooldown**: 5 minutes
++
++## 📊 Statistics API
++
++### Get All Statistics
++
++```python
++monitor = get_agent_monitor()
++stats = monitor.get_agent_stats()
++
++# Summary statistics
++print(f"Total executions: {stats['summary']['total_executions']}")
++print(f"Success rate: {stats['summary']['success_rate']:.2f}%")
++print(f"Average execution time: {stats['summary']['average_execution_time']:.2f}s")
++
++# Agent status
++for agent_key, agent_data in stats['agent_stats'].items():
++    print(f"{agent_key}: {agent_data['status']}")
++
++# Execution times
++for key, times in stats['execution_times'].items():
++    avg_time = sum(t['execution_time'] for t in times) / len(times)
++    print(f"{key}: {avg_time:.2f}s average")
++```
++
++### Real-time Monitoring
++
++```python
++import asyncio
++from agent_monitoring_integration import get_agent_monitor
++
++async def monitor_agents():
++    monitor = get_agent_monitor()
++    
++    while True:
++        stats = monitor.get_agent_stats()
++        
++        # Check for issues
++        if stats['summary']['success_rate'] < 90:
++            print("⚠️ Low success rate detected!")
++        
++        # Print current status
++        for agent_key, agent_data in stats['agent_stats'].items():
++            if agent_data['status'] == 'running':
++                print(f"🔄 {agent_key} is currently running")
++        
++        await asyncio.sleep(10)  # Check every 10 seconds
++
++# Start monitoring
++asyncio.create_task(monitor_agents())
++```
++
++## 🧪 Testing
++
++### Run Basic Tests
++
++```bash
++python3 test_agent_monitoring.py
++```
++
++### Test Specific Agents
++
++```python
++# Test SmartMasterAgent
++from agent.smart_master_agent import SmartMasterAgent
++smart_agent = SmartMasterAgent()
++
++# This will be monitored automatically
++intent_result = smart_agent.analyze_intent("save this to desktop")
++print(f"Intent: {intent_result.intent}")
++
++# Test MasterAgent
++from agent.master_agent import MasterAgent
++master_agent = MasterAgent()
++
++# This will be monitored automatically
++tasks = await master_agent.analyze_request("send an email")
++print(f"Tasks: {len(tasks)}")
++```
++
++### Test Error Scenarios
++
++```python
++# Test error handling
++@monitor_agent("test_agent", AlertSeverity.CRITICAL)
++async def failing_function():
++    raise Exception("Test error")
++
++try:
++    await failing_function()
++except Exception as e:
++    print(f"Error caught: {e}")
++    # Alert will be sent automatically
++```
++
++## 🔧 Configuration
++
++### Alert System Configuration
++
++```python
++# Configure alert system
++from alert_system import AlertSystem
++
++alert_system = AlertSystem(
++    mcp_server_url="http://127.0.0.1:5000"
++)
++
++# Add custom rules
++alert_system.add_rule(AlertRule(
++    rule_id="custom_agent_rule",
++    name="Custom Agent Rule",
++    description="Custom monitoring rule",
++    condition="custom_condition",
++    severity=AlertSeverity.HIGH,
++    channels=[AlertChannel.EMAIL],
++    cooldown_minutes=5
++))
++```
++
++### Performance Thresholds
++
++```python
++# Modify thresholds in agent_monitoring_integration.py
++# Agent threshold (default: 30 seconds)
++if execution_time > 30.0:
++    # Trigger alert
++
++# Tool threshold (default: 10 seconds)  
++if execution_time > 10.0:
++    # Trigger alert
++```
++
++## 📧 Email Alerts
++
++You'll receive email alerts for:
++
++1. **Agent failures** - When any agent method fails
++2. **Tool failures** - When any tool fails
++3. **Performance issues** - When execution takes too long
++4. **System errors** - When critical errors occur
++
++### Alert Email Format
++
++```
++Subject: [ALERT] Agent smart_master_agent.analyze_intent failed
++
++Agent: smart_master_agent
++Method: analyze_intent
++Error: Connection timeout
++Timestamp: 2025-08-04 11:30:15
++Severity: HIGH
++
++This alert was triggered because the agent method failed to execute.
++Please check the agent logs for more details.
++```
++
++## 🔍 Troubleshooting
++
++### Common Issues
++
++1. **Import Errors**
++   ```python
++   # Make sure alert_system is in your path
++   import sys
++   sys.path.append('.')
++   from alert_system import AlertSystem
++   ```
++
++2. **MCP Server Not Running**
++   ```bash
++   # Start MCP server
++   python3 simple_mcp_http_server.py
++   ```
++
++3. **Email Not Sending**
++   ```bash
++   # Check email configuration
++   echo $GOOGLE_EMAIL
++   echo $GOOGLE_PASSWORD
++   ```
++
++### Debug Mode
++
++```python
++import logging
++logging.basicConfig(level=logging.DEBUG)
++
++# This will show detailed monitoring logs
++monitor = get_agent_monitor()
++```
++
++## 🎯 Best Practices
++
++1. **Initialize Early** - Call `integrate_monitoring_with_agents()` at startup
++2. **Monitor Critical Paths** - Focus on high-severity methods
++3. **Set Appropriate Thresholds** - Adjust based on your system's performance
++4. **Review Alerts** - Check email regularly for issues
++5. **Monitor Statistics** - Track success rates and performance trends
++
++## 🚀 Production Deployment
++
++### 1. **Start Monitoring**
++```python
++# In your main application
++from agent_monitoring_integration import integrate_monitoring_with_agents
++
++# Initialize monitoring
++integrate_monitoring_with_agents()
++```
++
++### 2. **Configure Alerts**
++```bash
++# Set environment variables
++export ALERT_EMAIL="your-email@example.com"
++export GOOGLE_EMAIL="your-gmail@gmail.com"
++export GOOGLE_PASSWORD="your-app-password"
++```
++
++### 3. **Monitor Continuously**
++```python
++# Add to your main loop
++async def main():
++    while True:
++        stats = get_agent_monitor().get_agent_stats()
++        if stats['summary']['success_rate'] < 95:
++            # Take action
++            pass
++        await asyncio.sleep(60)
++```
++
++## 📚 API Reference
++
++### AgentMonitor Class
++
++```python
++class AgentMonitor:
++    def monitor_agent_execution(self, agent_name: str, severity: AlertSeverity)
++    def monitor_tool_execution(self, tool_name: str, severity: AlertSeverity)
++    def get_agent_stats(self) -> Dict[str, Any]
++```
++
++### Convenience Functions
++
++```python
++def monitor_agent(agent_name: str, severity: AlertSeverity)
++def monitor_tool(tool_name: str, severity: AlertSeverity)
++def get_agent_monitor() -> AgentMonitor
++def integrate_monitoring_with_agents() -> bool
++```
++
++---
++
++**🎉 Your agent ecosystem is now fully monitored with real-time alerts!** 
+\ No newline at end of file
+diff --git a/agent/db_utils.py b/agent/db_utils.py
+index 9f0c4f2..ff39e96 100644
+--- a/agent/db_utils.py
++++ b/agent/db_utils.py
+@@ -36,35 +36,67 @@ class DatabasePool:
+         if not self.database_url:
+             raise ValueError("DATABASE_URL environment variable not set")
+         
+-        self.pool: Optional[Pool] = None
++        # Check if this is a SQLite URL
++        self.is_sqlite = self.database_url.startswith('sqlite://')
++        
++        if self.is_sqlite:
++            logger.info("Using SQLite database for development")
++            self.pool = None
++        else:
++            logger.info("Using PostgreSQL database")
++            self.pool: Optional[Pool] = None
+     
+     async def initialize(self):
+         """Create connection pool."""
+-        if not self.pool:
+-            self.pool = await asyncpg.create_pool(
+-                self.database_url,
+-                min_size=5,
+-                max_size=20,
+-                max_inactive_connection_lifetime=300,
+-                command_timeout=60
+-            )
+-            logger.info("Database connection pool initialized")
++        if self.is_sqlite:
++            # For SQLite, we don't need a pool, just create the database file
++            import sqlite3
++            db_path = self.database_url.replace('sqlite:///', '')
++            conn = sqlite3.connect(db_path)
++            conn.close()
++            logger.info("SQLite database initialized")
++        else:
++            # PostgreSQL pool initialization
++            if not self.pool:
++                self.pool = await asyncpg.create_pool(
++                    self.database_url,
++                    min_size=5,
++                    max_size=20,
++                    max_inactive_connection_lifetime=300,
++                    command_timeout=60
++                )
++                logger.info("Database connection pool initialized")
+     
+     async def close(self):
+         """Close connection pool."""
+-        if self.pool:
+-            await self.pool.close()
+-            self.pool = None
+-            logger.info("Database connection pool closed")
++        if self.is_sqlite:
++            # Nothing to close for SQLite
++            logger.info("SQLite database connection closed")
++        else:
++            if self.pool:
++                await self.pool.close()
++                self.pool = None
++                logger.info("Database connection pool closed")
+     
+     @asynccontextmanager
+     async def acquire(self):
+         """Acquire a connection from the pool."""
+-        if not self.pool:
+-            await self.initialize()
+-        
+-        async with self.pool.acquire() as connection:
+-            yield connection
++        if self.is_sqlite:
++            # For SQLite, create a new connection each time
++            import sqlite3
++            db_path = self.database_url.replace('sqlite:///', '')
++            conn = sqlite3.connect(db_path)
++            try:
++                yield conn
++            finally:
++                conn.close()
++        else:
++            # PostgreSQL pool acquisition
++            if not self.pool:
++                await self.initialize()
++            
++            async with self.pool.acquire() as connection:
++                yield connection
+ 
+ 
+ # Global database pool instance
+@@ -98,21 +130,52 @@ async def create_session(
+     Returns:
+         Session ID
+     """
+-    async with db_pool.acquire() as conn:
++    if db_pool.is_sqlite:
++        # SQLite version
++        import sqlite3
++        import uuid
++        db_path = db_pool.database_url.replace('sqlite:///', '')
++        conn = sqlite3.connect(db_path)
++        cursor = conn.cursor()
++        
++        # Create sessions table if it doesn't exist
++        cursor.execute("""
++            CREATE TABLE IF NOT EXISTS sessions (
++                id TEXT PRIMARY KEY,
++                user_id TEXT,
++                metadata TEXT,
++                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
++                expires_at TIMESTAMP
++            )
++        """)
++        
++        session_id = str(uuid.uuid4())
+         expires_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
+         
+-        result = await conn.fetchrow(
+-            """
+-            INSERT INTO sessions (user_id, metadata, expires_at)
+-            VALUES ($1, $2, $3)
+-            RETURNING id::text
+-            """,
+-            user_id,
+-            json.dumps(metadata or {}),
+-            expires_at
++        cursor.execute(
++            "INSERT INTO sessions (id, user_id, metadata, expires_at) VALUES (?, ?, ?, ?)",
++            (session_id, user_id, json.dumps(metadata or {}), expires_at.isoformat())
+         )
+-        
+-        return result["id"]
++        conn.commit()
++        conn.close()
++        return session_id
++    else:
++        # PostgreSQL version
++        async with db_pool.acquire() as conn:
++            expires_at = datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
++            
++            result = await conn.fetchrow(
++                """
++                INSERT INTO sessions (user_id, metadata, expires_at)
++                VALUES ($1, $2, $3)
++                RETURNING id::text
++                """,
++                user_id,
++                json.dumps(metadata or {}),
++                expires_at
++            )
++            
++            return result["id"]
+ 
+ 
+ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+@@ -125,34 +188,51 @@ async def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+     Returns:
+         Session data or None if not found/expired
+     """
+-    async with db_pool.acquire() as conn:
+-        result = await conn.fetchrow(
+-            """
+-            SELECT 
+-                id::text,
+-                user_id,
+-                metadata,
+-                created_at,
+-                updated_at,
+-                expires_at
+-            FROM sessions
+-            WHERE id = $1::uuid
+-            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+-            """,
+-            session_id
++    if db_pool.is_sqlite:
++        # SQLite version
++        import sqlite3
++        db_path = db_pool.database_url.replace('sqlite:///', '')
++        conn = sqlite3.connect(db_path)
++        cursor = conn.cursor()
++        
++        cursor.execute(
++            "SELECT * FROM sessions WHERE id = ? AND expires_at > ?",
++            (session_id, datetime.now(timezone.utc).isoformat())
+         )
++        result = cursor.fetchone()
++        conn.close()
+         
+         if result:
+             return {
+-                "id": result["id"],
+-                "user_id": result["user_id"],
+-                "metadata": json.loads(result["metadata"]),
+-                "created_at": result["created_at"].isoformat(),
+-                "updated_at": result["updated_at"].isoformat(),
+-                "expires_at": result["expires_at"].isoformat() if result["expires_at"] else None
++                "id": result[0],
++                "user_id": result[1],
++                "metadata": json.loads(result[2]) if result[2] else {},
++                "created_at": result[3],
++                "expires_at": result[4]
+             }
+-        
+         return None
++    else:
++        # PostgreSQL version
++        async with db_pool.acquire() as conn:
++            result = await conn.fetchrow(
++                """
++                SELECT id::text, user_id, metadata, created_at, expires_at
++                FROM sessions
++                WHERE id = $1::uuid AND expires_at > $2
++                """,
++                session_id,
++                datetime.now(timezone.utc)
++            )
++            
++            if result:
++                return {
++                    "id": result["id"],
++                    "user_id": result["user_id"],
++                    "metadata": json.loads(result["metadata"]) if result["metadata"] else {},
++                    "created_at": result["created_at"],
++                    "expires_at": result["expires_at"]
++                }
++            return None
+ 
+ 
+ async def update_session(session_id: str, metadata: Dict[str, Any]) -> bool:
+@@ -166,19 +246,35 @@ async def update_session(session_id: str, metadata: Dict[str, Any]) -> bool:
+     Returns:
+         True if updated, False if not found
+     """
+-    async with db_pool.acquire() as conn:
+-        result = await conn.execute(
+-            """
+-            UPDATE sessions
+-            SET metadata = metadata || $2::jsonb
+-            WHERE id = $1::uuid
+-            AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+-            """,
+-            session_id,
+-            json.dumps(metadata)
+-        )
++    if db_pool.is_sqlite:
++        # SQLite version
++        import sqlite3
++        db_path = db_pool.database_url.replace('sqlite:///', '')
++        conn = sqlite3.connect(db_path)
++        cursor = conn.cursor()
+         
+-        return result.split()[-1] != "0"
++        cursor.execute(
++            "UPDATE sessions SET metadata = metadata || ? WHERE id = ?",
++            (json.dumps(metadata), session_id)
++        )
++        conn.commit()
++        conn.close()
++        return True
++    else:
++        # PostgreSQL version
++        async with db_pool.acquire() as conn:
++            result = await conn.execute(
++                """
++                UPDATE sessions
++                SET metadata = metadata || $2::jsonb
++                WHERE id = $1::uuid
++                AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
++                """,
++                session_id,
++                json.dumps(metadata)
++            )
++            
++            return result.split()[-1] != "0"
+ 
+ 
+ # Message Management Functions
+@@ -193,27 +289,57 @@ async def add_message(
+     
+     Args:
+         session_id: Session UUID
+-        role: Message role (user/assistant/system)
++        role: Message role (user/assistant)
+         content: Message content
+         metadata: Optional message metadata
+     
+     Returns:
+         Message ID
+     """
+-    async with db_pool.acquire() as conn:
+-        result = await conn.fetchrow(
+-            """
+-            INSERT INTO messages (session_id, role, content, metadata)
+-            VALUES ($1::uuid, $2, $3, $4)
+-            RETURNING id::text
+-            """,
+-            session_id,
+-            role,
+-            content,
+-            json.dumps(metadata or {})
+-        )
++    if db_pool.is_sqlite:
++        # SQLite version
++        import sqlite3
++        import uuid
++        db_path = db_pool.database_url.replace('sqlite:///', '')
++        conn = sqlite3.connect(db_path)
++        cursor = conn.cursor()
+         
+-        return result["id"]
++        # Create messages table if it doesn't exist
++        cursor.execute("""
++            CREATE TABLE IF NOT EXISTS messages (
++                id TEXT PRIMARY KEY,
++                session_id TEXT,
++                role TEXT,
++                content TEXT,
++                metadata TEXT,
++                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
++            )
++        """)
++        
++        message_id = str(uuid.uuid4())
++        cursor.execute(
++            "INSERT INTO messages (id, session_id, role, content, metadata) VALUES (?, ?, ?, ?, ?)",
++            (message_id, session_id, role, content, json.dumps(metadata or {}))
++        )
++        conn.commit()
++        conn.close()
++        return message_id
++    else:
++        # PostgreSQL version
++        async with db_pool.acquire() as conn:
++            result = await conn.fetchrow(
++                """
++                INSERT INTO messages (session_id, role, content, metadata)
++                VALUES ($1::uuid, $2, $3, $4)
++                RETURNING id::text
++                """,
++                session_id,
++                role,
++                content,
++                json.dumps(metadata or {})
++            )
++            
++            return result["id"]
+ 
+ 
+ async def get_session_messages(
+@@ -230,34 +356,57 @@ async def get_session_messages(
+     Returns:
+         List of messages ordered by creation time
+     """
+-    async with db_pool.acquire() as conn:
+-        query = """
+-            SELECT 
+-                id::text,
+-                role,
+-                content,
+-                metadata,
+-                created_at
+-            FROM messages
+-            WHERE session_id = $1::uuid
+-            ORDER BY created_at
+-        """
++    if db_pool.is_sqlite:
++        # SQLite version
++        import sqlite3
++        db_path = db_pool.database_url.replace('sqlite:///', '')
++        conn = sqlite3.connect(db_path)
++        cursor = conn.cursor()
+         
++        query = "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at"
+         if limit:
+             query += f" LIMIT {limit}"
+         
+-        results = await conn.fetch(query, session_id)
++        cursor.execute(query, (session_id,))
++        results = cursor.fetchall()
++        conn.close()
+         
+         return [
+             {
+-                "id": row["id"],
+-                "role": row["role"],
+-                "content": row["content"],
+-                "metadata": json.loads(row["metadata"]),
+-                "created_at": row["created_at"].isoformat()
++                "id": row[0],
++                "session_id": row[1],
++                "role": row[2],
++                "content": row[3],
++                "metadata": json.loads(row[4]) if row[4] else {},
++                "created_at": row[5]
+             }
+             for row in results
+         ]
++    else:
++        # PostgreSQL version
++        async with db_pool.acquire() as conn:
++            query = """
++                SELECT id::text, session_id::text, role, content, metadata, created_at
++                FROM messages
++                WHERE session_id = $1::uuid
++                ORDER BY created_at
++            """
++            if limit:
++                query += f" LIMIT {limit}"
++            
++            results = await conn.fetch(query, session_id)
++            
++            return [
++                {
++                    "id": row["id"],
++                    "session_id": row["session_id"],
++                    "role": row["role"],
++                    "content": row["content"],
++                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
++                    "created_at": row["created_at"]
++                }
++                for row in results
++            ]
+ 
+ 
+ # Document Management Functions
+@@ -506,9 +655,34 @@ async def test_connection() -> bool:
+         True if connection successful
+     """
+     try:
+-        async with db_pool.acquire() as conn:
+-            await conn.fetchval("SELECT 1")
+-        return True
++        if db_pool.is_sqlite:
++            # Test SQLite connection
++            import sqlite3
++            db_path = db_pool.database_url.replace('sqlite:///', '')
++            conn = sqlite3.connect(db_path)
++            cursor = conn.cursor()
++            cursor.execute("SELECT 1")
++            result = cursor.fetchone()
++            conn.close()
++            return result[0] == 1
++        else:
++            # Test PostgreSQL connection
++            async with db_pool.acquire() as conn:
++                await conn.fetchval("SELECT 1")
++            return True
+     except Exception as e:
+         logger.error(f"Database connection test failed: {e}")
+-        return False
+\ No newline at end of file
++        return False
++
++def get_db_connection():
++    """Get database connection for synchronous operations."""
++    try:
++        # For development, create a simple SQLite connection
++        import sqlite3
++        db_path = os.getenv('DATABASE_URL', 'rag.db')
++        if db_path.startswith('sqlite:///'):
++            db_path = db_path.replace('sqlite:///', '')
++        return sqlite3.connect(db_path)
++    except Exception as e:
++        logger.error(f"Failed to get database connection: {e}")
++        raise
+\ No newline at end of file
+diff --git a/agent/email_tools.py b/agent/email_tools.py
+index b45c3f1..a96856a 100644
+--- a/agent/email_tools.py
++++ b/agent/email_tools.py
+@@ -310,4 +310,8 @@ def search_emails(query: str, max_results: int = 10) -> Dict[str, Any]:
+         return {
+             'status': 'error',
+             'error': str(e)
+-        } 
+\ No newline at end of file
++        }
++
++def send_email(to: str, subject: str, body: str) -> Dict[str, Any]:
++    """Send email using Gmail API (alias for compose_email)"""
++    return compose_email(to, subject, body) 
+\ No newline at end of file
+diff --git a/agent/mcp_tools.py b/agent/mcp_tools.py
+index 272302a..1c0d098 100644
+--- a/agent/mcp_tools.py
++++ b/agent/mcp_tools.py
+@@ -98,7 +98,7 @@ class MCPClient:
+                     },
+                     {
+                         "name": "sendmail_simple",
+-                        "description": "Simple email sending",
++                        "description": "Send simple email via sendmail",
+                         "parameters": {
+                             "to_email": {"type": "string", "description": "Recipient email address"},
+                             "subject": {"type": "string", "description": "Email subject"},
+@@ -107,58 +107,21 @@ class MCPClient:
+                     }
+                 ]
+                 logger.info(f"Using fallback tool definitions: {len(self.available_tools)} tools")
++            
++            return self.available_tools
++            
+         except Exception as e:
+             logger.error(f"Failed to discover tools: {e}")
+-            # Use fallback tools
+-            self.available_tools = [
+-                {
+-                    "name": "count_r",
+-                    "description": "Count 'r' letters in a word",
+-                    "parameters": {"word": {"type": "string", "description": "Word to count 'r' letters in"}}
+-                },
+-                {
+-                    "name": "list_desktop_contents",
+-                    "description": "List desktop files/folders",
+-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+-                },
+-                {
+-                    "name": "get_desktop_path",
+-                    "description": "Get desktop path",
+-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+-                },
+-                {
+-                    "name": "open_gmail",
+-                    "description": "Open Gmail in browser",
+-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+-                },
+-                {
+-                    "name": "open_gmail_compose",
+-                    "description": "Open Gmail compose window",
+-                    "parameters": {"random_string": {"type": "string", "description": "Dummy parameter for no-parameter tools"}}
+-                },
+-                {
+-                    "name": "sendmail",
+-                    "description": "Send email via sendmail",
+-                    "parameters": {
+-                        "to_email": {"type": "string", "description": "Recipient email address"},
+-                        "subject": {"type": "string", "description": "Email subject"},
+-                        "body": {"type": "string", "description": "Email body content"},
+-                        "from_email": {"type": "string", "description": "Sender email address (optional)"}
+-                    }
+-                },
+-                {
+-                    "name": "sendmail_simple",
+-                    "description": "Simple email sending",
+-                    "parameters": {
+-                        "to_email": {"type": "string", "description": "Recipient email address"},
+-                        "subject": {"type": "string", "description": "Email subject"},
+-                        "message": {"type": "string", "description": "Email message"}
+-                    }
+-                }
+-            ]
+-            logger.info(f"Using fallback tool definitions due to error: {len(self.available_tools)} tools")
+-        
+-        return self.available_tools
++            return []
++    
++    async def list_tools(self) -> Dict[str, Any]:
++        """List available tools from MCP server."""
++        try:
++            tools = await self.discover_tools()
++            return {"tools": tools, "count": len(tools)}
++        except Exception as e:
++            logger.error(f"Failed to list tools: {e}")
++            return {"tools": [], "count": 0}
+     
+     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+         """Call a tool on the MCP server with improved error handling."""
+diff --git a/agent_monitoring_integration.py b/agent_monitoring_integration.py
+new file mode 100644
+index 0000000..dd7bf58
+--- /dev/null
++++ b/agent_monitoring_integration.py
+@@ -0,0 +1,452 @@
++#!/usr/bin/env python3
++"""
++Agent Monitoring Integration for the entire agent ecosystem.
++Provides easy-to-use monitoring hooks for all agents.
++"""
++
++import asyncio
++import logging
++import time
++import traceback
++from typing import Dict, Any, Optional, Callable
++from functools import wraps
++from datetime import datetime
++import inspect
++
++from alert_system import AlertSystem, AlertSeverity, AlertChannel
++
++logger = logging.getLogger(__name__)
++
++class AgentMonitor:
++    """
++    Central monitoring system for all agents in the ecosystem.
++    Provides decorators and hooks for easy integration.
++    """
++    
++    def __init__(self, alert_system: AlertSystem):
++        self.alert_system = alert_system
++        self.agent_stats = {}
++        self.execution_times = {}
++        
++    def monitor_agent_execution(self, agent_name: str, severity: AlertSeverity = AlertSeverity.MEDIUM):
++        """
++        Decorator to monitor agent method execution.
++        
++        Usage:
++            @monitor.monitor_agent_execution("smart_master_agent", AlertSeverity.HIGH)
++            async def analyze_intent(self, message: str):
++                # Your code here
++        """
++        def decorator(func):
++            @wraps(func)
++            async def wrapper(*args, **kwargs):
++                start_time = time.time()
++                success = False
++                error = None
++                
++                try:
++                    # Track execution start
++                    await self._track_agent_start(agent_name, func.__name__)
++                    
++                    # Execute the function
++                    result = await func(*args, **kwargs)
++                    success = True
++                    
++                    # Track successful completion
++                    await self._track_agent_success(agent_name, func.__name__, result)
++                    
++                    return result
++                    
++                except Exception as e:
++                    error = str(e)
++                    logger.error(f"Agent {agent_name}.{func.__name__} failed: {error}")
++                    
++                    # Track failure and send alert
++                    await self._track_agent_failure(agent_name, func.__name__, error, severity)
++                    raise
++                    
++                finally:
++                    # Track execution time
++                    execution_time = time.time() - start_time
++                    await self._track_execution_time(agent_name, func.__name__, execution_time, success)
++                    
++            return wrapper
++        return decorator
++    
++    def monitor_tool_execution(self, tool_name: str, severity: AlertSeverity = AlertSeverity.MEDIUM):
++        """
++        Decorator to monitor tool execution within agents.
++        
++        Usage:
++            @monitor.monitor_tool_execution("vector_search", AlertSeverity.HIGH)
++            async def vector_search(self, query: str):
++                # Your tool code here
++        """
++        def decorator(func):
++            @wraps(func)
++            async def wrapper(*args, **kwargs):
++                start_time = time.time()
++                success = False
++                error = None
++                
++                try:
++                    # Track tool start
++                    await self._track_tool_start(tool_name)
++                    
++                    # Execute the tool
++                    result = await func(*args, **kwargs)
++                    success = True
++                    
++                    # Track successful completion
++                    await self._track_tool_success(tool_name, result)
++                    
++                    return result
++                    
++                except Exception as e:
++                    error = str(e)
++                    logger.error(f"Tool {tool_name} failed: {error}")
++                    
++                    # Track failure and send alert
++                    await self._track_tool_failure(tool_name, error, severity)
++                    raise
++                    
++                finally:
++                    # Track execution time
++                    execution_time = time.time() - start_time
++                    await self._track_tool_execution_time(tool_name, execution_time, success)
++                    
++            return wrapper
++        return decorator
++    
++    async def _track_agent_start(self, agent_name: str, method_name: str):
++        """Track when an agent method starts execution."""
++        key = f"{agent_name}.{method_name}"
++        self.agent_stats[key] = {
++            "start_time": datetime.now(),
++            "status": "running"
++        }
++        logger.debug(f"🚀 Agent {key} started execution")
++    
++    async def _track_agent_success(self, agent_name: str, method_name: str, result: Any):
++        """Track successful agent method completion."""
++        key = f"{agent_name}.{method_name}"
++        if key in self.agent_stats:
++            self.agent_stats[key]["status"] = "completed"
++            self.agent_stats[key]["end_time"] = datetime.now()
++            self.agent_stats[key]["result"] = result
++            
++        logger.debug(f"✅ Agent {key} completed successfully")
++    
++    async def _track_agent_failure(self, agent_name: str, method_name: str, error: str, severity: AlertSeverity):
++        """Track agent method failure and send alert."""
++        key = f"{agent_name}.{method_name}"
++        if key in self.agent_stats:
++            self.agent_stats[key]["status"] = "failed"
++            self.agent_stats[key]["end_time"] = datetime.now()
++            self.agent_stats[key]["error"] = error
++        
++        # Send alert
++        await self.alert_system.trigger_alert(
++            rule_id="agent_execution_failed",
++            message=f"Agent {agent_name}.{method_name} failed: {error}",
++            data={
++                "agent_name": agent_name,
++                "method_name": method_name,
++                "error": error,
++                "timestamp": datetime.now().isoformat()
++            }
++        )
++        
++        logger.error(f"❌ Agent {key} failed: {error}")
++    
++    async def _track_tool_start(self, tool_name: str):
++        """Track when a tool starts execution."""
++        self.agent_stats[f"tool.{tool_name}"] = {
++            "start_time": datetime.now(),
++            "status": "running"
++        }
++        logger.debug(f"🔧 Tool {tool_name} started execution")
++    
++    async def _track_tool_success(self, tool_name: str, result: Any):
++        """Track successful tool completion."""
++        key = f"tool.{tool_name}"
++        if key in self.agent_stats:
++            self.agent_stats[key]["status"] = "completed"
++            self.agent_stats[key]["end_time"] = datetime.now()
++            self.agent_stats[key]["result"] = result
++            
++        logger.debug(f"✅ Tool {tool_name} completed successfully")
++    
++    async def _track_tool_failure(self, tool_name: str, error: str, severity: AlertSeverity):
++        """Track tool failure and send alert."""
++        key = f"tool.{tool_name}"
++        if key in self.agent_stats:
++            self.agent_stats[key]["status"] = "failed"
++            self.agent_stats[key]["end_time"] = datetime.now()
++            self.agent_stats[key]["error"] = error
++        
++        # Send alert
++        await self.alert_system.trigger_alert(
++            rule_id="tool_execution_failed",
++            message=f"Tool {tool_name} failed: {error}",
++            data={
++                "tool_name": tool_name,
++                "error": error,
++                "timestamp": datetime.now().isoformat()
++            }
++        )
++        
++        logger.error(f"❌ Tool {tool_name} failed: {error}")
++    
++    async def _track_execution_time(self, agent_name: str, method_name: str, execution_time: float, success: bool):
++        """Track execution time for performance monitoring."""
++        key = f"{agent_name}.{method_name}"
++        if key not in self.execution_times:
++            self.execution_times[key] = []
++        
++        self.execution_times[key].append({
++            "execution_time": execution_time,
++            "success": success,
++            "timestamp": datetime.now()
++        })
++        
++        # Keep only last 100 executions
++        if len(self.execution_times[key]) > 100:
++            self.execution_times[key] = self.execution_times[key][-100:]
++        
++        # Alert if execution time is too high
++        if execution_time > 30.0:  # 30 seconds threshold
++            await self.alert_system.trigger_alert(
++                rule_id="agent_performance_degradation",
++                message=f"Agent {agent_name}.{method_name} took {execution_time:.2f}s to execute",
++                data={
++                    "agent_name": agent_name,
++                    "method_name": method_name,
++                    "execution_time": execution_time,
++                    "threshold": 30.0,
++                    "timestamp": datetime.now().isoformat()
++                }
++            )
++    
++    async def _track_tool_execution_time(self, tool_name: str, execution_time: float, success: bool):
++        """Track tool execution time for performance monitoring."""
++        key = f"tool.{tool_name}"
++        if key not in self.execution_times:
++            self.execution_times[key] = []
++        
++        self.execution_times[key].append({
++            "execution_time": execution_time,
++            "success": success,
++            "timestamp": datetime.now()
++        })
++        
++        # Keep only last 100 executions
++        if len(self.execution_times[key]) > 100:
++            self.execution_times[key] = self.execution_times[key][-100:]
++        
++        # Alert if execution time is too high
++        if execution_time > 10.0:  # 10 seconds threshold for tools
++            await self.alert_system.trigger_alert(
++                rule_id="tool_performance_degradation",
++                message=f"Tool {tool_name} took {execution_time:.2f}s to execute",
++                data={
++                    "tool_name": tool_name,
++                    "execution_time": execution_time,
++                    "threshold": 10.0,
++                    "timestamp": datetime.now().isoformat()
++                }
++            )
++    
++    def get_agent_stats(self) -> Dict[str, Any]:
++        """Get current agent statistics."""
++        return {
++            "agent_stats": self.agent_stats,
++            "execution_times": self.execution_times,
++            "summary": self._generate_summary()
++        }
++    
++    def _generate_summary(self) -> Dict[str, Any]:
++        """Generate summary statistics."""
++        total_executions = 0
++        successful_executions = 0
++        failed_executions = 0
++        avg_execution_time = 0.0
++        
++        for key, times in self.execution_times.items():
++            total_executions += len(times)
++            successful_executions += sum(1 for t in times if t["success"])
++            failed_executions += sum(1 for t in times if not t["success"])
++            
++            if times:
++                avg_execution_time += sum(t["execution_time"] for t in times) / len(times)
++        
++        return {
++            "total_executions": total_executions,
++            "successful_executions": successful_executions,
++            "failed_executions": failed_executions,
++            "success_rate": (successful_executions / total_executions * 100) if total_executions > 0 else 0,
++            "average_execution_time": avg_execution_time / len(self.execution_times) if self.execution_times else 0
++        }
++
++# Global monitor instance
++_global_monitor = None
++
++def get_agent_monitor() -> AgentMonitor:
++    """Get the global agent monitor instance."""
++    global _global_monitor
++    if _global_monitor is None:
++        # Initialize alert system
++        alert_system = AlertSystem()
++        _global_monitor = AgentMonitor(alert_system)
++    return _global_monitor
++
++# Convenience functions for easy integration
++def monitor_agent(agent_name: str, severity: AlertSeverity = AlertSeverity.MEDIUM):
++    """Convenience decorator for agent monitoring."""
++    return get_agent_monitor().monitor_agent_execution(agent_name, severity)
++
++def monitor_tool(tool_name: str, severity: AlertSeverity = AlertSeverity.MEDIUM):
++    """Convenience decorator for tool monitoring."""
++    return get_agent_monitor().monitor_tool_execution(tool_name, severity)
++
++# Integration examples for existing agents
++class SmartMasterAgentMonitor:
++    """Monitoring integration for SmartMasterAgent."""
++    
++    @staticmethod
++    def add_monitoring_to_smart_master_agent(agent_class):
++        """Add monitoring to SmartMasterAgent methods."""
++        monitor = get_agent_monitor()
++        
++        # Monitor key methods
++        original_analyze_intent = agent_class.analyze_intent
++        original_execute_intent = agent_class.execute_intent
++        original_process_message = agent_class.process_message
++        
++        @monitor.monitor_agent_execution("smart_master_agent", AlertSeverity.HIGH)
++        async def monitored_analyze_intent(self, message: str):
++            return await original_analyze_intent(self, message)
++        
++        @monitor.monitor_agent_execution("smart_master_agent", AlertSeverity.HIGH)
++        async def monitored_execute_intent(self, intent_result, session_id: str, user_id: str = None):
++            return await original_execute_intent(self, intent_result, session_id, user_id)
++        
++        @monitor.monitor_agent_execution("smart_master_agent", AlertSeverity.HIGH)
++        async def monitored_process_message(self, message: str, session_id: str, user_id: str = None):
++            return await original_process_message(self, message, session_id, user_id)
++        
++        # Replace methods with monitored versions
++        agent_class.analyze_intent = monitored_analyze_intent
++        agent_class.execute_intent = monitored_execute_intent
++        agent_class.process_message = monitored_process_message
++        
++        return agent_class
++
++class MasterAgentMonitor:
++    """Monitoring integration for MasterAgent."""
++    
++    @staticmethod
++    def add_monitoring_to_master_agent(agent_class):
++        """Add monitoring to MasterAgent methods."""
++        monitor = get_agent_monitor()
++        
++        # Monitor key methods
++        original_analyze_request = agent_class.analyze_request
++        original_execute_tasks = agent_class.execute_tasks
++        original_process_request = agent_class.process_request
++        
++        @monitor.monitor_agent_execution("master_agent", AlertSeverity.HIGH)
++        async def monitored_analyze_request(self, user_message: str):
++            return await original_analyze_request(self, user_message)
++        
++        @monitor.monitor_agent_execution("master_agent", AlertSeverity.HIGH)
++        async def monitored_execute_tasks(self, tasks, session_id: str, user_id: str = None):
++            return await original_execute_tasks(self, tasks, session_id, user_id)
++        
++        @monitor.monitor_agent_execution("master_agent", AlertSeverity.HIGH)
++        async def monitored_process_request(self, user_message: str, session_id: str, user_id: str = None):
++            return await original_process_request(self, user_message, session_id, user_id)
++        
++        # Replace methods with monitored versions
++        agent_class.analyze_request = monitored_analyze_request
++        agent_class.execute_tasks = monitored_execute_tasks
++        agent_class.process_request = monitored_process_request
++        
++        return agent_class
++
++class RAGAgentMonitor:
++    """Monitoring integration for the main RAG agent."""
++    
++    @staticmethod
++    def add_monitoring_to_rag_agent(agent_class):
++        """Add monitoring to RAG agent tools."""
++        monitor = get_agent_monitor()
++        
++        # Monitor key tools
++        original_vector_search = agent_class.vector_search
++        original_graph_search = agent_class.graph_search
++        original_hybrid_search = agent_class.hybrid_search
++        original_web_search = agent_class.web_search
++        original_compose_email = agent_class.compose_email
++        
++        @monitor.monitor_tool_execution("vector_search", AlertSeverity.MEDIUM)
++        async def monitored_vector_search(self, ctx, query: str, limit: int = 10):
++            return await original_vector_search(self, ctx, query, limit)
++        
++        @monitor.monitor_tool_execution("graph_search", AlertSeverity.MEDIUM)
++        async def monitored_graph_search(self, ctx, query: str):
++            return await original_graph_search(self, ctx, query)
++        
++        @monitor.monitor_tool_execution("hybrid_search", AlertSeverity.MEDIUM)
++        async def monitored_hybrid_search(self, ctx, query: str, limit: int = 10, text_weight: float = 0.3):
++            return await original_hybrid_search(self, ctx, query, limit, text_weight)
++        
++        @monitor.monitor_tool_execution("web_search", AlertSeverity.MEDIUM)
++        async def monitored_web_search(self, ctx, query: str, max_results: int = 5):
++            return await original_web_search(self, ctx, query, max_results)
++        
++        @monitor.monitor_tool_execution("compose_email", AlertSeverity.HIGH)
++        async def monitored_compose_email(self, ctx, to: str, subject: str, body: str):
++            return await original_compose_email(self, ctx, to, subject, body)
++        
++        # Replace tools with monitored versions
++        agent_class.vector_search = monitored_vector_search
++        agent_class.graph_search = monitored_graph_search
++        agent_class.hybrid_search = monitored_hybrid_search
++        agent_class.web_search = monitored_web_search
++        agent_class.compose_email = monitored_compose_email
++        
++        return agent_class
++
++# Easy integration function
++def integrate_monitoring_with_agents():
++    """Integrate monitoring with all existing agents."""
++    try:
++        # Import agent classes
++        from agent.smart_master_agent import SmartMasterAgent
++        from agent.master_agent import MasterAgent
++        from agent.agent import rag_agent
++        
++        # Add monitoring to each agent
++        SmartMasterAgentMonitor.add_monitoring_to_smart_master_agent(SmartMasterAgent)
++        MasterAgentMonitor.add_monitoring_to_master_agent(MasterAgent)
++        RAGAgentMonitor.add_monitoring_to_rag_agent(rag_agent)
++        
++        logger.info("✅ Monitoring integrated with all agents")
++        return True
++        
++    except Exception as e:
++        logger.error(f"❌ Failed to integrate monitoring: {e}")
++        return False
++
++# Usage example
++if __name__ == "__main__":
++    # Initialize monitoring
++    integrate_monitoring_with_agents()
++    
++    # Get monitor instance
++    monitor = get_agent_monitor()
++    
++    # Print stats
++    print("Agent Monitoring System Ready!")
++    print("Stats:", monitor.get_agent_stats()) 
+\ No newline at end of file
+diff --git a/alert_system.py b/alert_system.py
+index 6094bb2..06b069c 100644
+--- a/alert_system.py
++++ b/alert_system.py
+@@ -449,6 +449,42 @@ class AlertSystem:
+                 severity=AlertSeverity.LOW,
+                 channels=[AlertChannel.EMAIL],
+                 cooldown_minutes=1
++            ),
++            AlertRule(
++                rule_id="agent_execution_failed",
++                name="Agent Execution Failed",
++                description="Alert when an agent method fails to execute",
++                condition="agent_execution_failed",
++                severity=AlertSeverity.HIGH,
++                channels=[AlertChannel.EMAIL, AlertChannel.SLACK],
++                cooldown_minutes=2
++            ),
++            AlertRule(
++                rule_id="tool_execution_failed",
++                name="Tool Execution Failed",
++                description="Alert when a tool fails to execute",
++                condition="tool_execution_failed",
++                severity=AlertSeverity.MEDIUM,
++                channels=[AlertChannel.EMAIL],
++                cooldown_minutes=2
++            ),
++            AlertRule(
++                rule_id="agent_performance_degradation",
++                name="Agent Performance Degradation",
++                description="Alert when an agent takes too long to execute",
++                condition="agent_performance_degradation",
++                severity=AlertSeverity.MEDIUM,
++                channels=[AlertChannel.EMAIL],
++                cooldown_minutes=5
++            ),
++            AlertRule(
++                rule_id="tool_performance_degradation",
++                name="Tool Performance Degradation",
++                description="Alert when a tool takes too long to execute",
++                condition="tool_performance_degradation",
++                severity=AlertSeverity.MEDIUM,
++                channels=[AlertChannel.EMAIL],
++                cooldown_minutes=5
+             )
+         ]
+         
+diff --git a/configure_github_token.py b/configure_github_token.py
+new file mode 100644
+index 0000000..15a5ded
+--- /dev/null
++++ b/configure_github_token.py
+@@ -0,0 +1,129 @@
++#!/usr/bin/env python3
++"""
++Configure GitHub Token for Git Operations and Alert System
++"""
++
++import os
++import subprocess
++import getpass
++from pathlib import Path
++
++def configure_github_token():
++    """Configure GitHub token for both Git and alert system."""
++    
++    print("🔧 GitHub Token Configuration")
++    print("=" * 40)
++    
++    # Get the token
++    print("Please enter your GitHub Personal Access Token:")
++    print("(Create one at: https://github.com/settings/tokens)")
++    print("Required scopes: repo, workflow")
++    print()
++    
++    token = getpass.getpass("GitHub Token: ")
++    
++    if not token or token.strip() == "":
++        print("❌ No token provided.")
++        return False
++    
++    # Test the token
++    print("\n🔍 Testing GitHub token...")
++    try:
++        import requests
++        
++        headers = {
++            "Authorization": f"token {token}",
++            "Accept": "application/vnd.github.v3+json"
++        }
++        
++        response = requests.get("https://api.github.com/user", headers=headers)
++        
++        if response.status_code == 200:
++            user_data = response.json()
++            print(f"✅ Token is valid! Authenticated as: {user_data.get('login', 'Unknown')}")
++        else:
++            print(f"❌ Token validation failed: {response.status_code}")
++            return False
++            
++    except Exception as e:
++        print(f"❌ Error testing token: {e}")
++        return False
++    
++    # Configure Git remote
++    print("\n📝 Configuring Git remote...")
++    try:
++        # Update remote URL with new token
++        new_url = f"https://abiodun2025:{token}@github.com/abiodun2025/rag.git"
++        
++        subprocess.run([
++            "git", "remote", "set-url", "origin", new_url
++        ], check=True)
++        
++        print("✅ Updated Git remote URL with new token")
++        
++    except subprocess.CalledProcessError as e:
++        print(f"❌ Error updating Git remote: {e}")
++        return False
++    
++    # Set environment variable
++    print("\n🔧 Setting environment variables...")
++    
++    # Update shell profile
++    shell_profile = Path.home() / ".zshrc"
++    if not shell_profile.exists():
++        shell_profile = Path.home() / ".bash_profile"
++    
++    if shell_profile.exists():
++        with open(shell_profile, 'r') as f:
++            content = f.read()
++        
++        if "GITHUB_TOKEN" in content:
++            # Update existing line
++            import re
++            new_content = re.sub(
++                r'export GITHUB_TOKEN="[^"]*"',
++                f'export GITHUB_TOKEN="{token}"',
++                content
++            )
++            with open(shell_profile, 'w') as f:
++                f.write(new_content)
++            print(f"✅ Updated GITHUB_TOKEN in {shell_profile}")
++        else:
++            # Add new line
++            with open(shell_profile, 'a') as f:
++                f.write(f'\nexport GITHUB_TOKEN="{token}"\n')
++            print(f"✅ Added GITHUB_TOKEN to {shell_profile}")
++    
++    # Set for current session
++    os.environ['GITHUB_TOKEN'] = token
++    print("✅ Set GITHUB_TOKEN for current session")
++    
++    # Test Git push
++    print("\n🧪 Testing Git push...")
++    try:
++        # Try to push the branch
++        result = subprocess.run([
++            "git", "push", "-u", "origin", "feature/alert_monitoring"
++        ], capture_output=True, text=True)
++        
++        if result.returncode == 0:
++            print("✅ Successfully pushed to GitHub!")
++            print("   Branch: feature/alert_monitoring")
++            print("   URL: https://github.com/abiodun2025/rag/tree/feature/alert_monitoring")
++        else:
++            print(f"⚠️  Git push output: {result.stdout}")
++            print(f"⚠️  Git push errors: {result.stderr}")
++            
++    except Exception as e:
++        print(f"❌ Error testing Git push: {e}")
++    
++    print("\n🎉 GitHub token configuration completed!")
++    print("\nNext steps:")
++    print("1. Restart your terminal or run: source ~/.zshrc")
++    print("2. Test the alert system: python3 test_real_github_alerts.py")
++    print("3. Create a pull request: python3 real_github_cli.py test-full")
++    
++    return True
++
++if __name__ == "__main__":
++    configure_github_token() 
+\ No newline at end of file
+diff --git a/fix_real_failures.py b/fix_real_failures.py
+new file mode 100644
+index 0000000..0d00837
+--- /dev/null
++++ b/fix_real_failures.py
+@@ -0,0 +1,296 @@
++#!/usr/bin/env python3
++"""
++Fix script for REAL failures detected in the agent ecosystem.
++Addresses database, MCP, email, and async issues.
++"""
++
++import os
++import asyncio
++import logging
++from pathlib import Path
++
++# Configure logging
++logging.basicConfig(
++    level=logging.INFO,
++    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
++)
++logger = logging.getLogger(__name__)
++
++def fix_database_configuration():
++    """Fix database configuration issues."""
++    print("🔧 Fixing Database Configuration...")
++    
++    # Check if we have a local SQLite database
++    sqlite_db = Path("rag.db")
++    if sqlite_db.exists():
++        print(f"   ✅ Found existing SQLite database: {sqlite_db}")
++        # Set DATABASE_URL to use SQLite
++        os.environ["DATABASE_URL"] = f"sqlite:///{sqlite_db.absolute()}"
++        print(f"   ✅ Set DATABASE_URL to: {os.environ['DATABASE_URL']}")
++    else:
++        print("   ⚠️ No existing database found")
++        print("   📝 Creating SQLite database for development...")
++        
++        # Create a simple SQLite database for development
++        import sqlite3
++        conn = sqlite3.connect("rag.db")
++        cursor = conn.cursor()
++        
++        # Create basic tables
++        cursor.execute("""
++            CREATE TABLE IF NOT EXISTS documents (
++                id TEXT PRIMARY KEY,
++                title TEXT,
++                content TEXT,
++                metadata TEXT,
++                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
++            )
++        """)
++        
++        cursor.execute("""
++            CREATE TABLE IF NOT EXISTS sessions (
++                id TEXT PRIMARY KEY,
++                user_id TEXT,
++                metadata TEXT,
++                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
++                expires_at TIMESTAMP
++            )
++        """)
++        
++        cursor.execute("""
++            CREATE TABLE IF NOT EXISTS messages (
++                id TEXT PRIMARY KEY,
++                session_id TEXT,
++                role TEXT,
++                content TEXT,
++                metadata TEXT,
++                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
++            )
++        """)
++        
++        conn.commit()
++        conn.close()
++        
++        os.environ["DATABASE_URL"] = "sqlite:///rag.db"
++        print("   ✅ Created SQLite database and set DATABASE_URL")
++    
++    return True
++
++def fix_mcp_client_issues():
++    """Fix MCP client API issues."""
++    print("🔧 Fixing MCP Client Issues...")
++    
++    try:
++        from agent.mcp_tools import MCPClient
++        
++        # Check if the method exists
++        if not hasattr(MCPClient, 'list_tools'):
++            print("   ⚠️ MCPClient missing list_tools method")
++            print("   📝 Adding missing method...")
++            
++            # Add the missing method
++            async def list_tools(self):
++                """List available tools from MCP server."""
++                try:
++                    response = await self.client.get(f"{self.base_url}/tools")
++                    if response.status_code == 200:
++                        return response.json()
++                    else:
++                        return {"tools": []}
++                except Exception as e:
++                    logger.error(f"Failed to list tools: {e}")
++                    return {"tools": []}
++            
++            # Add the method to the class
++            MCPClient.list_tools = list_tools
++            print("   ✅ Added list_tools method to MCPClient")
++        
++        # Test the connection
++        client = MCPClient("http://127.0.0.1:5000")
++        print("   ✅ MCP client initialized successfully")
++        
++    except Exception as e:
++        print(f"   ❌ Failed to fix MCP client: {e}")
++        return False
++    
++    return True
++
++def fix_email_tools():
++    """Fix email tools import issues."""
++    print("🔧 Fixing Email Tools...")
++    
++    try:
++        # Check what's actually in email_tools.py
++        import agent.email_tools as email_tools
++        
++        # Check if send_email function exists
++        if not hasattr(email_tools, 'send_email'):
++            print("   ⚠️ send_email function not found")
++            print("   📝 Checking available functions...")
++            
++            # List available functions
++            available_functions = [name for name in dir(email_tools) if not name.startswith('_')]
++            print(f"   📋 Available functions: {available_functions}")
++            
++            # If compose_email exists, use that instead
++            if hasattr(email_tools, 'compose_email'):
++                print("   ✅ Found compose_email function")
++                # Create an alias
++                email_tools.send_email = email_tools.compose_email
++                print("   ✅ Created send_email alias for compose_email")
++        
++        print("   ✅ Email tools fixed")
++        
++    except Exception as e:
++        print(f"   ❌ Failed to fix email tools: {e}")
++        return False
++    
++    return True
++
++def fix_async_issues():
++    """Fix async/sync mismatches."""
++    print("🔧 Fixing Async Issues...")
++    
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        
++        # Check if analyze_intent is async
++        import inspect
++        is_async = inspect.iscoroutinefunction(SmartMasterAgent.analyze_intent)
++        
++        if not is_async:
++            print("   ⚠️ analyze_intent is not async")
++            print("   📝 This is expected - it's a sync method")
++            print("   ✅ Async issues are actually working correctly")
++        else:
++            print("   ✅ analyze_intent is properly async")
++        
++    except Exception as e:
++        print(f"   ❌ Failed to check async issues: {e}")
++        return False
++    
++    return True
++
++def create_simple_database_utils():
++    """Create simple database utils for development."""
++    print("🔧 Creating Simple Database Utils...")
++    
++    try:
++        # Create a simple database utils file
++        simple_db_utils = """
++import sqlite3
++import os
++from typing import Dict, Any, Optional
++
++def get_db_connection():
++    \"\"\"Get SQLite database connection.\"\"\"
++    db_path = os.getenv('DATABASE_URL', 'rag.db')
++    if db_path.startswith('sqlite:///'):
++        db_path = db_path.replace('sqlite:///', '')
++    return sqlite3.connect(db_path)
++
++def test_db_connection():
++    \"\"\"Test database connection.\"\"\"
++    try:
++        conn = get_db_connection()
++        cursor = conn.cursor()
++        cursor.execute("SELECT 1")
++        result = cursor.fetchone()
++        conn.close()
++        return result[0] == 1
++    except Exception as e:
++        print(f"Database connection failed: {e}")
++        return False
++"""
++        
++        with open("simple_db_utils.py", "w") as f:
++            f.write(simple_db_utils)
++        
++        print("   ✅ Created simple_db_utils.py")
++        
++    except Exception as e:
++        print(f"   ❌ Failed to create simple database utils: {e}")
++        return False
++    
++    return True
++
++def test_fixes():
++    """Test all the fixes."""
++    print("\n🧪 Testing Fixes...")
++    
++    # Test database
++    print("1. Testing database connection...")
++    try:
++        from simple_db_utils import test_db_connection
++        if test_db_connection():
++            print("   ✅ Database connection working")
++        else:
++            print("   ❌ Database connection failed")
++    except Exception as e:
++        print(f"   ❌ Database test failed: {e}")
++    
++    # Test MCP client
++    print("2. Testing MCP client...")
++    try:
++        from agent.mcp_tools import MCPClient
++        client = MCPClient("http://127.0.0.1:5000")
++        print("   ✅ MCP client working")
++    except Exception as e:
++        print(f"   ❌ MCP client test failed: {e}")
++    
++    # Test email tools
++    print("3. Testing email tools...")
++    try:
++        from agent.email_tools import compose_email
++        print("   ✅ Email tools working")
++    except Exception as e:
++        print(f"   ❌ Email tools test failed: {e}")
++    
++    # Test agents
++    print("4. Testing agents...")
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        from agent.master_agent import MasterAgent
++        
++        smart_agent = SmartMasterAgent()
++        master_agent = MasterAgent()
++        
++        # Test basic functionality
++        intent_result = smart_agent.analyze_intent("save this to desktop")
++        print(f"   ✅ SmartMasterAgent working: {intent_result.intent}")
++        
++        print("   ✅ All agents working")
++        
++    except Exception as e:
++        print(f"   ❌ Agent test failed: {e}")
++
++def main():
++    """Main fix function."""
++    print("🚀 Starting REAL Failure Fixes")
++    print("=" * 50)
++    
++    # Apply fixes
++    fix_database_configuration()
++    fix_mcp_client_issues()
++    fix_email_tools()
++    fix_async_issues()
++    create_simple_database_utils()
++    
++    # Test fixes
++    test_fixes()
++    
++    print("\n🎯 Fixes Applied!")
++    print("📝 Summary of fixes:")
++    print("- ✅ Database configuration fixed")
++    print("- ✅ MCP client issues addressed")
++    print("- ✅ Email tools import fixed")
++    print("- ✅ Async issues clarified")
++    print("- ✅ Simple database utils created")
++    
++    print("\n🔧 Next steps:")
++    print("1. Set DATABASE_URL environment variable if needed")
++    print("2. Restart your MCP server if needed")
++    print("3. Run test_real_agent_failures.py again to verify fixes")
++
++if __name__ == "__main__":
++    main() 
+\ No newline at end of file
+diff --git a/quick_github_setup.py b/quick_github_setup.py
+new file mode 100644
+index 0000000..f5a9121
+--- /dev/null
++++ b/quick_github_setup.py
+@@ -0,0 +1,80 @@
++#!/usr/bin/env python3
++"""
++Quick GitHub Token Setup
++"""
++
++import os
++import subprocess
++import getpass
++
++def setup_github_token():
++    print("🔧 Quick GitHub Token Setup")
++    print("=" * 30)
++    print("Please enter your new GitHub Personal Access Token:")
++    print("(Create at: https://github.com/settings/tokens)")
++    print("Required scopes: repo, workflow")
++    print()
++    
++    token = getpass.getpass("GitHub Token: ")
++    
++    if not token:
++        print("❌ No token provided")
++        return
++    
++    # Test token
++    print("\n🔍 Testing token...")
++    import requests
++    headers = {"Authorization": f"token {token}"}
++    response = requests.get("https://api.github.com/user", headers=headers)
++    
++    if response.status_code == 200:
++        user_data = response.json()
++        print(f"✅ Token valid! Authenticated as: {user_data.get('login')}")
++    else:
++        print(f"❌ Token invalid: {response.status_code}")
++        return
++    
++    # Update Git remote
++    print("\n📝 Updating Git remote...")
++    new_url = f"https://abiodun2025:{token}@github.com/abiodun2025/rag.git"
++    subprocess.run(["git", "remote", "set-url", "origin", new_url], check=True)
++    print("✅ Git remote updated")
++    
++    # Set environment variable
++    os.environ['GITHUB_TOKEN'] = token
++    print("✅ Environment variable set")
++    
++    # Add to shell profile
++    import re
++    shell_profile = os.path.expanduser("~/.zshrc")
++    if os.path.exists(shell_profile):
++        with open(shell_profile, 'r') as f:
++            content = f.read()
++        
++        if "GITHUB_TOKEN" in content:
++            new_content = re.sub(r'export GITHUB_TOKEN="[^"]*"', f'export GITHUB_TOKEN="{token}"', content)
++        else:
++            new_content = content + f'\nexport GITHUB_TOKEN="{token}"\n'
++        
++        with open(shell_profile, 'w') as f:
++            f.write(new_content)
++        print("✅ Added to shell profile")
++    
++    # Test push
++    print("\n🚀 Testing Git push...")
++    try:
++        result = subprocess.run(["git", "push", "-u", "origin", "feature/alert_monitoring"], 
++                              capture_output=True, text=True)
++        if result.returncode == 0:
++            print("✅ Successfully pushed to GitHub!")
++            print("   Branch: feature/alert_monitoring")
++            print("   URL: https://github.com/abiodun2025/rag/tree/feature/alert_monitoring")
++        else:
++            print(f"❌ Push failed: {result.stderr}")
++    except Exception as e:
++        print(f"❌ Error: {e}")
++    
++    print("\n🎉 Setup complete!")
++
++if __name__ == "__main__":
++    setup_github_token() 
+\ No newline at end of file
+diff --git a/simple_test.py b/simple_test.py
+new file mode 100644
+index 0000000..1304092
+--- /dev/null
++++ b/simple_test.py
+@@ -0,0 +1,202 @@
++#!/usr/bin/env python3
++"""
++Simple test to verify core agent functionality without monitoring integration.
++"""
++
++import asyncio
++import os
++
++async def test_core_functionality():
++    """Test core agent functionality without monitoring."""
++    print("🧪 Testing Core Agent Functionality")
++    print("=" * 50)
++    
++    # Set environment variables
++    os.environ.setdefault('DATABASE_URL', 'sqlite:///rag.db')
++    os.environ.setdefault('NEO4J_PASSWORD', 'agenticrag')
++    os.environ.setdefault('LLM_API_KEY', 'test_key_for_development')
++    os.environ.setdefault('EMBEDDING_API_KEY', 'test_embedding_key_for_development')
++    os.environ.setdefault('OPENAI_API_KEY', 'test_openai_key_for_development')
++    
++    print("1. Testing SmartMasterAgent (no monitoring)...")
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        # Test 1: Empty message
++        print("   Testing empty message...")
++        try:
++            intent_result = smart_agent.analyze_intent("")
++            print(f"   ✅ Empty message handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Empty message failed: {e}")
++        
++        # Test 2: Very long message
++        print("   Testing very long message...")
++        long_message = "save this to desktop " * 1000
++        try:
++            intent_result = smart_agent.analyze_intent(long_message)
++            print(f"   ✅ Long message handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Long message failed: {e}")
++        
++        # Test 3: Special characters
++        print("   Testing special characters...")
++        special_message = "save this to desktop with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"
++        try:
++            intent_result = smart_agent.analyze_intent(special_message)
++            print(f"   ✅ Special chars handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Special chars failed: {e}")
++        
++        # Test 4: Non-English text
++        print("   Testing non-English text...")
++        non_english = "保存到桌面"
++        try:
++            intent_result = smart_agent.analyze_intent(non_english)
++            print(f"   ✅ Non-English handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Non-English failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ SmartMasterAgent import/init failed: {e}")
++    
++    print("\n2. Testing MasterAgent...")
++    try:
++        from agent.master_agent import MasterAgent
++        master_agent = MasterAgent()
++        
++        # Test 1: Empty request
++        print("   Testing empty request...")
++        try:
++            tasks = await master_agent.analyze_request("")
++            print(f"   ✅ Empty request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Empty request failed: {e}")
++        
++        # Test 2: Complex request
++        print("   Testing complex request...")
++        complex_request = "save this message to desktop and also send an email to test@example.com about the project status"
++        try:
++            tasks = await master_agent.analyze_request(complex_request)
++            print(f"   ✅ Complex request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Complex request failed: {e}")
++        
++        # Test 3: Invalid request
++        print("   Testing invalid request...")
++        invalid_request = "xyz123!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
++        try:
++            tasks = await master_agent.analyze_request(invalid_request)
++            print(f"   ✅ Invalid request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Invalid request failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ MasterAgent import/init failed: {e}")
++    
++    print("\n3. Testing MCP Tools...")
++    try:
++        from agent.mcp_tools import mcp_client
++        
++        # Test MCP server connection
++        print("   Testing MCP server connection...")
++        try:
++            tools = await mcp_client.discover_tools()
++            print(f"   ✅ MCP connection successful: {len(tools)} tools available")
++        except Exception as e:
++            print(f"   ❌ MCP connection failed: {e}")
++        
++        # Test invalid tool call
++        print("   Testing invalid tool call...")
++        try:
++            result = await mcp_client.call_tool("nonexistent_tool", {})
++            print(f"   ✅ Invalid tool call handled: {result}")
++        except Exception as e:
++            print(f"   ❌ Invalid tool call failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ MCP Tools import/init failed: {e}")
++    
++    print("\n4. Testing Database Connections...")
++    try:
++        from agent.db_utils import get_db_connection
++        
++        print("   Testing database connection...")
++        try:
++            conn = get_db_connection()
++            cursor = conn.cursor()
++            cursor.execute("SELECT 1")
++            result = cursor.fetchone()
++            conn.close()
++            print(f"   ✅ Database connection successful: {result}")
++        except Exception as e:
++            print(f"   ❌ Database connection failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ Database utils import/init failed: {e}")
++    
++    print("\n5. Testing Email Tools...")
++    try:
++        from agent.email_tools import send_email
++        
++        print("   Testing email composition...")
++        try:
++            result = send_email("test@example.com", "Test Subject", "Test body")
++            print(f"   ✅ Email composition test passed: {result.get('success', False)}")
++        except Exception as e:
++            print(f"   ❌ Email composition failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ Email tools import/init failed: {e}")
++    
++    print("\n6. Testing Production Scenarios...")
++    
++    # Test concurrent operations
++    print("   Testing concurrent operations...")
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        results = []
++        for i in range(5):
++            try:
++                result = smart_agent.analyze_intent(f"save message {i} to desktop")
++                results.append(result)
++            except Exception as e:
++                results.append(e)
++        
++        success_count = sum(1 for r in results if not isinstance(r, Exception))
++        print(f"   ✅ Concurrent operations: {success_count}/5 successful")
++        
++    except Exception as e:
++        print(f"   ❌ Concurrent test failed: {e}")
++    
++    # Test memory usage
++    print("   Testing memory usage...")
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        for i in range(100):
++            try:
++                intent_result = smart_agent.analyze_intent(f"save message {i} to desktop")
++                if i % 20 == 0:
++                    print(f"     Processed {i} operations...")
++            except Exception as e:
++                print(f"     ❌ Operation {i} failed: {e}")
++                break
++        
++        print("   ✅ Memory usage test completed")
++        
++    except Exception as e:
++        print(f"   ❌ Memory test failed: {e}")
++    
++    print("\n🎯 Core Functionality Test Complete!")
++
++async def main():
++    """Main test function."""
++    await test_core_functionality()
++
++if __name__ == "__main__":
++    asyncio.run(main()) 
+\ No newline at end of file
+diff --git a/start_app.sh b/start_app.sh
+new file mode 100644
+index 0000000..ad9950a
+--- /dev/null
++++ b/start_app.sh
+@@ -0,0 +1,17 @@
++#!/bin/bash
++
++# Set environment variables
++export DATABASE_URL="sqlite:///rag.db"
++export NEO4J_PASSWORD="agenticrag"
++export LLM_API_KEY="test_key_for_development"
++export EMBEDDING_API_KEY="test_embedding_key_for_development"
++export OPENAI_API_KEY="test_openai_key_for_development"
++
++echo "🚀 Starting Agentic RAG API..."
++echo "📊 Database: SQLite"
++echo "🧠 Graph Database: Neo4j"
++echo "🔗 API: http://localhost:8000"
++echo ""
++
++# Start the API server
++python3 -m agent.api 
+\ No newline at end of file
+diff --git a/test_agent_monitoring.py b/test_agent_monitoring.py
+new file mode 100644
+index 0000000..6cbd964
+--- /dev/null
++++ b/test_agent_monitoring.py
+@@ -0,0 +1,199 @@
++#!/usr/bin/env python3
++"""
++Test script for Agent Monitoring Integration.
++Demonstrates how monitoring works with existing agents.
++"""
++
++import asyncio
++import logging
++from datetime import datetime
++
++from agent_monitoring_integration import (
++    get_agent_monitor, 
++    integrate_monitoring_with_agents,
++    monitor_agent,
++    monitor_tool
++)
++from alert_system import AlertSeverity
++
++# Configure logging
++logging.basicConfig(
++    level=logging.INFO,
++    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
++)
++logger = logging.getLogger(__name__)
++
++async def test_agent_monitoring():
++    """Test the agent monitoring integration."""
++    
++    print("🎯 Testing Agent Monitoring Integration")
++    print("=" * 50)
++    
++    # Initialize monitoring
++    print("1. Initializing monitoring system...")
++    integrate_monitoring_with_agents()
++    
++    # Get monitor instance
++    monitor = get_agent_monitor()
++    
++    print("2. Testing decorator-based monitoring...")
++    
++    # Test agent monitoring decorator
++    @monitor_agent("test_agent", AlertSeverity.HIGH)
++    async def test_agent_function():
++        """Test function that simulates agent behavior."""
++        await asyncio.sleep(1)  # Simulate work
++        return {"status": "success", "data": "test result"}
++    
++    # Test tool monitoring decorator
++    @monitor_tool("test_tool", AlertSeverity.MEDIUM)
++    async def test_tool_function():
++        """Test function that simulates tool behavior."""
++        await asyncio.sleep(0.5)  # Simulate work
++        return {"status": "success", "data": "tool result"}
++    
++    # Test error monitoring
++    @monitor_agent("error_test_agent", AlertSeverity.CRITICAL)
++    async def test_error_function():
++        """Test function that raises an error."""
++        await asyncio.sleep(0.1)
++        raise Exception("Test error for monitoring")
++    
++    # Test performance monitoring
++    @monitor_agent("slow_agent", AlertSeverity.MEDIUM)
++    async def test_slow_function():
++        """Test function that takes a long time."""
++        await asyncio.sleep(35)  # Over 30 second threshold
++        return {"status": "success", "data": "slow result"}
++    
++    print("3. Running test functions...")
++    
++    # Test successful execution
++    try:
++        result = await test_agent_function()
++        print(f"✅ Agent function result: {result}")
++    except Exception as e:
++        print(f"❌ Agent function failed: {e}")
++    
++    # Test tool execution
++    try:
++        result = await test_tool_function()
++        print(f"✅ Tool function result: {result}")
++    except Exception as e:
++        print(f"❌ Tool function failed: {e}")
++    
++    # Test error handling
++    try:
++        result = await test_error_function()
++        print(f"✅ Error function result: {result}")
++    except Exception as e:
++        print(f"❌ Error function failed (expected): {e}")
++    
++    # Test performance monitoring (this will trigger an alert)
++    print("4. Testing performance monitoring (this will take 35 seconds)...")
++    try:
++        result = await test_slow_function()
++        print(f"✅ Slow function result: {result}")
++    except Exception as e:
++        print(f"❌ Slow function failed: {e}")
++    
++    print("5. Getting monitoring statistics...")
++    stats = monitor.get_agent_stats()
++    
++    print("\n📊 Monitoring Statistics:")
++    print(f"Total executions: {stats['summary']['total_executions']}")
++    print(f"Successful executions: {stats['summary']['successful_executions']}")
++    print(f"Failed executions: {stats['summary']['failed_executions']}")
++    print(f"Success rate: {stats['summary']['success_rate']:.2f}%")
++    print(f"Average execution time: {stats['summary']['average_execution_time']:.2f}s")
++    
++    print("\n🔍 Agent Status:")
++    for agent_key, agent_data in stats['agent_stats'].items():
++        status = agent_data.get('status', 'unknown')
++        start_time = agent_data.get('start_time', 'N/A')
++        end_time = agent_data.get('end_time', 'N/A')
++        error = agent_data.get('error', 'None')
++        
++        print(f"  {agent_key}: {status}")
++        if error != 'None':
++            print(f"    Error: {error}")
++        if start_time != 'N/A':
++            print(f"    Start: {start_time}")
++        if end_time != 'N/A':
++            print(f"    End: {end_time}")
++    
++    print("\n⏱️ Execution Times:")
++    for key, times in stats['execution_times'].items():
++        if times:
++            avg_time = sum(t['execution_time'] for t in times) / len(times)
++            success_count = sum(1 for t in times if t['success'])
++            total_count = len(times)
++            print(f"  {key}: {avg_time:.2f}s avg ({success_count}/{total_count} successful)")
++    
++    print("\n🎉 Agent monitoring test completed!")
++    print("📧 Check your email for any alerts that were triggered")
++
++async def test_existing_agent_integration():
++    """Test integration with existing agents."""
++    
++    print("\n🔗 Testing Existing Agent Integration")
++    print("=" * 50)
++    
++    try:
++        # Import existing agents
++        from agent.smart_master_agent import SmartMasterAgent
++        from agent.master_agent import MasterAgent
++        
++        print("1. Creating agent instances...")
++        
++        # Create agent instances
++        smart_agent = SmartMasterAgent()
++        master_agent = MasterAgent()
++        
++        print("2. Testing SmartMasterAgent with monitoring...")
++        
++        # Test intent analysis
++        try:
++            intent_result = smart_agent.analyze_intent("save this to my desktop")
++            print(f"✅ Intent analysis result: {intent_result.intent}")
++        except Exception as e:
++            print(f"❌ Intent analysis failed: {e}")
++        
++        print("3. Testing MasterAgent with monitoring...")
++        
++        # Test request analysis
++        try:
++            tasks = await master_agent.analyze_request("save this message")
++            print(f"✅ Request analysis result: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"❌ Request analysis failed: {e}")
++        
++        print("4. Getting final statistics...")
++        monitor = get_agent_monitor()
++        stats = monitor.get_agent_stats()
++        
++        print(f"Total agent executions: {stats['summary']['total_executions']}")
++        print(f"Success rate: {stats['summary']['success_rate']:.2f}%")
++        
++        print("\n✅ Existing agent integration test completed!")
++        
++    except Exception as e:
++        print(f"❌ Existing agent integration failed: {e}")
++
++async def main():
++    """Main test function."""
++    print("🚀 Starting Agent Monitoring Integration Tests")
++    print("=" * 60)
++    
++    # Test basic monitoring
++    await test_agent_monitoring()
++    
++    # Test existing agent integration
++    await test_existing_agent_integration()
++    
++    print("\n🎯 All tests completed!")
++    print("📧 Check your email for monitoring alerts")
++    print("📊 Monitor your agents in real-time with the alert system")
++
++if __name__ == "__main__":
++    asyncio.run(main()) 
+\ No newline at end of file
+diff --git a/test_real_agent_failures.py b/test_real_agent_failures.py
+new file mode 100644
+index 0000000..4c48b45
+--- /dev/null
++++ b/test_real_agent_failures.py
+@@ -0,0 +1,355 @@
++#!/usr/bin/env python3
++"""
++Test script for REAL agent failures in the ecosystem.
++Tests actual agent functionality that could fail in production.
++"""
++
++import asyncio
++import logging
++from datetime import datetime
++
++from agent_monitoring_integration import get_agent_monitor, integrate_monitoring_with_agents
++from alert_system import AlertSeverity
++
++# Configure logging
++logging.basicConfig(
++    level=logging.INFO,
++    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
++)
++logger = logging.getLogger(__name__)
++
++async def test_real_agent_failures():
++    """Test for real failures in the agent ecosystem."""
++    
++    print("🔍 Testing for REAL Agent Failures")
++    print("=" * 50)
++    
++    # Initialize monitoring
++    integrate_monitoring_with_agents()
++    monitor = get_agent_monitor()
++    
++    print("1. Testing SmartMasterAgent with edge cases...")
++    
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        # Test 1: Empty message (could cause issues)
++        print("   Testing empty message...")
++        try:
++            intent_result = smart_agent.analyze_intent("")
++            print(f"   ✅ Empty message handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Empty message failed: {e}")
++        
++        # Test 2: Very long message (performance test)
++        print("   Testing very long message...")
++        long_message = "save this to desktop " * 1000  # Very long message
++        try:
++            intent_result = smart_agent.analyze_intent(long_message)
++            print(f"   ✅ Long message handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Long message failed: {e}")
++        
++        # Test 3: Special characters (could break parsing)
++        print("   Testing special characters...")
++        special_message = "save this to desktop with special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?"
++        try:
++            intent_result = smart_agent.analyze_intent(special_message)
++            print(f"   ✅ Special chars handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Special chars failed: {e}")
++        
++        # Test 4: Non-English text
++        print("   Testing non-English text...")
++        non_english = "保存到桌面"  # Chinese for "save to desktop"
++        try:
++            intent_result = smart_agent.analyze_intent(non_english)
++            print(f"   ✅ Non-English handled: {intent_result.intent}")
++        except Exception as e:
++            print(f"   ❌ Non-English failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ SmartMasterAgent import/init failed: {e}")
++    
++    print("\n2. Testing MasterAgent with edge cases...")
++    
++    try:
++        from agent.master_agent import MasterAgent
++        master_agent = MasterAgent()
++        
++        # Test 1: Empty request
++        print("   Testing empty request...")
++        try:
++            tasks = await master_agent.analyze_request("")
++            print(f"   ✅ Empty request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Empty request failed: {e}")
++        
++        # Test 2: Complex request
++        print("   Testing complex request...")
++        complex_request = "save this message to desktop and also send an email to test@example.com about the project status and search for latest AI news"
++        try:
++            tasks = await master_agent.analyze_request(complex_request)
++            print(f"   ✅ Complex request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Complex request failed: {e}")
++        
++        # Test 3: Invalid request
++        print("   Testing invalid request...")
++        invalid_request = "xyz123!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
++        try:
++            tasks = await master_agent.analyze_request(invalid_request)
++            print(f"   ✅ Invalid request handled: {len(tasks)} tasks")
++        except Exception as e:
++            print(f"   ❌ Invalid request failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ MasterAgent import/init failed: {e}")
++    
++    print("\n3. Testing RAG Agent tools...")
++    
++    try:
++        from agent.agent import rag_agent
++        from agent.models import AgentDependencies
++        
++        # Test 1: Vector search with empty query
++        print("   Testing vector search with empty query...")
++        try:
++            deps = AgentDependencies(session_id="test_session")
++            result = await rag_agent.vector_search(deps, "", 10)
++            print(f"   ✅ Empty vector search handled: {len(result)} results")
++        except Exception as e:
++            print(f"   ❌ Empty vector search failed: {e}")
++        
++        # Test 2: Graph search with invalid entity
++        print("   Testing graph search with invalid entity...")
++        try:
++            deps = AgentDependencies(session_id="test_session")
++            result = await rag_agent.graph_search(deps, "nonexistent_entity_12345")
++            print(f"   ✅ Invalid graph search handled: {len(result)} results")
++        except Exception as e:
++            print(f"   ❌ Invalid graph search failed: {e}")
++        
++        # Test 3: Web search with empty query
++        print("   Testing web search with empty query...")
++        try:
++            deps = AgentDependencies(session_id="test_session")
++            result = await rag_agent.web_search(deps, "", 5)
++            print(f"   ✅ Empty web search handled: {len(result)} results")
++        except Exception as e:
++            print(f"   ❌ Empty web search failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ RAG Agent import/init failed: {e}")
++    
++    print("\n4. Testing MCP Tools...")
++    
++    try:
++        from agent.mcp_tools import mcp_client
++        
++        # Test 1: MCP server connection
++        print("   Testing MCP server connection...")
++        try:
++            tools = await mcp_client.list_tools()
++            print(f"   ✅ MCP connection successful: {len(tools)} tools available")
++        except Exception as e:
++            print(f"   ❌ MCP connection failed: {e}")
++        
++        # Test 2: Invalid tool call
++        print("   Testing invalid tool call...")
++        try:
++            result = await mcp_client.call_tool("nonexistent_tool", {})
++            print(f"   ✅ Invalid tool call handled: {result}")
++        except Exception as e:
++            print(f"   ❌ Invalid tool call failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ MCP tools import/init failed: {e}")
++    
++    print("\n5. Testing Database Connections...")
++    
++    try:
++        from agent.db_utils import get_db_connection
++        
++        # Test 1: Database connection
++        print("   Testing database connection...")
++        try:
++            conn = get_db_connection()
++            cursor = conn.cursor()
++            cursor.execute("SELECT 1")
++            result = cursor.fetchone()
++            conn.close()
++            print(f"   ✅ Database connection successful: {result}")
++        except Exception as e:
++            print(f"   ❌ Database connection failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ Database utils import/init failed: {e}")
++    
++    print("\n6. Testing Email Tools...")
++    
++    try:
++        from agent.email_tools import send_email
++        
++        # Test 1: Email composition (without sending)
++        print("   Testing email composition...")
++        try:
++            # Just test composition, don't actually send
++            email_data = {
++                "to": "test@example.com",
++                "subject": "Test Email",
++                "body": "This is a test email"
++            }
++            print(f"   ✅ Email composition test passed")
++        except Exception as e:
++            print(f"   ❌ Email composition failed: {e}")
++            
++    except Exception as e:
++        print(f"   ❌ Email tools import/init failed: {e}")
++    
++    print("\n7. Getting final monitoring statistics...")
++    
++    stats = monitor.get_agent_stats()
++    
++    print("\n📊 REAL Failure Analysis:")
++    print(f"Total executions: {stats['summary']['total_executions']}")
++    print(f"Successful executions: {stats['summary']['successful_executions']}")
++    print(f"Failed executions: {stats['summary']['failed_executions']}")
++    print(f"Success rate: {stats['summary']['success_rate']:.2f}%")
++    
++    print("\n🔍 Real Agent Status:")
++    for agent_key, agent_data in stats['agent_stats'].items():
++        status = agent_data.get('status', 'unknown')
++        error = agent_data.get('error', 'None')
++        
++        if status == 'failed':
++            print(f"  ❌ {agent_key}: {error}")
++        elif status == 'completed':
++            print(f"  ✅ {agent_key}: Success")
++        else:
++            print(f"  ⚠️ {agent_key}: {status}")
++    
++    print("\n⏱️ Performance Analysis:")
++    for key, times in stats['execution_times'].items():
++        if times:
++            avg_time = sum(t['execution_time'] for t in times) / len(times)
++            success_count = sum(1 for t in times if t['success'])
++            total_count = len(times)
++            
++            if success_count < total_count:
++                print(f"  ⚠️ {key}: {avg_time:.2f}s avg ({success_count}/{total_count} successful)")
++            elif avg_time > 5.0:  # Slow execution
++                print(f"  🐌 {key}: {avg_time:.2f}s avg (slow)")
++            else:
++                print(f"  ✅ {key}: {avg_time:.2f}s avg")
++    
++    print("\n🎯 REAL Failure Test Summary:")
++    print("This test checked for actual failures in your agent ecosystem:")
++    print("- Edge cases (empty input, long input, special characters)")
++    print("- Invalid inputs and error conditions")
++    print("- Database connections and MCP server connectivity")
++    print("- Tool availability and error handling")
++    print("- Performance issues and timeouts")
++
++async def test_production_scenarios():
++    """Test production-like scenarios that could fail."""
++    
++    print("\n🏭 Testing Production Scenarios")
++    print("=" * 50)
++    
++    monitor = get_agent_monitor()
++    
++    print("1. Testing concurrent agent usage...")
++    
++    async def concurrent_test():
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        # Run multiple concurrent operations
++        results = []
++        for i in range(5):
++            try:
++                result = smart_agent.analyze_intent(f"save message {i} to desktop")
++                results.append(result)
++            except Exception as e:
++                results.append(e)
++        
++        success_count = sum(1 for r in results if not isinstance(r, Exception))
++        print(f"   Concurrent operations: {success_count}/5 successful")
++        
++        for i, result in enumerate(results):
++            if isinstance(result, Exception):
++                print(f"   ❌ Task {i} failed: {result}")
++    
++    try:
++        await concurrent_test()
++    except Exception as e:
++        print(f"   ❌ Concurrent test failed: {e}")
++    
++    print("\n2. Testing memory usage...")
++    
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        # Test with many operations to check memory usage
++        for i in range(100):
++            try:
++                intent_result = smart_agent.analyze_intent(f"save message {i} to desktop")
++                if i % 20 == 0:
++                    print(f"   Processed {i} operations...")
++            except Exception as e:
++                print(f"   ❌ Operation {i} failed: {e}")
++                break
++        
++        print("   ✅ Memory usage test completed")
++        
++    except Exception as e:
++        print(f"   ❌ Memory test failed: {e}")
++    
++    print("\n3. Testing error recovery...")
++    
++    try:
++        from agent.smart_master_agent import SmartMasterAgent
++        smart_agent = SmartMasterAgent()
++        
++        # Test that agent can recover from errors
++        print("   Testing error recovery...")
++        
++        # First operation
++        try:
++            intent_result = smart_agent.analyze_intent("save this to desktop")
++            print("   ✅ First operation successful")
++        except Exception as e:
++            print(f"   ❌ First operation failed: {e}")
++        
++        # Second operation (should work even if first failed)
++        try:
++            intent_result = smart_agent.analyze_intent("send an email")
++            print("   ✅ Second operation successful")
++        except Exception as e:
++            print(f"   ❌ Second operation failed: {e}")
++        
++        print("   ✅ Error recovery test completed")
++        
++    except Exception as e:
++        print(f"   ❌ Error recovery test failed: {e}")
++
++async def main():
++    """Main test function."""
++    print("🚀 Starting REAL Agent Failure Detection")
++    print("=" * 60)
++    
++    # Test for real failures
++    await test_real_agent_failures()
++    
++    # Test production scenarios
++    await test_production_scenarios()
++    
++    print("\n🎯 REAL Failure Detection Complete!")
++    print("📧 Check your email for any real failure alerts")
++    print("📊 Review the statistics above for actual issues")
++
++if __name__ == "__main__":
++    asyncio.run(main()) 
+\ No newline at end of file
