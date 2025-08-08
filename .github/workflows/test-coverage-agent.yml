@@ -1,0 +1,141 @@
+name: Test Coverage Agent
+
+on:
+  push:
+    branches: [ main, feature/test_coverage_suggestions_agent ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-coverage-agent:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests coverage pytest
+        
+    - name: Set up environment variables
+      run: |
+        echo "GITHUB_OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
+        echo "GITHUB_REPO=${{ github.event.repository.name }}" >> $GITHUB_ENV
+        
+    - name: Run simple coverage test
+      run: |
+        python3 simple_coverage_test.py
+        
+    - name: Run working coverage demo
+      run: |
+        python3 working_coverage_demo.py
+        
+    - name: Run comprehensive GitHub coverage test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 comprehensive_github_coverage_test.py
+        
+    - name: Run real-world agent test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 test_real_world_agent.py
+        
+    - name: Test agent initialization
+      run: |
+        python3 -c "
+        from agent.test_coverage_agent import TestCoverageAgent
+        from agent.github_coverage_agent import GitHubCoverageAgent, GitHubConfig
+        import os
+        
+        # Test base agent
+        base_agent = TestCoverageAgent()
+        assert 'java' in base_agent.supported_languages
+        assert 'py' in base_agent.supported_languages
+        print('✅ Base agent initialization successful')
+        
+        # Test GitHub agent
+        config = GitHubConfig(
+            token=os.getenv('GITHUB_TOKEN', 'test_token'),
+            owner=os.getenv('GITHUB_OWNER', 'test_owner'),
+            repo=os.getenv('GITHUB_REPO', 'test_repo')
+        )
+        github_agent = GitHubCoverageAgent(config)
+        print('✅ GitHub agent initialization successful')
+        "
+        
+    - name: Test language detection
+      run: |
+        python3 -c "
+        from agent.test_coverage_agent import TestCoverageAgent
+        
+        agent = TestCoverageAgent()
+        test_cases = [
+            ('src/main.java', 'java'),
+            ('app/User.kt', 'kt'),
+            ('components/Button.js', 'js'),
+            ('utils/helper.ts', 'ts'),
+            ('main.py', 'py'),
+            ('server.go', 'go')
+        ]
+        
+        for file_path, expected_language in test_cases:
+            detected = agent._detect_language(file_path)
+            assert detected == expected_language, f'Expected {expected_language} for {file_path}, got {detected}'
+        
+        print('✅ Language detection successful')
+        "
+        
+    - name: Test GitHub API connection
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 -c "
+        import requests
+        import os
+        
+        headers = {
+            'Authorization': f'token {os.getenv(\"GITHUB_TOKEN\")}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        
+        repo_url = f'https://api.github.com/repos/{os.getenv(\"GITHUB_OWNER\")}/{os.getenv(\"GITHUB_REPO\")}'
+        response = requests.get(repo_url, headers=headers)
+        
+        if response.status_code == 200:
+            repo_data = response.json()
+            print(f'✅ GitHub API connection successful: {repo_data[\"full_name\"]}')
+        else:
+            print(f'❌ GitHub API connection failed: {response.status_code}')
+            exit(1)
+        "
+        
+    - name: Generate test report
+      run: |
+        echo "## Coverage Agent Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Simple coverage test passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Working coverage demo passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Comprehensive GitHub coverage test passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Real-world agent test passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Agent initialization test passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Language detection test passed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ GitHub API connection test passed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Agent Capabilities Validated" >> $GITHUB_STEP_SUMMARY
+        echo "- GitHub API integration" >> $GITHUB_STEP_SUMMARY
+        echo "- Pull request analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Code generation and testing" >> $GITHUB_STEP_SUMMARY
+        echo "- Coverage analysis and reporting" >> $GITHUB_STEP_SUMMARY
+        echo "- Suggestion generation" >> $GITHUB_STEP_SUMMARY
+        echo "- Error handling" >> $GITHUB_STEP_SUMMARY
+        echo "- Performance under load" >> $GITHUB_STEP_SUMMARY

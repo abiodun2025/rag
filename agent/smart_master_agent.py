@@ -22,6 +22,7 @@ class IntentType(Enum):
     KNOWLEDGE_GRAPH = "knowledge_graph"
     MCP_TOOLS = "mcp_tools"
     CALL = "call"
+    GITHUB_COVERAGE = "github_coverage"
     GENERAL = "general"
 
 @dataclass
@@ -491,6 +492,25 @@ class SmartMasterAgent:
                 r"dial.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
                 r"phone.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}"
             ],
+            IntentType.GITHUB_COVERAGE: [
+                r"analyze.*coverage",
+                r"test.*coverage",
+                r"coverage.*analysis",
+                r"run.*coverage",
+                r"check.*coverage",
+                r"coverage.*test",
+                r"pr.*coverage",
+                r"pull.*request.*coverage",
+                r"github.*coverage",
+                r"code.*coverage",
+                r"test.*suggestions",
+                r"coverage.*suggestions",
+                r"missing.*tests",
+                r"test.*analysis",
+                r"coverage.*report",
+                r"analyze.*tests",
+                r"test.*coverage.*analysis"
+            ],
             IntentType.SEARCH: [
                 r"search.*for",
                 r"find.*information",
@@ -770,6 +790,38 @@ class SmartMasterAgent:
                 "call_request": message_lower
             }
             
+        elif intent == IntentType.GITHUB_COVERAGE:
+            # Extract GitHub coverage analysis parameters
+            import re
+            
+            # Extract PR number if mentioned
+            pr_match = re.search(r'pr\s*#?(\d+)', message_lower)
+            pr_number = int(pr_match.group(1)) if pr_match else None
+            
+            # Extract branch name if mentioned
+            branch_match = re.search(r'branch\s+(\w+)', message_lower)
+            branch = branch_match.group(1) if branch_match else "main"
+            
+            # Extract repository info if mentioned
+            repo_match = re.search(r'repo\s+([\w-]+/[\w-]+)', message_lower)
+            repository = repo_match.group(1) if repo_match else None
+            
+            # Determine analysis type
+            analysis_type = "repository"
+            if pr_number:
+                analysis_type = "pr"
+            elif any(word in message_lower for word in ["pr", "pull request"]):
+                analysis_type = "pr"
+            
+            return {
+                "pr_number": pr_number,
+                "branch": branch,
+                "repository": repository,
+                "analysis_type": analysis_type,
+                "message": message,
+                "coverage_request": message_lower
+            }
+            
         elif intent == IntentType.SEARCH:
             # Extract search query
             query = message
@@ -821,6 +873,8 @@ class SmartMasterAgent:
                 result = await self._handle_mcp_tools(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.CALL:
                 result = await self._handle_call(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.GITHUB_COVERAGE:
+                result = await self._handle_github_coverage(intent_result.extracted_data, session_id, user_id)
             else:  # GENERAL
                 result = await self._general_response(intent_result.extracted_data, session_id, user_id)
             
@@ -1520,6 +1574,85 @@ Constraints:
                     "note": f"All calling methods failed. Try manually dialing {phone_number}"
                 }
 
+    async def _handle_github_coverage(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle GitHub coverage analysis requests."""
+        try:
+            from .github_coverage_agent import GitHubCoverageAgent, GitHubConfig
+            import os
+            
+            # Get GitHub configuration from environment
+            github_token = os.getenv('GITHUB_TOKEN')
+            github_owner = os.getenv('GITHUB_OWNER')
+            github_repo = os.getenv('GITHUB_REPO')
+            
+            if not all([github_token, github_owner, github_repo]):
+                return {
+                    "action": "github_coverage_error",
+                    "error": "Missing GitHub configuration",
+                    "note": "Please set GITHUB_TOKEN, GITHUB_OWNER, and GITHUB_REPO environment variables"
+                }
+            
+            # Initialize GitHub Coverage Agent
+            config = GitHubConfig(token=github_token, owner=github_owner, repo=github_repo)
+            agent = GitHubCoverageAgent(config)
+            
+            analysis_type = data.get("analysis_type", "repository")
+            pr_number = data.get("pr_number")
+            branch = data.get("branch", "main")
+            
+            if analysis_type == "pr" and pr_number:
+                # Analyze specific PR
+                logger.info(f"🔍 Analyzing PR #{pr_number} coverage")
+                result = agent.analyze_pr_coverage(pr_number)
+                
+                if "error" in result:
+                    return {
+                        "action": "github_coverage_error",
+                        "error": result["error"],
+                        "pr_number": pr_number,
+                        "note": f"Failed to analyze PR #{pr_number} coverage"
+                    }
+                
+                return {
+                    "action": "github_pr_coverage_analysis",
+                    "pr_number": pr_number,
+                    "result": result,
+                    "note": f"Successfully analyzed PR #{pr_number} coverage"
+                }
+            else:
+                # Analyze repository coverage
+                logger.info(f"🔍 Analyzing repository coverage for branch: {branch}")
+                result = agent.analyze_repository_coverage(branch)
+                
+                if "error" in result:
+                    return {
+                        "action": "github_coverage_error",
+                        "error": result["error"],
+                        "branch": branch,
+                        "note": f"Failed to analyze repository coverage for branch: {branch}"
+                    }
+                
+                return {
+                    "action": "github_repository_coverage_analysis",
+                    "branch": branch,
+                    "result": result,
+                    "note": f"Successfully analyzed repository coverage for branch: {branch}"
+                }
+                
+        except ImportError as e:
+            return {
+                "action": "github_coverage_error",
+                "error": "GitHub Coverage Agent not available",
+                "note": f"Import error: {str(e)}"
+            }
+        except Exception as e:
+            logger.error(f"GitHub coverage analysis failed: {e}")
+            return {
+                "action": "github_coverage_error",
+                "error": str(e),
+                "note": "GitHub coverage analysis failed"
+            }
+
     async def _general_response(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
         """Handle general conversation."""
         return {
@@ -1577,6 +1710,23 @@ Constraints:
                 return f"❌ {result.get('error', 'Call failed')}"
             else:
                 return f"📞 Call processed: {result.get('note', 'Call action completed')}"
+        elif intent == IntentType.GITHUB_COVERAGE:
+            if result.get('action') == 'github_pr_coverage_analysis':
+                pr_number = result.get('pr_number', 'unknown')
+                coverage_result = result.get('result', {})
+                overall_coverage = coverage_result.get('overall_coverage', {})
+                coverage_percentage = overall_coverage.get('percentage', 0)
+                return f"🔍 PR #{pr_number} Coverage Analysis: {coverage_percentage:.1f}% coverage"
+            elif result.get('action') == 'github_repository_coverage_analysis':
+                branch = result.get('branch', 'main')
+                coverage_result = result.get('result', {})
+                overall_coverage = coverage_result.get('overall_coverage', {})
+                coverage_percentage = overall_coverage.get('percentage', 0)
+                return f"🔍 Repository Coverage Analysis ({branch}): {coverage_percentage:.1f}% coverage"
+            elif result.get('action') == 'github_coverage_error':
+                return f"❌ GitHub Coverage Error: {result.get('error', 'Unknown error')}"
+            else:
+                return f"🔍 GitHub Coverage Analysis: {result.get('note', 'Analysis completed')}"
         elif intent == IntentType.WEB_SEARCH:
             count = result.get('total_results', 0)
             return f"🌐 Found {count} web results for your search"
