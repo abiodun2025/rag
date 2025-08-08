@@ -17,6 +17,13 @@ from typing import Dict, Any, List
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from agent.code_reviewer import code_reviewer
 
 # Configure logging
@@ -259,8 +266,6 @@ index 1234567..abcdefg 100644
             
         except Exception as e:
             logger.error(f"❌ Failed to start server: {e}")
-
->>>>>>> Stashed changes
     def print_help(self):
         """Print help information."""
         print("\n🔍 Code Review Commands:")

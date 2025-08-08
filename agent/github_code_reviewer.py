@@ -913,46 +913,6 @@ class GitHubCodeReviewer:
         
         return issues
     
-    def _generate_commit_reviews_summary(self, commit_reviews: List[Dict], total_score: int, total_issues: int) -> str:
-        """Generate an overall summary for all commit reviews."""
-        if not commit_reviews:
-            return "No commits were successfully reviewed."
-        
-        average_score = total_score / len(commit_reviews)
-        overall_grade = self._calculate_grade(average_score)
-        
-        summary = f"""## Commit-by-Commit Review Summary
-
-**📊 Overall Statistics:**
-- **Commits Reviewed:** {len(commit_reviews)}
-- **Average Score:** {average_score:.1f}/100 ({overall_grade})
-- **Total Issues Found:** {total_issues}
-
-**📝 Commit Breakdown:**
-"""
-        
-        for i, commit_review in enumerate(commit_reviews, 1):
-            commit_sha = commit_review["commit_sha"][:8]
-            message = commit_review["message"][:50]
-            author = commit_review["author"]
-            
-            # Calculate commit score
-            commit_score = 0
-            commit_issues = 0
-            for result in commit_review.get("results", []):
-                if "report" in result:
-                    report = result["report"]
-                    commit_score += report.get("score", 0)
-                    commit_issues += report.get("issues", {}).get("total", 0)
-            
-            avg_commit_score = commit_score / len(commit_review.get("results", [])) if commit_review.get("results") else 0
-            grade = self._calculate_grade(avg_commit_score)
-            
-            summary += f"{i}. **{commit_sha}** by {author} - {message}...\n"
-            summary += f"   Score: {avg_commit_score:.1f}/100 ({grade}), Issues: {commit_issues}\n\n"
-        
-        return summary
-
     def get_user_repositories(self, include_private=True):
         """Get repositories accessible to the authenticated user."""
         try:
@@ -984,10 +944,28 @@ class GitHubCodeReviewer:
             print(f"❌ {error_msg}")
             return {"success": False, "error": error_msg}
     
-    def review_and_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
-        """Review a pull request and optionally add comments."""
+    def _extract_file_diff_from_files(self, file_info: Dict) -> str:
+        """Extract diff content from file info."""
         try:
-            print(f"🔍 Starting PR review with comments for: {owner}/{repo}#{pr_number}")
+            # The file_info should contain the patch content
+            patch = file_info.get('patch', '')
+            if patch:
+                return patch
+            
+            # If no patch, try to get the diff from the API
+            filename = file_info['filename']
+            # This would require additional API call to get the diff
+            # For now, return empty string if no patch is available
+            return ""
+            
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to extract diff for {file_info.get('filename', 'unknown')}: {e}")
+            return ""
+    
+    def review_and_comment_pr(self, owner: str, repo: str, pr_number: int, auto_comment: bool = True, output_file: str = None) -> Dict[str, Any]:
+        """Review a pull request and optionally add comments like a senior developer."""
+        try:
+            print(f"🔍 Starting senior developer PR review for: {owner}/{repo}#{pr_number}")
             
             # Get PR details
             pr_result = self.get_pull_request_details(owner, repo, pr_number)
@@ -1003,30 +981,34 @@ class GitHubCodeReviewer:
             
             files = files_result["files"]
             
-            # Analyze each changed file
+            print(f"📁 Found {len(files)} changed files")
+            
+            # Analyze each changed file (all file types, not just Python)
             analysis_results = []
             total_issues = 0
             total_score = 100
             
             for file_info in files:
-                if file_info['filename'].endswith('.py'):
-                    # Get the diff for this file
-                    file_diff = self._extract_file_diff_from_files(file_info)
+                filename = file_info['filename']
+                print(f"🔍 Analyzing {filename}...")
+                
+                # Get the diff for this file
+                file_diff = self._extract_file_diff_from_files(file_info)
+                
+                if file_diff:
+                    # Analyze the diff content for any file type
+                    analysis = self._analyze_diff_content_senior(file_diff, filename)
+                    analysis_results.append({
+                        'file': filename,
+                        'analysis': analysis,
+                        'status': file_info['status'],
+                        'additions': file_info['additions'],
+                        'deletions': file_info['deletions']
+                    })
                     
-                    if file_diff:
-                        # Analyze the diff content
-                        analysis = self._analyze_diff_content(file_diff, file_info['filename'])
-                        analysis_results.append({
-                            'file': file_info['filename'],
-                            'analysis': analysis,
-                            'status': file_info['status'],
-                            'additions': file_info['additions'],
-                            'deletions': file_info['deletions']
-                        })
-                        
-                        # Update totals
-                        total_issues += analysis.get('total_issues', 0)
-                        total_score = min(total_score, analysis.get('score', 100))
+                    # Update totals
+                    total_issues += analysis.get('total_issues', 0)
+                    total_score = min(total_score, analysis.get('score', 100))
             
             # Generate review summary
             review_summary = self._generate_pr_review_summary(analysis_results, pr_data, total_score, total_issues)
@@ -1047,68 +1029,43 @@ class GitHubCodeReviewer:
                 # Collect all comments for the review
                 all_comments = []
                 
-                # Create practical line-specific comments (max 5 per file)
+                # Create thoughtful senior developer comments
                 for analysis_result in analysis_results:
                     file_analysis = analysis_result['analysis']
                     filename = analysis_result['file']
                     
                     if file_analysis.get('issues'):
-                        # Group issues by category and severity
-                        issues_by_category = {}
-                        for issue in file_analysis['issues']:
-                            category = issue.get('category', 'general')
+                        # Sort issues by importance (critical, high, medium, low)
+                        issues = file_analysis['issues']
+                        severity_order = ['critical', 'high', 'medium', 'low']
+                        issues.sort(key=lambda x: severity_order.index(x.get('severity', 'low')))
+                        
+                        # Take only the most important issues (max 3 per file for thoughtful review)
+                        important_issues = issues[:3]
+                        
+                        for issue in important_issues:
+                            line_num = issue.get('line', 0)
+                            if line_num <= 0:
+                                continue
+                            
+                            message = issue.get('message', '')
+                            suggestion = issue.get('suggestion', '')
                             severity = issue.get('severity', 'low')
+                            category = issue.get('category', 'general')
                             
-                            if category not in issues_by_category:
-                                issues_by_category[category] = []
-                            issues_by_category[category].append(issue)
-                        
-                        # Sort categories by priority (security first, then performance, etc.)
-                        category_priority = ['security', 'performance', 'error_handling', 'style', 'documentation', 'general']
-                        sorted_categories = sorted(issues_by_category.keys(), 
-                                                 key=lambda x: category_priority.index(x) if x in category_priority else 999)
-                        
-                        comment_count = 0
-                        max_comments_per_file = 5  # Reduced from 10 to 5
-                        
-                        for category in sorted_categories:
-                            if comment_count >= max_comments_per_file:
-                                break
+                            # Create senior developer-style comment
+                            severity_emoji = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢'}
+                            emoji = severity_emoji.get(severity, '🟢')
                             
-                            issues = issues_by_category[category]
-                            # Sort issues by severity (critical, high, medium, low)
-                            severity_order = ['critical', 'high', 'medium', 'low']
-                            issues.sort(key=lambda x: severity_order.index(x.get('severity', 'low')))
+                            # More thoughtful comment format
+                            comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Suggestion**: {suggestion}"
                             
-                            # Take only the most important issues from this category
-                            important_issues = issues[:3]  # Max 3 issues per category
-                            
-                            for issue in important_issues:
-                                if comment_count >= max_comments_per_file:
-                                    break
-                                
-                                line_num = issue.get('line', 0)
-                                if line_num <= 0:
-                                    continue
-                                
-                                message = issue.get('message', '')
-                                suggestion = issue.get('suggestion', '')
-                                severity = issue.get('severity', 'low')
-                                
-                                # Create concise comment
-                                severity_emoji = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢'}
-                                emoji = severity_emoji.get(severity, '🟢')
-                                
-                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**: {message}\n\n💡 **Suggestion**: {suggestion}"
-                                
-                                # Add to comments list for the review
-                                all_comments.append({
-                                    "path": filename,
-                                    "line": line_num,
-                                    "body": comment_body
-                                })
-                                
-                                comment_count += 1
+                            # Add to comments list for the review
+                            all_comments.append({
+                                "path": filename,
+                                "line": line_num,
+                                "body": comment_body
+                            })
                 
                 # Create a review with all comments
                 if all_comments:
@@ -1119,7 +1076,7 @@ class GitHubCodeReviewer:
                     if review_result["success"]:
                         comments_added = len(all_comments)
                         review_url = review_result["review"]["html_url"]
-                        print(f"✅ Review with {comments_added} file comments added successfully!")
+                        print(f"✅ Senior developer review with {comments_added} thoughtful comments added successfully!")
                         print(f"🔗 Review URL: {review_url}")
                     else:
                         print(f"⚠️  Failed to add review with comments: {review_result['error']}")
@@ -1135,6 +1092,9 @@ class GitHubCodeReviewer:
                         print(f"🔗 Review URL: {review_url}")
                     else:
                         print(f"⚠️  Failed to add review summary: {review_result['error']}")
+                
+                # Mark files as viewed by creating a review without comments
+                self._mark_files_as_viewed(owner, repo, pr_number, files, latest_commit_sha)
             
             # Save report if output file is specified
             if output_file:
@@ -1180,23 +1140,171 @@ class GitHubCodeReviewer:
             print(f"❌ {error_msg}")
             return {"success": False, "error": error_msg}
     
-    def _extract_file_diff_from_files(self, file_info: Dict) -> str:
-        """Extract diff content from file info."""
+    def _mark_files_as_viewed(self, owner: str, repo: str, pr_number: int, files: List[Dict], commit_sha: str):
+        """Mark files as viewed by creating a review without comments."""
         try:
-            # The file_info should contain the patch content
-            patch = file_info.get('patch', '')
-            if patch:
-                return patch
+            print("👁️  Marking files as viewed...")
             
-            # If no patch, try to get the diff from the API
-            filename = file_info['filename']
-            # This would require additional API call to get the diff
-            # For now, return empty string if no patch is available
-            return ""
+            # Create a review with no comments to mark files as viewed
+            review_result = self.create_pull_request_review(
+                owner, repo, pr_number, "COMMENT", "Files reviewed", [], commit_sha
+            )
+            
+            if review_result["success"]:
+                print("✅ Files marked as viewed")
+            else:
+                print(f"⚠️  Failed to mark files as viewed: {review_result['error']}")
+                
+        except Exception as e:
+            print(f"⚠️  Failed to mark files as viewed: {e}")
+    
+    def _analyze_diff_content_senior(self, diff_content: str, filename: str) -> Dict[str, Any]:
+        """Analyze diff content like a senior developer would."""
+        try:
+            if not diff_content.strip():
+                return {
+                    "success": True,
+                    "score": 100,
+                    "total_issues": 0,
+                    "issues": []
+                }
+            
+            # Parse the diff content to get actual line numbers
+            lines = diff_content.split('\n')
+            issues = []
+            total_score = 100
+            current_line_number = 0
+            
+            for line in lines:
+                # Parse diff header to get line numbers
+                if line.startswith('@@'):
+                    # Extract line numbers from diff header
+                    # Format: @@ -old_start,old_count +new_start,new_count @@
+                    import re
+                    match = re.search(r'@@ -(\d+),?\d* \+(\d+),?\d* @@', line)
+                    if match:
+                        current_line_number = int(match.group(2)) - 1  # Start at new line number
+                elif line.startswith('+') and not line.startswith('+++'):
+                    current_line_number += 1
+                    # Remove the + prefix and analyze the actual content
+                    content = line[1:]
+                    
+                    # Analyze this line for issues like a senior developer would
+                    line_issues = self._analyze_line_for_issues_senior(content, current_line_number, filename)
+                    issues.extend(line_issues)
+                    
+                    # Calculate score deduction based on issues
+                    for issue in line_issues:
+                        severity = issue.get('severity', 'low')
+                        if severity == 'critical':
+                            total_score -= 10
+                        elif severity == 'high':
+                            total_score -= 5
+                        elif severity == 'medium':
+                            total_score -= 2
+                        elif severity == 'low':
+                            total_score -= 1
+                elif line.startswith(' ') or line.startswith('-'):
+                    # Context line or removed line, increment line number for context
+                    if not line.startswith('-'):
+                        current_line_number += 1
+            
+            # Ensure score doesn't go below 0
+            total_score = max(0, total_score)
+            
+            return {
+                "success": True,
+                "score": total_score,
+                "total_issues": len(issues),
+                "issues": issues
+            }
             
         except Exception as e:
-            print(f"⚠️  Warning: Failed to extract diff for {file_info.get('filename', 'unknown')}: {e}")
-            return ""
+            return {
+                "success": False,
+                "error": f"Failed to analyze diff content: {str(e)}",
+                "score": 0,
+                "total_issues": 0,
+                "issues": []
+            }
+    
+    def _analyze_line_for_issues_senior(self, line_content: str, line_num: int, filename: str) -> List[Dict]:
+        """Analyze a single line of code like a senior developer would."""
+        issues = []
+        
+        # Skip empty lines and comments for most checks
+        if not line_content.strip() or line_content.strip().startswith('#'):
+            return issues
+        
+        # Get file extension for language-specific checks
+        file_ext = filename.split('.')[-1].lower() if '.' in filename else ''
+        
+        # Senior developer checks - focus on important issues
+        
+        # Security issues (critical)
+        if any(keyword in line_content.lower() for keyword in ['password', 'secret', 'token', 'key', 'api_key']):
+            if not any(keyword in line_content.lower() for keyword in ['getenv', 'config', 'env', 'os.environ']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "critical",
+                    "category": "security",
+                    "message": "Hardcoded sensitive information detected",
+                    "suggestion": "Use environment variables or secure configuration management instead of hardcoding sensitive data"
+                })
+        
+        # SQL injection (critical)
+        if 'sql' in line_content.lower() and any(keyword in line_content.lower() for keyword in ['execute', 'query', 'cursor']):
+            if not any(keyword in line_content.lower() for keyword in ['parameter', 'bind', 'escape', 'quote']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "critical",
+                    "category": "security",
+                    "message": "Potential SQL injection vulnerability",
+                    "suggestion": "Use parameterized queries or proper escaping to prevent SQL injection"
+                })
+        
+        # Error handling (high)
+        if any(keyword in line_content.lower() for keyword in ['open(', 'file(', 'read(', 'write(']):
+            if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'with ', 'context']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "high",
+                    "category": "error_handling",
+                    "message": "File operation without proper error handling",
+                    "suggestion": "Use try-catch blocks or context managers for file operations"
+                })
+        
+        # Performance issues (medium)
+        if len(line_content) > 120:
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "performance",
+                "message": f"Line is very long ({len(line_content)} characters)",
+                "suggestion": "Consider breaking the line into multiple lines for better readability and maintainability"
+            })
+        
+        # Code quality (medium)
+        if 'TODO' in line_content or 'FIXME' in line_content:
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "code_quality",
+                "message": "TODO/FIXME comment found",
+                "suggestion": "Consider addressing this TODO/FIXME before merging or create an issue to track it"
+            })
+        
+        # Style issues (low)
+        if line_content.strip().endswith(';') and file_ext in ['py', 'py3']:
+            issues.append({
+                "line": line_num,
+                "severity": "low",
+                "category": "style",
+                "message": "Unnecessary semicolon in Python code",
+                "suggestion": "Remove the semicolon as it's not needed in Python"
+            })
+        
+        return issues
     
     def _generate_pr_review_summary(self, analysis_results: List[Dict], pr_data: Dict, total_score: int, total_issues: int) -> str:
         """Generate a comprehensive PR review summary."""
