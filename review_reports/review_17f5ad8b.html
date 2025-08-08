@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Review Report - PR #{{PR_NUMBER}}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f6f8fa; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .header .subtitle { margin: 10px 0 0; opacity: 0.9; }
+        .score { font-size: 3em; font-weight: bold; margin: 20px 0; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #24292e; border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; }
+        .finding { background: #f6f8fa; border-left: 4px solid #d73a49; margin: 15px 0; padding: 15px; border-radius: 4px; }
+        .finding.critical { border-left-color: #d73a49; }
+        .finding.high { border-left-color: #f6a434; }
+        .finding.medium { border-left-color: #f6a434; }
+        .finding.low { border-left-color: #28a745; }
+        .finding.security { border-left-color: #d73a49; }
+        .finding.performance { border-left-color: #f6a434; }
+        .finding.style { border-left-color: #6f42c1; }
+        .finding.bug { border-left-color: #d73a49; }
+        .severity { font-weight: bold; text-transform: uppercase; font-size: 0.8em; }
+        .severity.critical { color: #d73a49; }
+        .severity.high { color: #f6a434; }
+        .severity.medium { color: #f6a434; }
+        .severity.low { color: #28a745; }
+        .recommendations { background: #e1f5fe; border: 1px solid #b3e5fc; border-radius: 4px; padding: 15px; }
+        .recommendations ul { margin: 10px 0; }
+        .code-snippet { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; padding: 10px; font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; font-size: 0.9em; overflow-x: auto; }
+        .status { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; text-transform: uppercase; font-size: 0.8em; }
+        .status.approved { background: #d4edda; color: #155724; }
+        .status.needs_changes { background: #f8d7da; color: #721c24; }
+        .status.comment_only { background: #fff3cd; color: #856404; }
+        .github-link { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #24292e; color: white; text-decoration: none; border-radius: 4px; }
+        .github-link:hover { background: #444d56; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Code Review Report</h1>
+            <div class="subtitle">Pull Request #{{PR_NUMBER}} • abiodun2025/rag</div>
+            <div class="score">72.0/100</div>
+            <span class="status comment_only">Comment Only</span>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📊 Summary</h2>
+                <pre style="white-space: pre-wrap; font-family: inherit;">Code review completed for PR #{{PR_NUMBER}}
+
+📊 **Review Summary:**
+- Total findings: 5
+- Critical issues: 0
+- High priority: 2
+- Medium priority: 1
+- Low priority: 2
+
+⚠️ **Action Required:** Critical or high-priority issues found.
+
+</pre>
+            </div>
+            
+            <div class="section">
+                <h2>💡 Recommendations</h2>
+                <div class="recommendations">
+                    <ul>
+                        <li>🔒 Address security vulnerabilities before merging</li><li>⚡ Consider performance optimizations</li><li>🎨 Improve code style and maintainability</li><li>🐛 Fix potential bugs and edge cases</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔍 Findings (5)</h2>
+                
+                <div class="finding security high">
+                    <div class="severity high">HIGH • Security</div>
+                    <h4>Potential SQL injection vulnerability detected</h4>
+                    <p><strong>File:</strong> test_code_for_review.py</p>
+                    <p><strong>Suggestion:</strong> Use parameterized queries or prepared statements</p>
+                    <div class="code-snippet">Line 12: query = f"SELECT * FROM users WHERE name = '{user_input}'"
+Line 14: return execute_query(query)
+Line 20: # N+1 query problem</div>
+                </div>
+                
+                <div class="finding performance medium">
+                    <div class="severity medium">MEDIUM • Performance</div>
+                    <h4>Potential N+1 query pattern detected</h4>
+                    <p><strong>File:</strong> test_code_for_review.py</p>
+                    <p><strong>Suggestion:</strong> Consider using select_related() or prefetch_related() for database queries</p>
+                    <div class="code-snippet">Line 3: Test file for automated code review
+Line 16: def performance_issue():
+Line 17: """This function has performance issues."""</div>
+                </div>
+                
+                <div class="finding style low">
+                    <div class="severity low">LOW • Style</div>
+                    <h4>Function is 58 lines long</h4>
+                    <p><strong>File:</strong> test_code_for_review.py</p>
+                    <p><strong>Suggestion:</strong> Consider breaking into smaller functions</p>
+                    
+                </div>
+                
+                <div class="finding style low">
+                    <div class="severity low">LOW • Style</div>
+                    <h4>Magic numbers detected</h4>
+                    <p><strong>File:</strong> test_code_for_review.py</p>
+                    <p><strong>Suggestion:</strong> Define constants for better maintainability</p>
+                    
+                </div>
+                
+                <div class="finding bug high">
+                    <div class="severity high">HIGH • Bug</div>
+                    <h4>Potential division by zero</h4>
+                    <p><strong>File:</strong> test_code_for_review.py</p>
+                    <p><strong>Suggestion:</strong> Add proper validation before division</p>
+                    <div class="code-snippet">Line 1: #!/usr/bin/env python3
+Line 46: response = requests.get("https://api.example.com/data", timeout=TIMEOUT)</div>
+                </div>
+                
+            </div>
+            
+            <div class="section">
+                <h2>🔗 Links</h2>
+                <a href="https://github.com/abiodun2025/rag/pull/{{PR_NUMBER}}" class="github-link" target="_blank">View on GitHub</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+        

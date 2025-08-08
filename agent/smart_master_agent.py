@@ -10,6 +10,14 @@ from enum import Enum
 from datetime import datetime
 import re
 
+from .models import Message
+from .message_tools import message_storage
+from .mcp_tools import MCPClient
+from .email_composer import email_composer
+from .content_generator import content_generator
+from .academic_writer import academic_writer  # Add academic writer import
+from .research_enhanced_writer import research_enhanced_writer  # Add research-enhanced writer import
+
 logger = logging.getLogger(__name__)
 
 class IntentType(Enum):
@@ -17,6 +25,11 @@ class IntentType(Enum):
     SAVE_DESKTOP = "save_desktop"
     SAVE_PROJECT = "save_project"
     EMAIL = "email"
+    CONTENT_GENERATION = "content_generation"
+    ACADEMIC_WRITING = "academic_writing"  # Add academic writing intent
+    RESEARCH_WRITING = "research_writing"  # Add research-enhanced writing intent
+
+
     SEARCH = "search"
     WEB_SEARCH = "web_search"
     KNOWLEDGE_GRAPH = "knowledge_graph"
@@ -55,478 +68,160 @@ class SmartMasterAgent:
         """
         message_lower = message.lower()
         
-        # Pattern matching for different intents
-        patterns = {
+        # Intent patterns with confidence scores
+        intent_patterns = {
             IntentType.SAVE_DESKTOP: [
-                r"save.*desktop",
-                r"remember.*desktop", 
-                r"store.*desktop",
-                r"note.*desktop",
-                r"desktop.*save",
-                r"desktop.*remember"
+                (r"save.*desktop", 0.9),
+                (r"store.*desktop", 0.8),
+                (r"backup.*desktop", 0.8),
+                (r"save.*message.*desktop", 0.9),
+                (r"store.*message.*desktop", 0.8)
             ],
             IntentType.SAVE_PROJECT: [
-                r"save.*project",
-                r"remember.*project",
-                r"store.*project", 
-                r"note.*project",
-                r"project.*save",
-                r"project.*remember"
+                (r"save.*project", 0.9),
+                (r"store.*project", 0.8),
+                (r"save.*message.*project", 0.9),
+                (r"store.*message.*project", 0.8)
             ],
             IntentType.EMAIL: [
-                r"email.*to",
-                r"send.*email",
-                r"compose.*email",
-                r"mail.*to",
-                r"write.*email",
-                r"send.*mail",
-                r"send.*to",
-                r"@.*\.com",
-                r"@.*\.org",
-                r"@.*\.net",
-                r"@.*\.edu",
-                r"@.*\.gov",
-                r"@.*\.io",
-                r"@.*\.ai",
-                r"@.*\.co",
-                r"@.*\.uk",
-                r"@.*\.de",
-                r"@.*\.fr",
-                r"@.*\.jp",
-                r"@.*\.cn",
-                r"@.*\.in",
-                r"@.*\.br",
-                r"@.*\.ru",
-                r"@.*\.au",
-                r"@.*\.ca",
-                r"@.*\.mx",
-                r"@.*\.es",
-                r"@.*\.it",
-                r"@.*\.nl",
-                r"@.*\.se",
-                r"@.*\.no",
-                r"@.*\.dk",
-                r"@.*\.fi",
-                r"@.*\.pl",
-                r"@.*\.cz",
-                r"@.*\.hu",
-                r"@.*\.ro",
-                r"@.*\.bg",
-                r"@.*\.hr",
-                r"@.*\.si",
-                r"@.*\.sk",
-                r"@.*\.ee",
-                r"@.*\.lv",
-                r"@.*\.lt",
-                r"@.*\.mt",
-                r"@.*\.cy",
-                r"@.*\.gr",
-                r"@.*\.pt",
-                r"@.*\.ie",
-                r"@.*\.be",
-                r"@.*\.at",
-                r"@.*\.ch",
-                r"@.*\.li",
-                r"@.*\.lu",
-                r"@.*\.mc",
-                r"@.*\.ad",
-                r"@.*\.sm",
-                r"@.*\.va",
-                r"@.*\.mt",
-                r"@.*\.me",
-                r"@.*\.rs",
-                r"@.*\.ba",
-                r"@.*\.mk",
-                r"@.*\.al",
-                r"@.*\.xk",
-                r"@.*\.tr",
-                r"@.*\.ge",
-                r"@.*\.am",
-                r"@.*\.az",
-                r"@.*\.by",
-                r"@.*\.md",
-                r"@.*\.ua",
-                r"@.*\.kz",
-                r"@.*\.uz",
-                r"@.*\.kg",
-                r"@.*\.tj",
-                r"@.*\.tm",
-                r"@.*\.af",
-                r"@.*\.pk",
-                r"@.*\.bd",
-                r"@.*\.lk",
-                r"@.*\.np",
-                r"@.*\.bt",
-                r"@.*\.mm",
-                r"@.*\.kh",
-                r"@.*\.la",
-                r"@.*\.vn",
-                r"@.*\.th",
-                r"@.*\.my",
-                r"@.*\.sg",
-                r"@.*\.id",
-                r"@.*\.ph",
-                r"@.*\.tw",
-                r"@.*\.hk",
-                r"@.*\.mo",
-                r"@.*\.kr",
-                r"@.*\.jp",
-                r"@.*\.cn",
-                r"@.*\.mn",
-                r"@.*\.nz",
-                r"@.*\.fj",
-                r"@.*\.pg",
-                r"@.*\.sb",
-                r"@.*\.vu",
-                r"@.*\.nc",
-                r"@.*\.pf",
-                r"@.*\.wf",
-                r"@.*\.to",
-                r"@.*\.ws",
-                r"@.*\.ki",
-                r"@.*\.tv",
-                r"@.*\.nr",
-                r"@.*\.pw",
-                r"@.*\.fm",
-                r"@.*\.mh",
-                r"@.*\.ck",
-                r"@.*\.nu",
-                r"@.*\.tk",
-                r"@.*\.as",
-                r"@.*\.gu",
-                r"@.*\.mp",
-                r"@.*\.vi",
-                r"@.*\.pr",
-                r"@.*\.do",
-                r"@.*\.ht",
-                r"@.*\.jm",
-                r"@.*\.bb",
-                r"@.*\.tt",
-                r"@.*\.gd",
-                r"@.*\.lc",
-                r"@.*\.vc",
-                r"@.*\.ag",
-                r"@.*\.dm",
-                r"@.*\.kn",
-                r"@.*\.ai",
-                r"@.*\.ms",
-                r"@.*\.tc",
-                r"@.*\.vg",
-                r"@.*\.ky",
-                r"@.*\.bm",
-                r"@.*\.fk",
-                r"@.*\.gs",
-                r"@.*\.io",
-                r"@.*\.sh",
-                r"@.*\.ac",
-                r"@.*\.ta",
-                r"@.*\.st",
-                r"@.*\.cv",
-                r"@.*\.gw",
-                r"@.*\.gn",
-                r"@.*\.sl",
-                r"@.*\.lr",
-                r"@.*\.ci",
-                r"@.*\.gh",
-                r"@.*\.tg",
-                r"@.*\.bj",
-                r"@.*\.ng",
-                r"@.*\.cm",
-                r"@.*\.gq",
-                r"@.*\.ga",
-                r"@.*\.cg",
-                r"@.*\.cd",
-                r"@.*\.ao",
-                r"@.*\.zm",
-                r"@.*\.zw",
-                r"@.*\.mw",
-                r"@.*\.mz",
-                r"@.*\.sz",
-                r"@.*\.ls",
-                r"@.*\.bw",
-                r"@.*\.na",
-                r"@.*\.za",
-                r"@.*\.mg",
-                r"@.*\.mu",
-                r"@.*\.sc",
-                r"@.*\.km",
-                r"@.*\.yt",
-                r"@.*\.re",
-                r"@.*\.dj",
-                r"@.*\.so",
-                r"@.*\.et",
-                r"@.*\.er",
-                r"@.*\.sd",
-                r"@.*\.ss",
-                r"@.*\.ke",
-                r"@.*\.ug",
-                r"@.*\.rw",
-                r"@.*\.bi",
-                r"@.*\.tz",
-                r"@.*\.mw",
-                r"@.*\.zm",
-                r"@.*\.zw",
-                r"@.*\.bw",
-                r"@.*\.na",
-                r"@.*\.za",
-                r"@.*\.ls",
-                r"@.*\.sz",
-                r"@.*\.mz",
-                r"@.*\.mg",
-                r"@.*\.mu",
-                r"@.*\.sc",
-                r"@.*\.km",
-                r"@.*\.yt",
-                r"@.*\.re",
-                r"@.*\.dj",
-                r"@.*\.so",
-                r"@.*\.et",
-                r"@.*\.er",
-                r"@.*\.sd",
-                r"@.*\.ss",
-                r"@.*\.ke",
-                r"@.*\.ug",
-                r"@.*\.rw",
-                r"@.*\.bi",
-                r"@.*\.tz",
-                r"@.*\.mw",
-                r"@.*\.zm",
-                r"@.*\.zw",
-                r"@.*\.bw",
-                r"@.*\.na",
-                r"@.*\.za",
-                r"@.*\.ls",
-                r"@.*\.sz",
-                r"@.*\.mz",
-                r"@.*\.mg",
-                r"@.*\.mu",
-                r"@.*\.sc",
-                r"@.*\.km",
-                r"@.*\.yt",
-                r"@.*\.re",
-                r"@.*\.dj",
-                r"@.*\.so",
-                r"@.*\.et",
-                r"@.*\.er",
-                r"@.*\.sd",
-                r"@.*\.ss",
-                r"@.*\.ke",
-                r"@.*\.ug",
-                r"@.*\.rw",
-                r"@.*\.bi",
-                r"@.*\.tz"
+                (r"send.*email", 0.9),
+                (r"write.*email", 0.9),
+                (r"compose.*email", 0.9),
+                (r"email.*to", 0.8),
+                (r"send.*mail", 0.8),
+                (r"write.*mail", 0.8),
+                (r"compose.*mail", 0.8),
+                (r"mail.*to", 0.7),
+                (r"thank.*email", 0.8),
+                (r"greeting.*email", 0.8),
+                (r"follow.*up.*email", 0.8),
+                (r"meeting.*email", 0.8),
+                (r"schedule.*meeting", 0.8),
+                (r"meeting.*for", 0.8),
+                (r"meeting.*at", 0.8)
+            ],
+            IntentType.CONTENT_GENERATION: [
+                (r"write.*about", 0.9),
+                (r"generate.*content.*about", 0.9),
+                (r"create.*content.*about", 0.9),
+                (r"compose.*about", 0.8),
+                (r"write.*on", 0.8),
+                (r"generate.*text.*about", 0.8),
+                (r"create.*text.*about", 0.8),
+                (r"write.*essay.*about", 0.8),
+                (r"generate.*article.*about", 0.8),
+                (r"create.*article.*about", 0.8),
+                (r"write.*blog.*about", 0.8),
+                (r"create.*blog.*about", 0.8),
+                (r"write.*report.*about", 0.8),
+                (r"generate.*report.*about", 0.8),
+                (r"write.*story.*about", 0.8),
+                (r"create.*story.*about", 0.8),
+                (r"explain.*about", 0.7),
+                (r"discuss.*about", 0.7),
+                (r"describe.*about", 0.7),
+                (r"tell.*me.*about", 0.7),
+                (r"write.*paragraphs.*about", 0.8),
+                (r"generate.*paragraphs.*about", 0.8),
+                (r"create.*paragraphs.*about", 0.8)
+            ],
+            IntentType.ACADEMIC_WRITING: [
+                (r"write.*academic.*essay", 0.9),
+                (r"write.*research.*paper", 0.9),
+                (r"write.*thesis", 0.9),
+                (r"write.*dissertation", 0.9),
+                (r"write.*academic.*paper", 0.9),
+                (r"write.*scholarly.*paper", 0.9),
+                (r"write.*argumentative.*essay", 0.9),
+                (r"write.*analytical.*essay", 0.9),
+                (r"write.*expository.*essay", 0.9),
+                (r"write.*narrative.*essay", 0.9),
+                (r"write.*compare.*contrast.*essay", 0.9),
+                (r"write.*academic.*article", 0.8),
+                (r"write.*academic.*report", 0.8),
+                (r"write.*academic.*content", 0.8),
+                (r"academic.*writing", 0.8),
+                (r"scholarly.*writing", 0.8),
+                (r"research.*writing", 0.8),
+                (r"academic.*essay.*about", 0.9),
+                (r"research.*paper.*about", 0.9),
+                (r"thesis.*about", 0.9),
+                (r"dissertation.*about", 0.9),
+                (r"argumentative.*essay.*about", 0.9),
+                (r"analytical.*essay.*about", 0.9),
+                (r"expository.*essay.*about", 0.9),
+                (r"narrative.*essay.*about", 0.9),
+                (r"compare.*contrast.*essay.*about", 0.9)
+            ],
+            IntentType.RESEARCH_WRITING: [
+                (r"research.*essay.*about", 0.9),
+                (r"research.*paper.*about", 0.9),
+                (r"research.*argumentative.*essay", 0.9),
+                (r"research.*analytical.*essay", 0.9),
+                (r"research.*expository.*essay", 0.9),
+                (r"research.*narrative.*essay", 0.9),
+                (r"research.*compare.*contrast.*essay", 0.9),
+                (r"research.*thesis.*about", 0.9),
+                (r"research.*dissertation.*about", 0.9),
+                (r"research.*article.*about", 0.8),
+                (r"research.*report.*about", 0.8),
+                (r"research.*content.*about", 0.8),
+                (r"research.*enhanced.*essay", 0.9),
+                (r"research.*enhanced.*paper", 0.9),
+                (r"research.*enhanced.*writing", 0.8),
+                (r"write.*research.*enhanced.*essay", 0.9),
+                (r"write.*research.*enhanced.*paper", 0.9),
+                (r"write.*research.*enhanced.*content", 0.8),
+                (r"research.*essay.*on", 0.9),
+                (r"research.*paper.*on", 0.9),
+                (r"research.*argumentative.*essay.*on", 0.9),
+                (r"research.*analytical.*essay.*on", 0.9),
+                (r"research.*expository.*essay.*on", 0.9),
+                (r"research.*narrative.*essay.*on", 0.9),
+                (r"research.*compare.*contrast.*essay.*on", 0.9)
+            ],
+
+
+            IntentType.SEARCH: [
+                (r"search.*for", 0.9),
+                (r"find.*information.*about", 0.8),
+                (r"look.*up", 0.8),
+                (r"search.*about", 0.8),
+                (r"find.*about", 0.8)
             ],
             IntentType.WEB_SEARCH: [
-                r"search.*web",
-                r"web.*search",
-                r"internet.*search",
-                r"latest.*news",
-                r"current.*news",
-                r"what.*happening",
-                r"trending.*now",
-                r"recent.*developments",
-                r"who.*won.*\d{4}",
-                r"who.*was.*\d{4}",
-                r"nba.*finals.*\d{4}",
-                r"super.*bowl.*\d{4}",
-                r"world.*series.*\d{4}",
-                r"championship.*\d{4}",
-                r"mvp.*\d{4}",
-                r"current.*events",
-                r"recent.*events",
-                r"latest.*results",
-                r"today.*news",
-                r"yesterday.*news"
+                (r"web.*search", 0.9),
+                (r"search.*web", 0.9),
+                (r"internet.*search", 0.8),
+                (r"online.*search", 0.8),
+                (r"google.*search", 0.8),
+                (r"search.*online", 0.8)
             ],
             IntentType.KNOWLEDGE_GRAPH: [
-                r"relationship.*between",
-                r"connection.*between",
-                r"how.*related",
-                r"what.*relationship",
-                r"graph.*query",
-                r"knowledge.*graph",
-                r"entity.*relationship",
-                r"search.*knowledge.*graph",
-                r"search.*graph",
-                r"graph.*search",
-                r"knowledge.*graph.*search"
+                (r"knowledge.*graph", 0.9),
+                (r"graph.*query", 0.8),
+                (r"neo4j.*query", 0.8),
+                (r"graph.*search", 0.8),
+                (r"knowledge.*base", 0.8)
             ],
             IntentType.MCP_TOOLS: [
-                r"count.*r.*letter",
-                r"list.*desktop",
-                r"get.*desktop.*path",
-                r"open.*gmail",
-                r"mcp.*tool",
-                r"count-r",
-                r"desktop.*content",
-                r"gmail.*compose",
-                r"search.*desktop",
-                r"find.*desktop",
-                r"read.*desktop.*file",
-                r"ingest.*desktop.*file",
-                r"batch.*ingest.*desktop",
-                r"list.*desktop.*files",
-                r"search.*desktop.*files",
-                r"read.*file.*desktop",
-                r"ingest.*file.*desktop",
-                r"find.*file.*desktop",
-                r"search.*file.*desktop",
-                r"list.*files.*desktop",
-                r"desktop.*search",
-                r"desktop.*find",
-                r"desktop.*read",
-                r"desktop.*ingest",
-                r"file.*search",
-                r"file.*find",
-                r"file.*read",
-                r"file.*ingest",
-                r"find.*file",
-                r"search.*file",
-                r"read.*file",
-                r"ingest.*file",
-                r"add.*file.*to.*vector",
-                r"add.*to.*vector.*db",
-                r"store.*file.*in.*vector",
-                r"vector.*db.*add",
-                r"find.*employees\.csv",
-                r"search.*employees\.csv",
-                r"read.*employees\.csv",
-                r"ingest.*employees\.csv",
-                # More flexible patterns
-                r"find\s+\w+",
-                r"search\s+\w+",
-                r"search.*for.*\w+",
-                r"find.*\w+\.csv",
-                r"search.*\w+\.csv",
-                r"employee.*file",
-                r"search.*employee",
-                r"find.*employee",
-                r"search\s+\w+\.csv",
-                r"search\s+\w+\.txt",
-                r"search\s+\w+\.md",
-                # Code writing patterns
-                r"read.*and.*generate.*code",
-                r"generate.*code.*from.*instructions",
-                r"implement.*from.*instructions",
-                r"code.*writing.*agent",
-                r"write.*code.*from.*file",
-                r"create.*code.*from.*instructions",
-                r"generate.*implementation",
-                r"code.*generation",
-                r"read.*instructions.*and.*code",
-                r"implement.*code",
-                r"write.*implementation",
-                r"generate.*from.*instructions",
-                r"code.*from.*file",
-                r"implementation.*from.*file",
-                r"read.*file.*and.*code",
-                r"generate.*python.*from",
-                r"generate.*javascript.*from",
-                r"generate.*java.*from",
-                r"create.*python.*from",
-                r"create.*javascript.*from",
-                r"create.*java.*from",
-                r"write.*python.*from",
-                r"write.*javascript.*from",
-                r"write.*java.*from",
-                # General code writing patterns
-                r"implement.*\w+",
-                r"create.*\w+.*code",
-                r"write.*\w+.*code",
-                r"generate.*\w+.*code",
-                r"code.*for.*\w+",
-                r"implement.*for.*loop",
-                r"create.*for.*loop",
-                r"write.*for.*loop",
-                r"generate.*for.*loop",
-                r"implement.*function",
-                r"create.*function",
-                r"write.*function",
-                r"generate.*function",
-                r"implement.*class",
-                r"create.*class",
-                r"write.*class",
-                r"generate.*class",
-                r"implement.*\w+.*in.*\w+",
-                r"create.*\w+.*in.*\w+",
-                r"write.*\w+.*in.*\w+",
-                r"generate.*\w+.*in.*\w+",
-                r"kotlin.*code",
-                r"python.*code",
-                r"javascript.*code",
-                r"java.*code",
-                r"typescript.*code",
-                r"go.*code",
-                r"rust.*code",
-                r"csharp.*code",
-                r"php.*code",
-                r"ruby.*code",
-                r"swift.*code",
-                # Instruction file patterns
-                r"create.*instruction.*file",
-                r"write.*instruction.*file",
-                r"generate.*instruction.*file",
-                r"make.*instruction.*file",
-                r"instruction.*file.*for",
-                r"read.*instruction.*file",
-                r"execute.*instruction.*file",
-                r"run.*instruction.*file",
-                r"process.*instruction.*file"
+                (r"mcp.*tools", 0.9),
+                (r"available.*tools", 0.8),
+                (r"list.*tools", 0.8),
+                (r"show.*tools", 0.8),
+                (r"what.*tools", 0.8)
             ],
             IntentType.CALL: [
-                r"call.*\d+",
-                r"dial.*\d+",
-                r"phone.*\d+",
-                r"ring.*\d+",
-                r"call.*number",
-                r"dial.*number",
-                r"phone.*number",
-                r"call.*\+\d+",
-                r"dial.*\+\d+",
-                r"phone.*\+\d+",
-                r"call.*\(\d+\)",
-                r"dial.*\(\d+\)",
-                r"phone.*\(\d+\)",
-                r"call.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
-                r"dial.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}",
-                r"phone.*\d{3}[-.\s]?\d{3}[-.\s]?\d{4}"
-            ],
-            IntentType.SEARCH: [
-                r"search.*for",
-                r"find.*information",
-                r"look.*up",
-                r"what.*is",
-                r"who.*is",
-                r"how.*to",
-                r"tell.*me.*about",
-                r"information.*about",
-                r"details.*about",
-                r"who.*owns",
-                r"who.*owner",
-                r"what.*company",
-                r"what.*business",
-                r"find.*out.*about",
-                r"search.*about",
-                r"who.*won",
-                r"who.*was",
-                r"who.*did",
-                r"what.*happened",
-                r"when.*was",
-                r"where.*was",
-                r"which.*team",
-                r"which.*player",
-                r"nba.*finals",
-                r"super.*bowl",
-                r"world.*series",
-                r"championship",
-                r"playoff",
-                r"mvp",
-                r"most.*valuable.*player"
+                (r"call.*phone", 0.9),
+                (r"make.*call", 0.9),
+                (r"phone.*call", 0.8),
+                (r"dial.*number", 0.8),
+                (r"call.*number", 0.8)
             ]
         }
         
         # Check for email patterns first (highest priority)
-        for pattern in patterns[IntentType.EMAIL]:
+        for pattern in intent_patterns[IntentType.EMAIL]:
             if re.search(pattern, message_lower):
                 extracted_data = self._extract_data(message, IntentType.EMAIL)
                 return IntentResult(
@@ -633,6 +328,220 @@ class SmartMasterAgent:
                 "to_email": to_email,
                 "subject": subject,
                 "body": body,
+                "message": message
+            }
+            
+        elif intent == IntentType.CONTENT_GENERATION:
+            # Extract topic and style from content generation request
+            import re
+            
+            # Extract the topic (what to write about)
+            topic = message
+            
+            # Remove common content generation prefixes
+            prefixes = [
+                "write about", "generate content about", "create content about", "compose about",
+                "write on", "generate text about", "create text about", "write essay about",
+                "write article about", "generate article about", "write blog about", "create blog about",
+                "write report about", "generate report about", "write story about", "create story about",
+                "explain about", "discuss about", "describe about", "tell me about",
+                "write paragraphs about", "generate paragraphs about", "create paragraphs about"
+            ]
+            
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    topic = message[len(prefix):].strip()
+                    break
+            
+            # Detect style preferences
+            style = "auto"  # Default to auto-detection
+            length = "medium"  # Default to medium length
+            
+            # Check for style indicators
+            if any(word in message_lower for word in ["professional", "business", "formal", "corporate"]):
+                style = "professional"
+            elif any(word in message_lower for word in ["creative", "story", "fiction", "imaginative", "artistic"]):
+                style = "creative"
+            elif any(word in message_lower for word in ["analytical", "data", "research", "analysis", "technical"]):
+                style = "analytical"
+            elif any(word in message_lower for word in ["conversational", "casual", "friendly", "personal"]):
+                style = "conversational"
+            
+            # Check for length indicators
+            if any(word in message_lower for word in ["short", "brief", "quick"]):
+                length = "short"
+            elif any(word in message_lower for word in ["long", "detailed", "extensive", "comprehensive"]):
+                length = "long"
+            elif any(word in message_lower for word in ["very long", "extensive", "comprehensive"]):
+                length = "extensive"
+            
+            return {
+                "topic": topic,
+                "style": style,
+                "length": length,
+                "message": message
+            }
+        elif intent == IntentType.ACADEMIC_WRITING:
+            # Extract topic and academic parameters from academic writing request
+            import re
+            
+            # Extract the topic (what to write about)
+            topic = message
+            
+            # Remove common academic writing prefixes
+            prefixes = [
+                "write academic essay about", "write research paper about", "write thesis about", "write dissertation about",
+                "write academic paper about", "write scholarly paper about", "write argumentative essay about",
+                "write analytical essay about", "write expository essay about", "write narrative essay about",
+                "write compare contrast essay about", "write academic article about", "write academic report about",
+                "write academic content about", "academic writing about", "scholarly writing about", "research writing about",
+                "write academic essay on", "write research paper on", "write thesis on", "write dissertation on",
+                "write academic paper on", "write scholarly paper on", "write argumentative essay on",
+                "write analytical essay on", "write expository essay on", "write narrative essay on",
+                "write compare contrast essay on", "write academic article on", "write academic report on",
+                "write academic content on", "academic writing on", "scholarly writing on", "research writing on"
+            ]
+            
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    topic = message[len(prefix):].strip()
+                    break
+            
+            # Detect content type
+            content_type = "essay"  # Default
+            if "research paper" in message_lower:
+                content_type = "research_paper"
+            elif "thesis" in message_lower:
+                content_type = "thesis"
+            elif "dissertation" in message_lower:
+                content_type = "dissertation"
+            elif "article" in message_lower:
+                content_type = "article"
+            elif "report" in message_lower:
+                content_type = "report"
+            
+            # Detect style
+            style = "auto"  # Default to auto-detection
+            if "argumentative" in message_lower:
+                style = "argumentative"
+            elif "analytical" in message_lower:
+                style = "analytical"
+            elif "expository" in message_lower:
+                style = "expository"
+            elif "narrative" in message_lower:
+                style = "narrative"
+            elif "compare" in message_lower and "contrast" in message_lower:
+                style = "compare_contrast"
+            elif "research" in message_lower and "paper" in message_lower:
+                style = "research"
+            
+            # Detect length
+            length = "medium"  # Default
+            if "short" in message_lower:
+                length = "short"
+            elif "long" in message_lower:
+                length = "long"
+            elif "extensive" in message_lower:
+                length = "extensive"
+            
+            # Detect academic level
+            academic_level = "undergraduate"  # Default
+            if "high school" in message_lower or "high_school" in message_lower:
+                academic_level = "high_school"
+            elif "graduate" in message_lower:
+                academic_level = "graduate"
+            elif "doctoral" in message_lower or "doctorate" in message_lower:
+                academic_level = "doctoral"
+            
+            return {
+                "topic": topic,
+                "content_type": content_type,
+                "style": style,
+                "length": length,
+                "academic_level": academic_level,
+                "message": message
+            }
+        elif intent == IntentType.RESEARCH_WRITING:
+            # Extract topic and research parameters from research-enhanced writing request
+            import re
+            
+            # Extract the topic (what to write about)
+            topic = message
+            
+            # Remove common research writing prefixes
+            prefixes = [
+                "research essay about", "research paper about", "research thesis about", "research dissertation about",
+                "research academic paper about", "research scholarly paper about", "research argumentative essay about",
+                "research analytical essay about", "research expository essay about", "research narrative essay about",
+                "research compare contrast essay about", "research academic article about", "research academic report about",
+                "research academic content about", "research enhanced essay about", "research enhanced paper about",
+                "research enhanced writing about", "write research enhanced essay about", "write research enhanced paper about",
+                "write research enhanced content about", "research essay on", "research paper on", "research thesis on",
+                "research dissertation on", "research academic paper on", "research scholarly paper on",
+                "research argumentative essay on", "research analytical essay on", "research expository essay on",
+                "research narrative essay on", "research compare contrast essay on", "research academic article on",
+                "research academic report on", "research academic content on", "research enhanced essay on",
+                "research enhanced paper on", "research enhanced writing on", "write research enhanced essay on",
+                "write research enhanced paper on", "write research enhanced content on"
+            ]
+            
+            for prefix in prefixes:
+                if message_lower.startswith(prefix):
+                    topic = message[len(prefix):].strip()
+                    break
+            
+            # Detect content type
+            content_type = "essay"  # Default
+            if "research paper" in message_lower:
+                content_type = "research_paper"
+            elif "thesis" in message_lower:
+                content_type = "thesis"
+            elif "dissertation" in message_lower:
+                content_type = "dissertation"
+            elif "article" in message_lower:
+                content_type = "article"
+            elif "report" in message_lower:
+                content_type = "report"
+            
+            # Detect style
+            style = "auto"  # Default to auto-detection
+            if "argumentative" in message_lower:
+                style = "argumentative"
+            elif "analytical" in message_lower:
+                style = "analytical"
+            elif "expository" in message_lower:
+                style = "expository"
+            elif "narrative" in message_lower:
+                style = "narrative"
+            elif "compare" in message_lower and "contrast" in message_lower:
+                style = "compare_contrast"
+            elif "research" in message_lower and "paper" in message_lower:
+                style = "research"
+            
+            # Detect length
+            length = "medium"  # Default
+            if "short" in message_lower:
+                length = "short"
+            elif "long" in message_lower:
+                length = "long"
+            elif "extensive" in message_lower:
+                length = "extensive"
+            
+            # Detect academic level
+            academic_level = "undergraduate"  # Default
+            if "high school" in message_lower or "high_school" in message_lower:
+                academic_level = "high_school"
+            elif "graduate" in message_lower:
+                academic_level = "graduate"
+            elif "doctoral" in message_lower or "doctorate" in message_lower:
+                academic_level = "doctoral"
+            
+            return {
+                "topic": topic,
+                "content_type": content_type,
+                "style": style,
+                "length": length,
+                "academic_level": academic_level,
                 "message": message
             }
             
@@ -770,6 +679,10 @@ class SmartMasterAgent:
                 "call_request": message_lower
             }
             
+
+            
+
+            
         elif intent == IntentType.SEARCH:
             # Extract search query
             query = message
@@ -811,6 +724,14 @@ class SmartMasterAgent:
                 result = await self._save_to_project(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.EMAIL:
                 result = await self._handle_email(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.CONTENT_GENERATION:
+                result = await self._handle_content_generation(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.ACADEMIC_WRITING:
+                result = await self._handle_academic_writing(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.RESEARCH_WRITING:
+                result = await self._handle_research_writing(intent_result.extracted_data, session_id, user_id)
+
+
             elif intent_result.intent == IntentType.WEB_SEARCH:
                 result = await self._web_search(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.SEARCH:
@@ -897,37 +818,52 @@ class SmartMasterAgent:
         }
     
     async def _handle_email(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
-        """Handle email composition using MCP tools."""
+        """Handle intelligent email composition using MCP tools."""
         try:
             from .mcp_tools import sendmail_simple_tool, SendmailSimpleInput
-            
+            from .email_composer import email_composer
+
             to_email = data.get("to_email")
-            subject = data.get("subject", "Message from Agentic RAG System")
-            body = data.get("body", "This is an automated message from the Agentic RAG System.")
-            
+            original_message = data.get("message", "")
+
             if not to_email:
                 return {
                     "action": "email_error",
                     "error": "No email address provided",
                     "note": "Please provide a valid email address"
                 }
-            
+
+            # Use intelligent email composer to generate professional email
+            composed_email = email_composer.compose_email(
+                user_message=original_message,
+                to_email=to_email,
+                context={"session_id": session_id, "user_id": user_id}
+            )
+
+            subject = composed_email.get("subject", "Message from Smart Agent")
+            body = composed_email.get("body", "This is an automated message from the Smart Agent System.")
+            intent = composed_email.get("intent", "general")
+            tone = composed_email.get("tone", "professional")
+
             # Use MCP tool to send email
             input_data = SendmailSimpleInput(
                 to_email=to_email,
                 subject=subject,
                 message=body
             )
-            
+
             result = await sendmail_simple_tool(input_data)
-            
+
             if result.get("success"):
                 return {
                     "action": "email_sent",
                     "to_email": to_email,
                     "subject": subject,
+                    "body": body,
+                    "intent": intent,
+                    "tone": tone,
                     "result": result.get("result", "Email sent successfully"),
-                    "note": "Email sent using MCP server tools"
+                    "note": f"Intelligent email composed and sent using {tone} tone"
                 }
             else:
                 return {
@@ -936,7 +872,7 @@ class SmartMasterAgent:
                     "error": result.get("error", "Unknown error"),
                     "note": "Failed to send email via MCP server"
                 }
-                
+
         except Exception as e:
             logger.error(f"Email handling failed: {e}")
             return {
@@ -944,6 +880,172 @@ class SmartMasterAgent:
                 "error": str(e),
                 "note": "Email handling failed - MCP server may not be running"
             }
+
+    async def _handle_content_generation(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle ChatGPT-like content generation."""
+        try:
+            from .content_generator import content_generator
+
+            topic = data.get("topic", "")
+            style = data.get("style", "auto")
+            length = data.get("length", "medium")
+
+            if not topic:
+                return {
+                    "action": "content_error",
+                    "error": "No topic provided",
+                    "note": "Please provide a topic to generate content about"
+                }
+
+            # Generate content using the content generator
+            result = content_generator.generate_content(
+                topic=topic,
+                style=style,
+                length=length,
+                context={"session_id": session_id, "user_id": user_id}
+            )
+
+            if "error" in result:
+                return {
+                    "action": "content_error",
+                    "error": result["error"],
+                    "note": "Content generation failed"
+                }
+
+            return {
+                "action": "content_generated",
+                "topic": result["topic"],
+                "style": result["style"],
+                "length": result["length"],
+                "content": result["content"],
+                "paragraph_count": result["paragraph_count"],
+                "word_count": result["word_count"],
+                "note": f"Generated {result['paragraph_count']} paragraphs ({result['word_count']} words) in {result['style']} style"
+            }
+
+        except Exception as e:
+            logger.error(f"Content generation failed: {e}")
+            return {
+                "action": "content_error",
+                "error": str(e),
+                "note": "Content generation failed"
+            }
+
+    async def _handle_academic_writing(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle academic writing requests."""
+        try:
+            from .academic_writer import academic_writer
+
+            topic = data.get("topic", "")
+            content_type = data.get("content_type", "essay")
+            style = data.get("style", "auto")
+            length = data.get("length", "medium")
+            academic_level = data.get("academic_level", "undergraduate")
+
+            if not topic:
+                return {
+                    "action": "academic_error",
+                    "error": "No topic provided",
+                    "note": "Please provide a topic to write about"
+                }
+
+            # Generate academic content using the academic writer
+            result = academic_writer.write_academic_content(
+                topic=topic,
+                content_type=content_type,
+                style=style,
+                length=length,
+                academic_level=academic_level,
+                context={"session_id": session_id, "user_id": user_id}
+            )
+
+            if "error" in result:
+                return {
+                    "action": "academic_error",
+                    "error": result["error"],
+                    "note": "Academic writing failed"
+                }
+
+            return {
+                "action": "academic_generated",
+                "topic": result["topic"],
+                "content_type": result["content_type"],
+                "style": result["style"],
+                "length": result["length"],
+                "academic_level": result["academic_level"],
+                "content": result["content"],
+                "word_count": result["word_count"],
+                "estimated_pages": result["estimated_pages"],
+                "note": f"Generated {result['content_type']} ({result['word_count']} words, ~{result['estimated_pages']} pages) in {result['style']} style for {result['academic_level']} level"
+            }
+
+        except Exception as e:
+            logger.error(f"Academic writing failed: {e}")
+            return {
+                "action": "academic_error",
+                "error": str(e),
+                "note": "Academic writing failed"
+            }
+
+    async def _handle_research_writing(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle research-enhanced writing requests."""
+        try:
+            from .research_enhanced_writer import research_enhanced_writer
+
+            topic = data.get("topic", "")
+            content_type = data.get("content_type", "essay")
+            style = data.get("style", "auto")
+            length = data.get("length", "medium")
+            academic_level = data.get("academic_level", "undergraduate")
+
+            if not topic:
+                return {
+                    "action": "research_error",
+                    "error": "No topic provided",
+                    "note": "Please provide a topic to research and write about"
+                }
+
+            # Generate research-enhanced content using the research-enhanced writer
+            result = await research_enhanced_writer.write_research_enhanced_essay(
+                topic=topic,
+                content_type=content_type,
+                style=style,
+                length=length,
+                academic_level=academic_level
+            )
+
+            if "error" in result:
+                return {
+                    "action": "research_error",
+                    "error": result["error"],
+                    "note": "Research-enhanced writing failed"
+                }
+
+            return {
+                "action": "research_generated",
+                "topic": result["topic"],
+                "content_type": result["content_type"],
+                "style": result["style"],
+                "length": result["length"],
+                "academic_level": result["academic_level"],
+                "content": result["content"],
+                "word_count": result["word_count"],
+                "estimated_pages": result["estimated_pages"],
+                "sources_count": result.get("sources_count", 0),
+                "note": f"Generated research-enhanced {result['content_type']} ({result['word_count']} words, ~{result['estimated_pages']} pages) with {result.get('sources_count', 0)} sources in {result['style']} style for {result['academic_level']} level"
+            }
+
+        except Exception as e:
+            logger.error(f"Research-enhanced writing failed: {e}")
+            return {
+                "action": "research_error",
+                "error": str(e),
+                "note": "Research-enhanced writing failed"
+            }
+
+
+    
+
     
     async def _web_search(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
         """Perform web search."""
@@ -1541,6 +1643,30 @@ Constraints:
                 return f"❌ Email error: {result.get('error', 'Unknown error')}"
             else:
                 return f"📧 Email composition ready for {result.get('to_email', 'recipient')}"
+        elif intent == IntentType.CONTENT_GENERATION:
+            if result.get('action') == 'content_generated':
+                return f"📝 Generated {result.get('paragraph_count', 0)} paragraphs ({result.get('word_count', 0)} words) about '{result.get('topic', 'topic')}' in {result.get('style', 'informative')} style"
+            elif result.get('action') == 'content_error':
+                return f"❌ Content generation error: {result.get('error', 'Unknown error')}"
+            else:
+                return f"📝 Content generation completed for '{result.get('topic', 'topic')}'"
+        elif intent == IntentType.ACADEMIC_WRITING:
+            if result.get('action') == 'academic_generated':
+                return f"📝 Generated {result.get('content_type', 'essay')} ({result.get('word_count', 0)} words, ~{result.get('estimated_pages', 0)} pages) about '{result.get('topic', 'topic')}' in {result.get('style', 'informative')} style for {result.get('academic_level', 'undergraduate')} level"
+            elif result.get('action') == 'academic_error':
+                return f"❌ Academic writing error: {result.get('error', 'Unknown error')}"
+            else:
+                return f"📝 Academic writing completed for '{result.get('topic', 'topic')}'"
+        elif intent == IntentType.RESEARCH_WRITING:
+            if result.get('action') == 'research_generated':
+                return f"📝 Generated {result.get('content_type', 'essay')} ({result.get('word_count', 0)} words, ~{result.get('estimated_pages', 0)} pages) about '{result.get('topic', 'topic')}' in {result.get('style', 'informative')} style for {result.get('academic_level', 'undergraduate')} level"
+            elif result.get('action') == 'research_error':
+                return f"❌ Research writing error: {result.get('error', 'Unknown error')}"
+            else:
+                return f"📝 Research writing completed for '{result.get('topic', 'topic')}'"
+
+
+
         elif intent == IntentType.MCP_TOOLS:
             if result.get('action', '').startswith('mcp_'):
                 return f"🔧 {result.get('note', 'MCP tool executed')}"

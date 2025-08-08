@@ -1,0 +1,63 @@
+{
+  "review_id": "review_17f5ad8b",
+  "pr_number": "{{PR_NUMBER}}",
+  "repository": "abiodun2025/rag",
+  "review_date": "2025-07-29T12:17:36.152732",
+  "overall_score": 72.0,
+  "status": "comment_only",
+  "summary": "Code review completed for PR #{{PR_NUMBER}}\n\n\ud83d\udcca **Review Summary:**\n- Total findings: 5\n- Critical issues: 0\n- High priority: 2\n- Medium priority: 1\n- Low priority: 2\n\n\u26a0\ufe0f **Action Required:** Critical or high-priority issues found.\n\n",
+  "recommendations": [
+    "\ud83d\udd12 Address security vulnerabilities before merging",
+    "\u26a1 Consider performance optimizations",
+    "\ud83c\udfa8 Improve code style and maintainability",
+    "\ud83d\udc1b Fix potential bugs and edge cases"
+  ],
+  "findings": [
+    {
+      "type": "security",
+      "severity": "high",
+      "line": null,
+      "file": "test_code_for_review.py",
+      "message": "Potential SQL injection vulnerability detected",
+      "suggestion": "Use parameterized queries or prepared statements",
+      "code_snippet": "Line 12: query = f\"SELECT * FROM users WHERE name = '{user_input}'\"\nLine 14: return execute_query(query)\nLine 20: # N+1 query problem"
+    },
+    {
+      "type": "performance",
+      "severity": "medium",
+      "line": null,
+      "file": "test_code_for_review.py",
+      "message": "Potential N+1 query pattern detected",
+      "suggestion": "Consider using select_related() or prefetch_related() for database queries",
+      "code_snippet": "Line 3: Test file for automated code review\nLine 16: def performance_issue():\nLine 17: \"\"\"This function has performance issues.\"\"\""
+    },
+    {
+      "type": "style",
+      "severity": "low",
+      "line": null,
+      "file": "test_code_for_review.py",
+      "message": "Function is 58 lines long",
+      "suggestion": "Consider breaking into smaller functions",
+      "code_snippet": null
+    },
+    {
+      "type": "style",
+      "severity": "low",
+      "line": null,
+      "file": "test_code_for_review.py",
+      "message": "Magic numbers detected",
+      "suggestion": "Define constants for better maintainability",
+      "code_snippet": null
+    },
+    {
+      "type": "bug",
+      "severity": "high",
+      "line": null,
+      "file": "test_code_for_review.py",
+      "message": "Potential division by zero",
+      "suggestion": "Add proper validation before division",
+      "code_snippet": "Line 1: #!/usr/bin/env python3\nLine 46: response = requests.get(\"https://api.example.com/data\", timeout=TIMEOUT)"
+    }
+  ],
+  "github_url": "https://github.com/abiodun2025/rag/pull/{{PR_NUMBER}}"
+}
