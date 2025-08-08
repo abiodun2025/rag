@@ -10,6 +10,7 @@ comprehensive code analysis, issue identification, and improvement suggestions.
 import sys
 import os
 import json
+import logging
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -18,11 +19,46 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agent.code_reviewer import code_reviewer
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 class CodeReviewCLI:
     """Command-line interface for the Code Reviewer Agent."""
     
     def __init__(self):
         self.reviewer = code_reviewer
+        self.test_diff = """
+diff --git a/example.py b/example.py
+index 1234567..abcdefg 100644
+--- a/example.py
++++ b/example.py
+@@ -1,10 +1,15 @@
+ def calculate_total(items):
+-    total = 0
+-    for item in items:
+-        total += item
+-    return total
++    # Calculate total with validation
++    if not items:
++        return 0
++    
++    total = sum(items)  # More efficient than loop
++    
++    # Add logging for debugging
++    print(f"Total calculated: {total}")
++    return total
+
+ def process_data(data):
+-    result = data * 2
+-    return result
++    # Add input validation
++    if data is None:
++        return None
++    
++    result = data * 2
++    return result
+"""
     
     def print_banner(self):
         """Print the application banner."""
@@ -32,7 +68,199 @@ class CodeReviewCLI:
         print("Comprehensive code analysis, issue detection, and improvement suggestions")
         print("Type 'help' for commands or 'exit' to quit")
         print("=" * 70)
-    
+        """Test environment configuration."""
+        logger.info("🔧 Testing environment configuration...")
+        
+        # Check for either GitHub App or Personal Access Token
+        github_app_vars = ["GITHUB_APP_ID", "GITHUB_PRIVATE_KEY", "GITHUB_WEBHOOK_SECRET"]
+        personal_token_var = "GITHUB_TOKEN"
+        cohere_var = "COHERE_API_KEY"
+        
+        has_github_app = all(os.getenv(var) for var in github_app_vars)
+        has_personal_token = bool(os.getenv(personal_token_var))
+        has_cohere = bool(os.getenv(cohere_var))
+        
+        if not has_cohere:
+            logger.error(f"❌ Missing required environment variable: {cohere_var}")
+            return False
+        
+        if not has_github_app and not has_personal_token:
+            logger.error(f"❌ Missing GitHub authentication. Need either:")
+            logger.error(f"   - GitHub App: {github_app_vars}")
+            logger.error(f"   - Personal Access Token: {personal_token_var}")
+            return False
+        
+        if has_personal_token:
+            logger.info("✅ Using Personal Access Token for GitHub authentication")
+        elif has_github_app:
+            logger.info("✅ Using GitHub App for authentication")
+        
+        logger.info("✅ All required environment variables are set")
+        return True
+
+    async def test_github_client(self):
+        """Test GitHub client."""
+        logger.info("🔧 Testing GitHub client...")
+        
+        try:
+            from app.github_client import GitHubClient
+            
+            client = GitHubClient()
+            user_info = client.get_user_info()
+            
+            if user_info['auth_method'] == 'personal_token':
+                logger.info(f"✅ GitHub client test passed (Personal Access Token)")
+                logger.info(f"   Authenticated as: {user_info.get('login', 'Unknown')}")
+                return True
+            elif user_info['auth_method'] == 'github_app':
+                # Test JWT generation for GitHub App
+                jwt_token = client._generate_jwt()
+                if jwt_token:
+                    logger.info("✅ GitHub client test passed (GitHub App)")
+                    return True
+                else:
+                    logger.error("❌ GitHub App JWT generation failed")
+                    return False
+            else:
+                logger.error("❌ Unknown authentication method")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ GitHub client test failed: {e}")
+            return False
+
+    async def test_code_review_service(self):
+        """Test code review service."""
+        logger.info("🔧 Testing code review service...")
+        
+        try:
+            from app.code_review_service import CodeReviewService
+            
+            service = CodeReviewService()
+            
+            # Test manual review
+            result = await service.review_code(
+                diff_content=self.test_diff,
+                changed_files=["example.py"]
+            )
+            
+            if result["success"]:
+                logger.info(f"✅ Code review service test passed")
+                logger.info(f"   Generated {len(result.get('comments', []))} comments")
+                logger.info(f"   Summary: {result.get('summary', 'No summary')}")
+                return True
+            else:
+                logger.error(f"❌ Code review service test failed: {result.get('error')}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Code review service test failed: {e}")
+            return False
+
+    async def test_webhook_signature(self):
+        """Test webhook signature verification."""
+        logger.info("🔧 Testing webhook signature verification...")
+        
+        try:
+            from app.github_client import GitHubClient
+            
+            client = GitHubClient()
+            
+            # Test with invalid signature
+            sample_payload = b'{"test": "data"}'
+            sample_signature = "sha256=invalid_signature"
+            
+            result = client.verify_webhook_signature(sample_payload, sample_signature)
+            
+            if not result:
+                logger.info("✅ Webhook signature verification test passed")
+                return True
+            else:
+                logger.error("❌ Webhook signature verification test failed")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Webhook signature verification test failed: {e}")
+            return False
+
+    async def test_fastapi_app(self):
+        """Test FastAPI app."""
+        logger.info("🔧 Testing FastAPI app...")
+        
+        try:
+            from app.main import app
+            
+            if app:
+                routes = [route.path for route in app.routes]
+                expected_routes = ["/", "/health", "/webhook/github", "/review"]
+                
+                missing_routes = [route for route in expected_routes if route not in routes]
+                
+                if not missing_routes:
+                    logger.info("✅ FastAPI app test passed")
+                    return True
+                else:
+                    logger.error(f"❌ Missing routes: {missing_routes}")
+                    return False
+            else:
+                logger.error("❌ FastAPI app test failed")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ FastAPI app test failed: {e}")
+            return False
+
+    async def run_review(self, diff_content: str, files: list):
+        """Run a manual code review."""
+        logger.info("🔍 Running manual code review...")
+        
+        try:
+            from app.code_review_service import CodeReviewService
+            
+            service = CodeReviewService()
+            
+            result = await service.review_code(
+                diff_content=diff_content,
+                changed_files=files
+            )
+            
+            if result["success"]:
+                logger.info("✅ Code review completed")
+                logger.info(f"   Comments: {len(result.get('comments', []))}")
+                logger.info(f"   Summary: {result.get('summary', 'No summary')}")
+                
+                # Print comments
+                for i, comment in enumerate(result.get('comments', []), 1):
+                    logger.info(f"   Comment {i}: Line {comment.line} - {comment.body}")
+                
+                return True
+            else:
+                logger.error(f"❌ Code review failed: {result.get('error')}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Code review failed: {e}")
+            return False
+
+    async def start_server(self, host: str = "0.0.0.0", port: int = 8000):
+        """Start the FastAPI server."""
+        logger.info(f"🚀 Starting server on {host}:{port}...")
+        
+        try:
+            import uvicorn
+            from app.main import app
+            
+            uvicorn.run(
+                app,
+                host=host,
+                port=port,
+                log_level="info"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to start server: {e}")
+
+>>>>>>> Stashed changes
     def print_help(self):
         """Print help information."""
         print("\n🔍 Code Review Commands:")
@@ -587,6 +815,59 @@ class CodeReviewCLI:
                                 print(f"   ✅ {file_result['file']}: {score}/100 ({grade})")
                     else:
                         print(f"❌ {result['error']}")
+                
+                elif action == 'server':
+                    import asyncio
+                    import argparse
+                    
+                    # Parse server arguments
+                    parser = argparse.ArgumentParser(description='Start the code review server')
+                    parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
+                    parser.add_argument('--port', type=int, default=8000, help='Port to bind to')
+                    
+                    # Extract server args from the command
+                    server_args = parts[1:] if len(parts) > 1 else []
+                    args = parser.parse_args(server_args)
+                    
+                    print(f"🚀 Starting code review server on {args.host}:{args.port}")
+                    print("📖 API documentation available at: http://localhost:8000/docs")
+                    print("🔍 Health check available at: http://localhost:8000/health")
+                    print("⏹️  Press Ctrl+C to stop the server")
+                    
+                    try:
+                        asyncio.run(self.start_server(args.host, args.port))
+                    except KeyboardInterrupt:
+                        print("\n👋 Server stopped")
+                    except Exception as e:
+                        print(f"❌ Server error: {e}")
+                
+                elif action == 'test-all':
+                    import asyncio
+                    print("🧪 Running all tests...")
+                    asyncio.run(self.run_tests())
+                
+                elif action == 'test-env':
+                    import asyncio
+                    print("🔧 Testing environment...")
+                    result = asyncio.run(self.test_environment())
+                    print("✅ Environment test passed" if result else "❌ Environment test failed")
+                
+                elif action == 'test-github':
+                    import asyncio
+                    print("🔧 Testing GitHub client...")
+                    result = asyncio.run(self.test_github_client())
+                    print("✅ GitHub client test passed" if result else "❌ GitHub client test failed")
+                
+                elif action == 'test-service':
+                    import asyncio
+                    print("🔧 Testing code review service...")
+                    result = asyncio.run(self.test_code_review_service())
+                    print("✅ Code review service test passed" if result else "❌ Code review service test failed")
+                
+                elif action == 'review':
+                    import asyncio
+                    print("🔍 Running manual code review...")
+                    asyncio.run(self.run_review(self.test_diff, ["example.py"]))
                 
                 else:
                     print(f"❌ Unknown command: {action}")
