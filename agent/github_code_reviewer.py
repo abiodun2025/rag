@@ -1053,12 +1053,19 @@ class GitHubCodeReviewer:
                             severity = issue.get('severity', 'low')
                             category = issue.get('category', 'general')
                             
-                            # Create senior developer-style comment
+                            # Create senior developer-style comment with better context
                             severity_emoji = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢'}
                             emoji = severity_emoji.get(severity, '🟢')
                             
-                            # More thoughtful comment format
-                            comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Suggestion**: {suggestion}"
+                            # Enhanced comment format with better context and guidance
+                            if severity == 'critical':
+                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Why this matters**: This could create a security vulnerability or cause system failures.\n\n🔧 **Suggestion**: {suggestion}"
+                            elif severity == 'high':
+                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Why this matters**: This could cause runtime errors or performance issues in production.\n\n🔧 **Suggestion**: {suggestion}"
+                            elif severity == 'medium':
+                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Why this matters**: This affects code maintainability and could lead to technical debt.\n\n🔧 **Suggestion**: {suggestion}"
+                            else:
+                                comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Why this matters**: This improves code quality and developer experience.\n\n🔧 **Suggestion**: {suggestion}"
                             
                             # Add to comments list for the review
                             all_comments.append({
@@ -1239,11 +1246,11 @@ class GitHubCodeReviewer:
         # Get file extension for language-specific checks
         file_ext = filename.split('.')[-1].lower() if '.' in filename else ''
         
-        # Senior developer checks - focus on important issues
+        # Senior developer checks - focus on meaningful, actionable issues
         
-        # Security issues (critical)
-        if any(keyword in line_content.lower() for keyword in ['password', 'secret', 'token', 'key', 'api_key']):
-            if not any(keyword in line_content.lower() for keyword in ['getenv', 'config', 'env', 'os.environ']):
+        # Security issues (critical) - these are always important
+        if any(keyword in line_content.lower() for keyword in ['password', 'secret', 'token', 'key', 'api_key', 'private_key']):
+            if not any(keyword in line_content.lower() for keyword in ['getenv', 'config', 'env', 'os.environ', 'process.env', 'dotenv']):
                 issues.append({
                     "line": line_num,
                     "severity": "critical",
@@ -1254,37 +1261,60 @@ class GitHubCodeReviewer:
         
         # SQL injection (critical)
         if 'sql' in line_content.lower() and any(keyword in line_content.lower() for keyword in ['execute', 'query', 'cursor']):
-            if not any(keyword in line_content.lower() for keyword in ['parameter', 'bind', 'escape', 'quote']):
+            if not any(keyword in line_content.lower() for keyword in ['parameter', 'bind', 'escape', 'quote', 'prepared', 'stmt']):
                 issues.append({
                     "line": line_num,
                     "severity": "critical",
                     "category": "security",
                     "message": "Potential SQL injection vulnerability",
-                    "suggestion": "Use parameterized queries or proper escaping to prevent SQL injection"
+                    "suggestion": "Use parameterized queries or prepared statements to prevent SQL injection"
                 })
         
-        # Error handling (high)
+        # Authentication bypass (critical)
+        if any(keyword in line_content.lower() for keyword in ['admin', 'root', 'superuser']):
+            if any(keyword in line_content.lower() for keyword in ['true', '1', 'yes', 'always']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "critical",
+                    "category": "security",
+                    "message": "Hardcoded admin access detected",
+                    "suggestion": "Implement proper role-based access control instead of hardcoded admin flags"
+                })
+        
+        # Error handling (high) - important for production code
         if any(keyword in line_content.lower() for keyword in ['open(', 'file(', 'read(', 'write(']):
-            if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'with ', 'context']):
+            if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'with ', 'context', 'finally']):
                 issues.append({
                     "line": line_num,
                     "severity": "high",
                     "category": "error_handling",
                     "message": "File operation without proper error handling",
-                    "suggestion": "Use try-catch blocks or context managers for file operations"
+                    "suggestion": "Use try-catch blocks or context managers for file operations to handle potential I/O errors"
                 })
         
-        # Performance issues (medium)
-        if len(line_content) > 120:
-            issues.append({
-                "line": line_num,
-                "severity": "medium",
-                "category": "performance",
-                "message": f"Line is very long ({len(line_content)} characters)",
-                "suggestion": "Consider breaking the line into multiple lines for better readability and maintainability"
-            })
+        # Network operations without error handling (high)
+        if any(keyword in line_content.lower() for keyword in ['requests.get', 'requests.post', 'urllib', 'http', 'fetch']):
+            if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'timeout', 'error']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "high",
+                    "category": "error_handling",
+                    "message": "Network operation without proper error handling",
+                    "suggestion": "Add timeout handling and error handling for network operations"
+                })
         
-        # Code quality (medium)
+        # Memory leaks (high)
+        if any(keyword in line_content.lower() for keyword in ['setinterval', 'settimeout', 'addlistener', 'onevent']):
+            if not any(keyword in line_content.lower() for keyword in ['clearinterval', 'cleartimeout', 'removelistener', 'removeevent']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "high",
+                    "category": "performance",
+                    "message": "Potential memory leak from unmanaged timers/event listeners",
+                    "suggestion": "Ensure timers and event listeners are properly cleaned up to prevent memory leaks"
+                })
+        
+        # Code quality (medium) - meaningful improvements
         if 'TODO' in line_content or 'FIXME' in line_content:
             issues.append({
                 "line": line_num,
@@ -1294,15 +1324,77 @@ class GitHubCodeReviewer:
                 "suggestion": "Consider addressing this TODO/FIXME before merging or create an issue to track it"
             })
         
-        # Style issues (low)
-        if line_content.strip().endswith(';') and file_ext in ['py', 'py3']:
+        # Magic numbers (medium)
+        if re.search(r'\b\d{3,}\b', line_content) and not any(keyword in line_content.lower() for keyword in ['version', 'port', 'year', 'date', 'id']):
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "code_quality",
+                "message": "Magic number detected",
+                "suggestion": "Extract magic numbers to named constants for better readability and maintainability"
+            })
+        
+        # Nested conditionals (medium)
+        if line_content.count('if') > 1 or line_content.count('&&') > 2 or line_content.count('||') > 2:
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "code_quality",
+                "message": "Complex conditional logic detected",
+                "suggestion": "Consider extracting complex conditions to well-named methods for better readability"
+            })
+        
+        # Long method chains (medium)
+        if line_content.count('.') > 4:
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "code_quality",
+                "message": "Long method chain detected",
+                "suggestion": "Break long method chains into multiple lines or extract to intermediate variables for clarity"
+            })
+        
+        # Hardcoded paths (medium)
+        if any(keyword in line_content.lower() for keyword in ['/usr/', '/var/', 'c:\\', 'd:\\', '/home/']):
+            if not any(keyword in line_content.lower() for keyword in ['config', 'env', 'path.join', 'os.path']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "medium",
+                    "category": "code_quality",
+                    "message": "Hardcoded file path detected",
+                    "suggestion": "Use configuration files or environment variables for file paths to improve portability"
+                })
+        
+        # Performance anti-patterns (medium)
+        if any(keyword in line_content.lower() for keyword in ['innerhtml', 'document.write', 'eval(', 'settimeout(0']):
+            issues.append({
+                "line": line_num,
+                "severity": "medium",
+                "category": "performance",
+                "message": "Performance anti-pattern detected",
+                "suggestion": "Consider alternatives that are more performant and secure"
+            })
+        
+        # Code duplication indicators (low)
+        if any(keyword in line_content.lower() for keyword in ['copy', 'duplicate', 'same as', 'similar to']):
             issues.append({
                 "line": line_num,
                 "severity": "low",
-                "category": "style",
-                "message": "Unnecessary semicolon in Python code",
-                "suggestion": "Remove the semicolon as it's not needed in Python"
+                "category": "code_quality",
+                "message": "Potential code duplication indicator",
+                "suggestion": "Consider extracting common functionality to reusable methods or utilities"
             })
+        
+        # Missing documentation (low)
+        if any(keyword in line_content.lower() for keyword in ['def ', 'function ', 'class ', 'public ', 'private ']):
+            if not any(keyword in line_content.lower() for keyword in ['"""', "'''", '/*', '//', '///', '///']):
+                issues.append({
+                    "line": line_num,
+                    "severity": "low",
+                    "category": "documentation",
+                    "message": "Function/class without documentation",
+                    "suggestion": "Add docstring or JSDoc comments to explain the purpose and parameters"
+                })
         
         return issues
     
