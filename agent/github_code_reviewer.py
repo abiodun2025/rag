@@ -914,6 +914,211 @@ class GitHubCodeReviewer:
         
         return issues
     
+    def _group_similar_issues(self, issues: List[Dict]) -> List[Dict]:
+        """Group similar issues to avoid repetition in comments."""
+        if not issues:
+            return []
+        
+        # Group issues by category and message similarity
+        grouped = {}
+        
+        for issue in issues:
+            category = issue.get('category', 'general')
+            message = issue.get('message', '')
+            severity = issue.get('severity', 'low')
+            
+            # Create a key for grouping
+            group_key = f"{category}_{severity}_{self._normalize_message(message)}"
+            
+            if group_key not in grouped:
+                grouped[group_key] = []
+            grouped[group_key].append(issue)
+        
+        # For each group, keep only the most representative issue
+        representative_issues = []
+        for group_issues in grouped.values():
+            if len(group_issues) == 1:
+                representative_issues.append(group_issues[0])
+            else:
+                # If multiple similar issues, create a consolidated one
+                consolidated = self._consolidate_similar_issues(group_issues)
+                representative_issues.append(consolidated)
+        
+        return representative_issues
+    
+    def _normalize_message(self, message: str) -> str:
+        """Normalize message text for similarity comparison."""
+        # Remove common variations and normalize text
+        normalized = message.lower()
+        normalized = normalized.replace('detected', 'found')
+        normalized = normalized.replace('without proper', 'missing')
+        normalized = normalized.replace('potential ', '')
+        normalized = normalized.replace(' could ', ' ')
+        normalized = normalized.replace(' would ', ' ')
+        
+        # Extract key words for comparison
+        key_words = [word for word in normalized.split() if len(word) > 3]
+        return ' '.join(sorted(set(key_words)))
+    
+    def _consolidate_similar_issues(self, similar_issues: List[Dict]) -> Dict:
+        """Consolidate multiple similar issues into one comprehensive comment."""
+        if not similar_issues:
+            return {}
+        
+        # Use the first issue as base
+        base_issue = similar_issues[0]
+        
+        if len(similar_issues) == 1:
+            return base_issue
+        
+        # Count occurrences and create a consolidated message
+        count = len(similar_issues)
+        lines = [str(issue.get('line', 0)) for issue in similar_issues]
+        
+        # Update the message to reflect multiple occurrences
+        original_message = base_issue.get('message', '')
+        if count > 1:
+            if 'detected' in original_message.lower():
+                new_message = f"{original_message} (found {count} similar instances on lines {', '.join(lines)})"
+            else:
+                new_message = f"{original_message} (found {count} similar instances on lines {', '.join(lines)})"
+        else:
+            new_message = original_message
+        
+        # Create consolidated issue
+        consolidated = base_issue.copy()
+        consolidated['message'] = new_message
+        consolidated['line'] = int(lines[0])  # Use first line number
+        consolidated['_consolidated_count'] = count
+        
+        return consolidated
+    
+    def _select_diverse_issues(self, grouped_issues: List[Dict], max_per_file: int = 3) -> List[Dict]:
+        """Select diverse issues to provide varied feedback."""
+        if not grouped_issues:
+            return []
+        
+        # Sort by severity first
+        severity_order = ['critical', 'high', 'medium', 'low']
+        grouped_issues.sort(key=lambda x: severity_order.index(x.get('severity', 'low')))
+        
+        # Then sort by category diversity
+        selected = []
+        categories_seen = set()
+        
+        # First pass: get one issue from each category
+        for issue in grouped_issues:
+            if len(selected) >= max_per_file:
+                break
+            
+            category = issue.get('category', 'general')
+            if category not in categories_seen:
+                selected.append(issue)
+                categories_seen.add(category)
+        
+        # Second pass: fill remaining slots with highest priority issues
+        for issue in grouped_issues:
+            if len(selected) >= max_per_file:
+                break
+            
+            if issue not in selected:
+                selected.append(issue)
+        
+        return selected[:max_per_file]
+    
+    def _generate_pr_review_summary(self, analysis_results: List[Dict], pr_data: Dict, total_score: int, total_issues: int) -> str:
+        """Generate a comprehensive PR review summary."""
+        try:
+            # Collect all issues for categorization
+            all_issues = []
+            for result in analysis_results:
+                file_issues = result['analysis'].get('issues', [])
+                for issue in file_issues:
+                    issue['file'] = result['file']
+                    all_issues.append(issue)
+            
+            # Group issues by category
+            categories = {
+                'security': [],
+                'performance': [],
+                'style': [],
+                'documentation': [],
+                'error_handling': [],
+                'other': []
+            }
+            
+            for issue in all_issues:
+                category = issue.get('category', 'other')
+                if category in categories:
+                    categories[category].append(issue)
+                else:
+                    categories['other'].append(issue)
+            
+            # Generate summary
+            summary = f"""## 🔍 Code Review Summary
+
+**Repository:** {pr_data['repository']}
+**Author:** {pr_data['user']['login']}
+**PR Title:** {pr_data['title']}
+
+### 📊 Analysis Overview
+- **Files Analyzed:** {len(analysis_results)}
+- **Total Suggestions:** {total_issues}
+- **Critical Suggestions:** {len([i for i in all_issues if i.get('severity') == 'critical'])}
+- **High Suggestions:** {len([i for i in all_issues if i.get('severity') == 'high'])}
+- **Medium Suggestions:** {len([i for i in all_issues if i.get('severity') == 'medium'])}
+- **Low Suggestions:** {len([i for i in all_issues if i.get('severity') == 'low'])}
+
+### 🎯 Detailed Suggestions
+
+"""
+            
+            # Add suggestions by category
+            for category, issues in categories.items():
+                if issues:
+                    category_name = category.replace('_', ' ').title()
+                    summary += f"#### {category_name}\n"
+                    
+                    # Show top 3 issues per category
+                    top_issues = sorted(issues, key=lambda x: {'critical': 4, 'high': 3, 'medium': 2, 'low': 1}.get(x.get('severity', 'low'), 0), reverse=True)[:3]
+                    
+                    for issue in top_issues:
+                        severity_emoji = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢'}.get(issue.get('severity', 'low'), '🟢')
+                        summary += f"- {severity_emoji} **{issue['file']}:** {issue['message']}\n"
+                        if issue.get('suggestion'):
+                            summary += f"  💡 **Suggestion:** {issue['suggestion']}\n"
+                        summary += "\n"
+            
+            # Add general recommendations
+            if total_issues == 0:
+                summary += "### ✅ **Great Work!** No specific issues detected in the changes.\n\n"
+            else:
+                summary += "### 💡 General Recommendations\n\n"
+                
+                # PR size recommendations
+                changed_files = len(analysis_results)
+                if changed_files > 10:
+                    summary += "- 📏 **Large PR:** Consider breaking this into smaller, more focused pull requests for easier review.\n"
+                elif changed_files > 5:
+                    summary += "- 📏 **Medium PR:** Good size for review. Consider adding more detailed commit messages.\n"
+                else:
+                    summary += "- 📏 **Small PR:** Perfect size for quick review!\n"
+                
+                # Add specific recommendations based on issues found
+                if categories['security']:
+                    summary += "- 🔒 **Security:** Please review the security-related suggestions above.\n"
+                if categories['performance']:
+                    summary += "- ⚡ **Performance:** Consider the performance optimization suggestions.\n"
+                if categories['documentation']:
+                    summary += "- 📚 **Documentation:** Adding documentation would improve code maintainability.\n"
+            
+            summary += "\n---\n*This review was generated automatically by the GitHub Code Review Agent.*"
+            
+            return summary
+            
+        except Exception as e:
+            return f"Error generating review summary: {str(e)}"
+    
     def get_user_repositories(self, include_private=True):
         """Get repositories accessible to the authenticated user."""
         try:
@@ -1041,8 +1246,11 @@ class GitHubCodeReviewer:
                         severity_order = ['critical', 'high', 'medium', 'low']
                         issues.sort(key=lambda x: severity_order.index(x.get('severity', 'low')))
                         
-                        # Take only the most important issues (max 3 per file for thoughtful review)
-                        important_issues = issues[:3]
+                        # Group similar issues to avoid repetition
+                        grouped_issues = self._group_similar_issues(issues)
+                        
+                        # Take only the most important and diverse issues (max 3 per file for thoughtful review)
+                        important_issues = self._select_diverse_issues(grouped_issues, max_per_file=3)
                         
                         for issue in important_issues:
                             line_num = issue.get('line', 0)
@@ -1296,11 +1504,19 @@ class GitHubCodeReviewer:
         # Security issues (critical) - these are always important
         if any(keyword in line_content.lower() for keyword in ['password', 'secret', 'token', 'key', 'api_key', 'private_key']):
             if not any(keyword in line_content.lower() for keyword in ['getenv', 'config', 'env', 'os.environ', 'process.env', 'dotenv']):
+                # Vary the message to avoid repetition
+                messages = [
+                    "Hardcoded sensitive information detected",
+                    "Credentials found in plain text",
+                    "API keys or secrets exposed in code"
+                ]
+                message = messages[line_num % len(messages)]
+                
                 issues.append({
                     "line": line_num,
                     "severity": "critical",
                     "category": "security",
-                    "message": "Hardcoded sensitive information detected",
+                    "message": message,
                     "suggestion": "Use environment variables or secure configuration management instead of hardcoding sensitive data"
                 })
         
@@ -1329,22 +1545,38 @@ class GitHubCodeReviewer:
         # Error handling (high) - important for production code
         if any(keyword in line_content.lower() for keyword in ['open(', 'file(', 'read(', 'write(']):
             if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'with ', 'context', 'finally']):
+                # Vary the message based on context
+                if 'open(' in line_content.lower():
+                    message = "File operation without proper error handling"
+                elif 'read(' in line_content.lower():
+                    message = "File read operation missing error handling"
+                else:
+                    message = "File write operation without error handling"
+                
                 issues.append({
                     "line": line_num,
                     "severity": "high",
                     "category": "error_handling",
-                    "message": "File operation without proper error handling",
+                    "message": message,
                     "suggestion": "Use try-catch blocks or context managers for file operations to handle potential I/O errors"
                 })
         
         # Network operations without error handling (high)
         if any(keyword in line_content.lower() for keyword in ['requests.get', 'requests.post', 'urllib', 'http', 'fetch']):
             if not any(keyword in line_content.lower() for keyword in ['try:', 'except', 'timeout', 'error']):
+                # Vary the message based on the operation type
+                if 'get' in line_content.lower():
+                    message = "HTTP GET request without error handling"
+                elif 'post' in line_content.lower():
+                    message = "HTTP POST request missing error handling"
+                else:
+                    message = "Network operation without proper error handling"
+                
                 issues.append({
                     "line": line_num,
                     "severity": "high",
                     "category": "error_handling",
-                    "message": "Network operation without proper error handling",
+                    "message": message,
                     "suggestion": "Add timeout handling and error handling for network operations"
                 })
         
@@ -1361,11 +1593,17 @@ class GitHubCodeReviewer:
         
         # Code quality (medium) - meaningful improvements
         if 'TODO' in line_content or 'FIXME' in line_content:
+            # Vary the message based on the type
+            if 'TODO' in line_content:
+                message = "TODO comment found - incomplete implementation"
+            else:
+                message = "FIXME comment detected - code needs attention"
+            
             issues.append({
                 "line": line_num,
                 "severity": "medium",
                 "category": "code_quality",
-                "message": "TODO/FIXME comment found",
+                "message": message,
                 "suggestion": "Consider addressing this TODO/FIXME before merging or create an issue to track it"
             })
         
