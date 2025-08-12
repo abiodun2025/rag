@@ -17,7 +17,6 @@ from datetime import datetime
 import subprocess
 import shutil
 import re  # Add re import at module level
-import random
 
 from .code_reviewer import code_reviewer
 
@@ -913,6 +912,60 @@ class GitHubCodeReviewer:
                 "suggestion": "Review for code quality, readability, and best practices"
             })
         
+        # Code duplication indicators
+        if any(dup_indicator in line_content.lower() for dup_indicator in ['copy', 'duplicate', 'same as', 'identical']):
+            issues.append({
+                'line': line_num,
+                'severity': 'low',
+                'category': 'code_quality',
+                'message': 'Potential code duplication indicator',
+                'suggestion': 'Extract common functionality to shared functions or utility classes. Consider using inheritance, composition, or dependency injection to reduce duplication. Use design patterns like template method or strategy.'
+            })
+        
+        # Documentation
+        if line_content.strip().startswith('def ') or line_content.strip().startswith('class '):
+            if '"""' not in line_content and "'''" not in line_content and '#' not in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'documentation',
+                    'message': 'Function/class without documentation',
+                    'suggestion': 'Add docstrings explaining purpose, parameters, return values, and usage examples. Consider using type hints for better code clarity and automated documentation generation.'
+                })
+        
+        # TODO/FIXME comments
+        if 'todo:' in line_content.lower() or 'fixme:' in line_content.lower():
+            # Provide contextually appropriate suggestions based on the specific TODO content
+            todo_content = line_content.lower()
+            
+            if 'error' in todo_content or 'exception' in todo_content:
+                suggestion = 'Implement comprehensive error handling with proper logging, user feedback, and graceful degradation. Consider using custom exception classes for better error categorization.'
+            elif 'test' in todo_content or 'unit test' in todo_content:
+                suggestion = 'Write comprehensive unit tests covering edge cases, error conditions, and boundary values. Use mocking for external dependencies and aim for high test coverage.'
+            elif 'log' in todo_content or 'logging' in todo_content:
+                suggestion = 'Implement structured logging with appropriate log levels, contextual information, and log aggregation. Consider using correlation IDs for request tracing.'
+            elif 'validate' in todo_content or 'input' in todo_content:
+                suggestion = 'Add input validation with clear error messages, sanitization for security, and proper type checking. Consider using schema validation libraries for complex data structures.'
+            elif 'performance' in todo_content or 'optimize' in todo_content:
+                suggestion = 'Profile the code to identify bottlenecks, consider caching strategies, and optimize algorithms. Use performance monitoring tools to measure improvements.'
+            elif 'refactor' in todo_content or 'clean' in todo_content:
+                suggestion = 'Break down complex functions into smaller, focused methods. Extract common patterns into reusable utilities and improve naming conventions.'
+            elif 'security' in todo_content or 'vulnerability' in todo_content:
+                suggestion = 'Conduct security review for authentication, authorization, input validation, and data exposure. Consider using security scanning tools and following OWASP guidelines.'
+            elif 'document' in todo_content or 'comment' in todo_content:
+                suggestion = 'Add comprehensive documentation including API specifications, usage examples, and architectural decisions. Consider using automated documentation generation tools.'
+            else:
+                # Default suggestion for generic TODOs
+                suggestion = 'Address this TODO with proper implementation, testing, and documentation. Consider creating a detailed issue ticket to track progress and requirements.'
+            
+            issues.append({
+                'line': line_num,
+                'severity': 'medium',
+                'category': 'code_quality',
+                'message': 'TODO/FIXME comment detected',
+                'suggestion': suggestion
+            })
+        
         return issues
     
     def _group_similar_issues(self, issues: List[Dict]) -> List[Dict]:
@@ -1522,7 +1575,7 @@ class GitHubCodeReviewer:
                     'severity': 'critical',
                     'category': 'security',
                     'message': 'Private key material exposed in code',
-                    'suggestion': 'Store private keys in environment variables, AWS Secrets Manager, or HashiCorp Vault. Never commit cryptographic material to version control.'
+                    'suggestion': 'Store private keys in environment variables, AWS Secrets Manager, or HashiCorp Vault. Never commit cryptographic material to version control. Consider using key rotation policies.'
                 })
             elif any(env_var in line_content.lower() for env_var in ['process.env', 'dotenv', 'config']):
                 issues.append({
@@ -1530,7 +1583,23 @@ class GitHubCodeReviewer:
                     'severity': 'critical',
                     'category': 'security',
                     'message': 'Sensitive configuration exposed in code',
-                    'suggestion': 'Use environment variables with proper validation. Consider using a secrets management service for production deployments.'
+                    'suggestion': 'Use environment variables with proper validation and encryption. Consider using a secrets management service like AWS Parameter Store or Azure Key Vault for production deployments.'
+                })
+            elif 'api_key' in line_content.lower() or 'sk-' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'API keys or secrets exposed in code',
+                    'suggestion': 'Store API keys in secure environment variables or use OAuth2 flows. Implement proper key rotation and monitor for unauthorized usage. Consider using service accounts with minimal permissions.'
+                })
+            elif 'token' in line_content.lower() or 'ghp_' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Authentication tokens hardcoded in source',
+                    'suggestion': 'Use environment variables for tokens and implement proper token lifecycle management. Consider using short-lived tokens with automatic renewal and proper scoping.'
                 })
             else:
                 issues.append({
@@ -1538,7 +1607,7 @@ class GitHubCodeReviewer:
                     'severity': 'critical',
                     'category': 'security',
                     'message': 'Hardcoded sensitive information detected',
-                    'suggestion': 'Extract to environment variables or secure configuration files. Use tools like python-dotenv for local development.'
+                    'suggestion': 'Extract to environment variables or secure configuration files. Use tools like python-dotenv for local development and encrypted configs for production. Implement proper access controls.'
                 })
         
         # SQL injection prevention
@@ -1574,7 +1643,7 @@ class GitHubCodeReviewer:
                     'severity': 'high',
                     'category': 'error_handling',
                     'message': 'File operation without proper error handling',
-                    'suggestion': 'Use context managers (with open()) or try-finally blocks. Handle FileNotFoundError, PermissionError, and other I/O exceptions appropriately.'
+                    'suggestion': 'Use context managers (with open()) or try-finally blocks. Handle FileNotFoundError, PermissionError, and other I/O exceptions appropriately. Consider using pathlib for modern path operations.'
                 })
         
         if any(read_op in line_content.lower() for read_op in ['.read()', '.readline()', '.readlines()']):
@@ -1586,7 +1655,7 @@ class GitHubCodeReviewer:
                     'severity': 'high',
                     'category': 'error_handling',
                     'message': 'File read operation missing error handling',
-                    'suggestion': 'Wrap file operations in try-catch blocks. Handle potential encoding issues, file corruption, and I/O errors gracefully.'
+                    'suggestion': 'Wrap file operations in try-catch blocks. Handle potential encoding issues, file corruption, and I/O errors gracefully. Consider using pathlib.read_text() with encoding specification.'
                 })
         
         if any(write_op in line_content.lower() for write_op in ['.write(', '.writelines(', '.flush(']):
@@ -1598,7 +1667,7 @@ class GitHubCodeReviewer:
                     'severity': 'high',
                     'category': 'error_handling',
                     'message': 'File write operation without error handling',
-                    'suggestion': 'Handle disk space issues, permission errors, and write failures. Use atomic write operations when possible to prevent data corruption.'
+                    'suggestion': 'Handle disk space issues, permission errors, and write failures. Use atomic write operations when possible to prevent data corruption. Consider using tempfile for safe temporary file creation.'
                 })
         
         # Network operations
@@ -1606,13 +1675,30 @@ class GitHubCodeReviewer:
             if 'try:' in line_content or 'timeout=' in line_content:
                 pass  # Has error handling or timeout
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'error_handling',
-                    'message': 'HTTP request missing error handling',
-                    'suggestion': 'Add timeout parameters, handle connection errors, HTTP status codes, and network timeouts. Consider using retry mechanisms with exponential backoff.'
-                })
+                if 'get(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'HTTP GET request missing error handling',
+                        'suggestion': 'Add timeout parameters, handle connection errors, HTTP status codes, and network timeouts. Consider using retry mechanisms with exponential backoff and circuit breaker patterns.'
+                    })
+                elif 'post(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'HTTP POST request missing error handling',
+                        'suggestion': 'Implement proper error handling for network failures, validation errors, and server responses. Add request/response logging and consider implementing idempotency for critical operations.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'HTTP request missing error handling',
+                        'suggestion': 'Add comprehensive error handling including timeouts, retries, and proper HTTP status code checking. Consider using HTTP client libraries with built-in error handling and connection pooling.'
+                    })
         
         # Performance issues
         if 'setinterval(' in line_content.lower() or 'settimeout(' in line_content.lower():
@@ -1647,84 +1733,112 @@ class GitHubCodeReviewer:
         
         # Code quality
         if re.search(r'\b\d{4,}\b', line_content):  # Magic numbers 1000+
-            issues.append({
-                'line': line_num,
-                'severity': 'medium',
-                'category': 'code_quality',
-                'message': 'Magic number detected',
-                'suggestion': 'Extract to named constants with descriptive names. Consider using enums or configuration objects for related constants.'
-            })
+            # Provide different suggestions based on the context
+            if any(time_indicator in line_content.lower() for time_indicator in ['timeout', 'delay', 'interval', 'sleep']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Magic number detected in timing configuration',
+                    'suggestion': 'Extract timeout values to named constants with descriptive names. Consider using configuration files or environment variables for different environments (dev/staging/prod).'
+                })
+            elif any(size_indicator in line_content.lower() for size_indicator in ['size', 'buffer', 'limit', 'capacity']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Magic number detected in size configuration',
+                    'suggestion': 'Define size constants with clear naming conventions. Consider using enums or configuration objects for related constants and document the reasoning behind specific values.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Magic number detected',
+                    'suggestion': 'Extract to named constants with descriptive names. Consider using enums or configuration objects for related constants. Document the business logic behind these values.'
+                })
         
         # Nested conditionals
         if line_content.count('if ') > 2 or (line_content.count('if ') > 1 and line_content.count('and ') > 0):
-            issues.append({
-                'line': line_num,
-                'severity': 'medium',
-                'category': 'code_quality',
-                'message': 'Complex conditional logic detected',
-                'suggestion': 'Extract complex conditions to well-named boolean methods. Consider using early returns, guard clauses, or strategy pattern for complex branching.'
-            })
+            if 'admin' in line_content.lower() or 'permission' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex authorization logic detected',
+                    'suggestion': 'Extract authorization logic to dedicated service classes. Consider using decorators, middleware, or policy-based authorization patterns for cleaner, more maintainable code.'
+                })
+            elif 'validation' in line_content.lower() or 'check' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex validation logic detected',
+                    'suggestion': 'Use validation libraries or create dedicated validator classes. Consider implementing the chain of responsibility pattern for complex validation workflows.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex conditional logic detected',
+                    'suggestion': 'Extract complex conditions to well-named boolean methods. Consider using early returns, guard clauses, or strategy pattern for complex branching. Use truth tables to verify logic.'
+                })
         
         # Long method chains
         if line_content.count('.') > 3:
-            issues.append({
-                'line': line_num,
-                'severity': 'medium',
-                'category': 'code_quality',
-                'message': 'Long method chain detected',
-                'suggestion': 'Break into intermediate variables for readability. Consider using builder pattern or method chaining with proper error handling at each step.'
-            })
+            if 'api' in line_content.lower() or 'client' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Long API method chain detected',
+                    'suggestion': 'Break into intermediate variables for readability. Consider using builder pattern or fluent interfaces with proper error handling at each step. Add logging for debugging.'
+                })
+            elif 'query' in line_content.lower() or 'filter' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Long query method chain detected',
+                    'suggestion': 'Extract query building logic to dedicated query builder classes. Consider using the repository pattern or query objects for complex data access operations.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Long method chain detected',
+                    'suggestion': 'Break into intermediate variables for readability. Consider using builder pattern or method chaining with proper error handling at each step. Add validation between steps.'
+                })
         
         # Hardcoded paths
         if any(path_indicator in line_content for path_indicator in ['/usr/local/', 'c:\\', '/home/', 'c:/', '/tmp/']):
-            issues.append({
-                'line': line_num,
-                'severity': 'medium',
-                'category': 'code_quality',
-                'message': 'Hardcoded file path detected',
-                'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate.'
-            })
-        
-        # Code duplication indicators
-        if any(dup_indicator in line_content.lower() for dup_indicator in ['copy', 'duplicate', 'same as', 'identical']):
-            issues.append({
-                'line': line_num,
-                'severity': 'low',
-                'category': 'code_quality',
-                'message': 'Potential code duplication indicator',
-                'suggestion': 'Extract common functionality to shared functions or utility classes. Consider using inheritance, composition, or dependency injection to reduce duplication.'
-            })
-        
-        # Documentation
-        if line_content.strip().startswith('def ') or line_content.strip().startswith('class '):
-            if '"""' not in line_content and "'''" not in line_content and '#' not in line_content:
+            if 'tmp' in line_content.lower() or 'temp' in line_content.lower():
                 issues.append({
                     'line': line_num,
-                    'severity': 'low',
-                    'category': 'documentation',
-                    'message': 'Function/class without documentation',
-                    'suggestion': 'Add docstrings explaining purpose, parameters, return values, and usage examples. Consider using type hints for better code clarity.'
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded temporary directory path detected',
+                    'suggestion': 'Use tempfile.gettempdir() or os.path.join(tempfile.gettempdir(), filename) for cross-platform compatibility. Consider using context managers for temporary file cleanup.'
                 })
-        
-        # TODO/FIXME comments
-        if 'todo:' in line_content.lower() or 'fixme:' in line_content.lower():
-            todo_variations = [
-                'Implement proper error handling and logging',
-                'Add input validation and sanitization',
-                'Consider using a more efficient algorithm or data structure',
-                'Refactor to improve readability and maintainability',
-                'Add comprehensive unit tests for edge cases',
-                'Implement proper resource cleanup and disposal',
-                'Consider using dependency injection for better testability',
-                'Add performance monitoring and metrics collection'
-            ]
-            issues.append({
-                'line': line_num,
-                'severity': 'medium',
-                'category': 'code_quality',
-                'message': 'TODO/FIXME comment detected',
-                'suggestion': random.choice(todo_variations)
-            })
+            elif 'home' in line_content.lower() or 'user' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded user directory path detected',
+                    'suggestion': 'Use os.path.expanduser("~") or pathlib.Path.home() for user directories. Consider using XDG base directories or platform-specific user data locations.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded file path detected',
+                    'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate. Consider using pathlib for modern path operations.'
+                })
         
         return issues
     
