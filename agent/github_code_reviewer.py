@@ -16,6 +16,7 @@ import logging
 from datetime import datetime
 import subprocess
 import shutil
+import re  # Add re import at module level
 
 from .code_reviewer import code_reviewer
 
@@ -1068,11 +1069,18 @@ class GitHubCodeReviewer:
                                 comment_body = f"{emoji} **{severity.title()} {category.title()} Issue**\n\n{message}\n\n💡 **Why this matters**: This improves code quality and developer experience.\n\n🔧 **Suggestion**: {suggestion}"
                             
                             # Add to comments list for the review
-                            all_comments.append({
-                                "path": filename,
-                                "position": line_num,  # Use position for review comments (Files changed tab)
-                                "body": comment_body
-                            })
+                            # GitHub API requires position to be a positive integer
+                            if line_num > 0:
+                                # For review comments, we need to use 'position' field
+                                # Position refers to the line number in the diff, not the file
+                                all_comments.append({
+                                    "path": filename,
+                                    "position": line_num,  # Use position for review comments (Files changed tab)
+                                    "body": comment_body
+                                })
+                                print(f"✅ Added comment for {filename} at position {line_num}")
+                            else:
+                                print(f"⚠️  Skipping comment for {filename} - invalid position: {line_num}")
                 
                 # Create a review with all comments
                 if all_comments:
@@ -1092,22 +1100,28 @@ class GitHubCodeReviewer:
                         print(f"⚠️  Failed to add review with comments: {review_result['error']}")
                         print("🔄 Trying fallback method with individual comments...")
                         
-                        # Fallback: create individual comments
+                        # Fallback: create individual comments using review API
                         comments_added = 0
                         for comment_data in all_comments:
-                            comment_result = self.create_pull_request_comment(
+                            # Create a review with just this one comment
+                            single_comment_review = self.create_pull_request_review(
                                 owner, repo, pr_number, 
-                                comment_data["body"], 
-                                line=comment_data["position"], 
-                                file=comment_data["path"]
+                                "COMMENT", 
+                                f"Comment on {comment_data['path']}", 
+                                [comment_data], 
+                                latest_commit_sha
                             )
-                            if comment_result["success"]:
+                            
+                            if single_comment_review["success"]:
                                 comments_added += 1
+                                print(f"✅ Created review comment on {comment_data['path']} at position {comment_data['position']}")
+                            else:
+                                print(f"❌ Failed to create review comment on {comment_data['path']}: {single_comment_review['error']}")
                         
                         if comments_added > 0:
-                            print(f"✅ Created {comments_added} individual comments as fallback")
+                            print(f"✅ Created {comments_added} review comments as fallback")
                         else:
-                            print("❌ Failed to create individual comments as well")
+                            print("❌ Failed to create review comments as fallback")
                 else:
                     # If no issues found, just add the summary
                     review_result = self.create_pull_request_review(
@@ -1188,6 +1202,7 @@ class GitHubCodeReviewer:
     
     def _analyze_diff_content_senior(self, diff_content: str, filename: str) -> Dict[str, Any]:
         """Analyze diff content like a senior developer would."""
+        
         try:
             if not diff_content.strip():
                 return {
@@ -1210,7 +1225,6 @@ class GitHubCodeReviewer:
                 if line.startswith('@@'):
                     # Extract line numbers from diff header
                     # Format: @@ -old_start,old_count +new_start,new_count @@
-                    import re
                     match = re.search(r'@@ -(\d+),?\d* \+(\d+),?\d* @@', line)
                     if match:
                         current_line_number = int(match.group(2)) - 1  # Start at new line number
