@@ -1070,12 +1070,15 @@ class GitHubCodeReviewer:
                             # Add to comments list for the review
                             all_comments.append({
                                 "path": filename,
-                                "line": line_num,
+                                "position": line_num,  # Use position for review comments (Files changed tab)
                                 "body": comment_body
                             })
                 
                 # Create a review with all comments
                 if all_comments:
+                    print(f"🔍 Creating review with {len(all_comments)} comments...")
+                    print(f"📝 Sample comment data: {all_comments[0] if all_comments else 'None'}")
+                    
                     review_result = self.create_pull_request_review(
                         owner, repo, pr_number, "COMMENT", review_summary, all_comments, latest_commit_sha
                     )
@@ -1087,6 +1090,24 @@ class GitHubCodeReviewer:
                         print(f"🔗 Review URL: {review_url}")
                     else:
                         print(f"⚠️  Failed to add review with comments: {review_result['error']}")
+                        print("🔄 Trying fallback method with individual comments...")
+                        
+                        # Fallback: create individual comments
+                        comments_added = 0
+                        for comment_data in all_comments:
+                            comment_result = self.create_pull_request_comment(
+                                owner, repo, pr_number, 
+                                comment_data["body"], 
+                                line=comment_data["position"], 
+                                file=comment_data["path"]
+                            )
+                            if comment_result["success"]:
+                                comments_added += 1
+                        
+                        if comments_added > 0:
+                            print(f"✅ Created {comments_added} individual comments as fallback")
+                        else:
+                            print("❌ Failed to create individual comments as well")
                 else:
                     # If no issues found, just add the summary
                     review_result = self.create_pull_request_review(
@@ -1182,6 +1203,8 @@ class GitHubCodeReviewer:
             total_score = 100
             current_line_number = 0
             
+            print(f"🔍 Analyzing diff for {filename} with {len(lines)} lines")
+            
             for line in lines:
                 # Parse diff header to get line numbers
                 if line.startswith('@@'):
@@ -1191,14 +1214,19 @@ class GitHubCodeReviewer:
                     match = re.search(r'@@ -(\d+),?\d* \+(\d+),?\d* @@', line)
                     if match:
                         current_line_number = int(match.group(2)) - 1  # Start at new line number
+                        print(f"📍 Diff header: new lines start at {current_line_number + 1}")
                 elif line.startswith('+') and not line.startswith('+++'):
                     current_line_number += 1
                     # Remove the + prefix and analyze the actual content
                     content = line[1:]
                     
+                    print(f"📝 Line {current_line_number}: {content[:50]}...")
+                    
                     # Analyze this line for issues like a senior developer would
                     line_issues = self._analyze_line_for_issues_senior(content, current_line_number, filename)
-                    issues.extend(line_issues)
+                    if line_issues:
+                        print(f"⚠️  Found {len(line_issues)} issues on line {current_line_number}")
+                        issues.extend(line_issues)
                     
                     # Calculate score deduction based on issues
                     for issue in line_issues:
@@ -1216,6 +1244,8 @@ class GitHubCodeReviewer:
                     if not line.startswith('-'):
                         current_line_number += 1
             
+            print(f"📊 Analysis complete: {len(issues)} issues found, score: {total_score}")
+            
             # Ensure score doesn't go below 0
             total_score = max(0, total_score)
             
@@ -1227,6 +1257,7 @@ class GitHubCodeReviewer:
             }
             
         except Exception as e:
+            print(f"❌ Error analyzing diff: {e}")
             return {
                 "success": False,
                 "error": f"Failed to analyze diff content: {str(e)}",
