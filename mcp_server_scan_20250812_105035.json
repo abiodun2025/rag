@@ -1,0 +1,324 @@
+{
+  "server_info": {
+    "url": "http://127.0.0.1:5000",
+    "protocol": "HTTP",
+    "endpoints": [
+      {
+        "path": "/health",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/tools",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/call",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/info",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/status",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      },
+      {
+        "path": "/version",
+        "status_code": 200,
+        "available": true,
+        "content_type": "application/json"
+      }
+    ],
+    "metadata": {}
+  },
+  "health_status": {
+    "status": "healthy",
+    "response_time_ms": 5.467891693115234,
+    "endpoints": {
+      "/health": {
+        "status_code": 200,
+        "response_time_ms": 5.467891693115234,
+        "available": true
+      }
+    },
+    "errors": []
+  },
+  "tools_analysis": {
+    "total_tools": 7,
+    "tools_by_category": {
+      "utility": [
+        "count_r"
+      ],
+      "system": [
+        "list_desktop_contents",
+        "get_desktop_path"
+      ],
+      "communication": [
+        "open_gmail",
+        "open_gmail_compose",
+        "sendmail",
+        "sendmail_simple"
+      ]
+    },
+    "tools_details": [
+      {
+        "name": "count_r",
+        "description": "Count 'r' letters in a word",
+        "category": "utility",
+        "capabilities": [
+          "text_processing"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "count_r",
+            "result": {
+              "count": 0,
+              "word": ""
+            }
+          }
+        }
+      },
+      {
+        "name": "list_desktop_contents",
+        "description": "List desktop files/folders",
+        "category": "system",
+        "capabilities": [
+          "file_system_access"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "list_desktop_contents",
+            "result": [
+              "healthapp",
+              "for_loop",
+              "Screenshot 2025-07-31 at 11.33.27\u202fPM.png",
+              "Screenshot 2025-08-05 at 2.39.20\u202fPM.png",
+              "Screenshot 2025-07-30 at 8.27.22\u202fPM.png",
+              "a_function_in_python_to_multiple_two_numbers",
+              "Profile (1).pdf",
+              "data_processor_implementation.js",
+              ".DS_Store",
+              "Screenshot 2025-07-17 at 11.02.23\u202fAM.png",
+              "Screenshot 2025-07-16 at 3.19.44\u202fPM.png",
+              "test-setup",
+              "Android_DSA_Study_Plan.pdf",
+              "Screenshot 2025-07-02 at 9.34.23\u202fAM.png",
+              "api_server_instructions.md",
+              "me_kotlin_code",
+              "Screenshot 2025-06-30 at 10.04.18\u202fPM.png",
+              "github_flow_cheat_sheet.pdf",
+              "Screenshot 2025-07-25 at 1.01.53\u202fPM.png",
+              "Download Updated PDF Resume",
+              "Screen Recording 2025-06-24 at 11.13.32\u202fAM.mov",
+              "Download Tailored Resume (Word Format)",
+              "mobile-multi-tenent",
+              "api_server_implementation.py",
+              "Screenshot 2025-07-13 at 9.42.11\u202fPM.png",
+              "a_python_function_that_multiply_5_and_3",
+              "work.txt",
+              "instruction_file_for_daily_task_manager",
+              "instruction_file_for_python_data_analyzer",
+              "new-rag-profile",
+              "teams-mcp-agent",
+              "Screenshot 2025-07-31 at 10.43.48\u202fPM.png",
+              "data_processing_pipeline",
+              "new-rag",
+              "work.txt.md",
+              "working-mcp-server",
+              "javascript_calculator_instruction.md",
+              "rest_api_server",
+              "resume",
+              "read",
+              "agentic-rag-knowledge-graph",
+              "website",
+              "mcp-kotlin",
+              "android.png",
+              "Screenshot 2025-07-28 at 1.12.26\u202fAM.png",
+              "Screenshot 2025-07-10 at 9.48.00\u202fAM.png",
+              "a_machine_learning_model_for_classification",
+              "GED_Social_Studies_Study_Plan_with_Practice.pdf",
+              "Screenshot 2025-07-25 at 1.01.36\u202fPM.png",
+              "test_code_generation.md",
+              "new_function_that_send_message_in_kotlin",
+              "Abiodun_resume.docx",
+              "test_email_request.md",
+              "Screen Recording 2025-06-25 at 5.12.37\u202fPM.mov",
+              "Screenshot 2025-08-07 at 7.44.15\u202fPM.png",
+              "Abiodun-Ajagunna",
+              "generated_project",
+              "Download PDF Resume",
+              "walmart",
+              "claudcode",
+              "Screenshot 2025-07-11 at 9.25.17\u202fAM.png",
+              "Screenshot 2025-07-13 at 9.09.38\u202fPM.png",
+              "test_email_request",
+              "Screenshot 2025-08-11 at 11.13.17\u202fAM.png",
+              "me_a_kotlin_function_that_add_two_numbers_4_and_10",
+              "test_request",
+              "instruction_file_for_javascript_calculator",
+              "Taehyung Kim__Resume_Production (1).pdf",
+              "resume-client",
+              "multi-tenant ",
+              "simple_notes.txt.md",
+              "save_message",
+              "AvasoLogoRetina1.png",
+              "mobile-multi",
+              "Screenshot 2025-06-30 at 1.45.06\u202fPM.png",
+              "Screenshot 2025-08-01 at 10.03.35\u202fAM.png",
+              "Resume JonathanSantoyo 2025 (3).pdf",
+              "multi-tenant",
+              "Neo4j Desktop 2.app",
+              "Screenshot 2025-07-24 at 10.55.29\u202fPM.png",
+              "me_a_for_loop_that_iterate_over_array_of_123456789",
+              "Android_Data_Flow_Trace_Cheat_Sheet.pdf",
+              "Taehyung Kim__Resume_Production.pdf",
+              "Screenshot 2025-06-24 at 4.03.07\u202fPM.png",
+              "Screenshot 2025-08-01 at 12.53.43\u202fAM.png",
+              "function_in_kotlin_that_send_message_out",
+              "rag-clone",
+              "mcp_devops_flow.png",
+              "Coroutine suspension vs. background work and resumption (timeline).png",
+              "employees.csv",
+              "Screenshot 2025-07-30 at 10.36.07\u202fAM.png",
+              "me_kotlin_code_function_that_add_two_numbers",
+              "instruction_file_for_work",
+              "Screen Recording 2025-06-27 at 4.59.50\u202fPM.mov",
+              "Body-App",
+              "test_request.md",
+              "pen-test",
+              "mcp_server",
+              "data_processor_instructions.md",
+              "Black and White Simple Creative Initial A Logo.png"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get_desktop_path",
+        "description": "Get desktop path",
+        "category": "system",
+        "capabilities": [
+          "file_system_access"
+        ],
+        "test_result": {
+          "status": "success",
+          "response": {
+            "success": true,
+            "tool_name": "get_desktop_path",
+            "result": "/Users/ola/Desktop"
+          }
+        }
+      },
+      {
+        "name": "open_gmail",
+        "description": "Open Gmail in browser",
+        "category": "communication",
+        "capabilities": [
+          "email_sending",
+          "browser_control"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "open_gmail_compose",
+        "description": "Open Gmail compose window",
+        "category": "communication",
+        "capabilities": [
+          "email_sending",
+          "browser_control"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "sendmail",
+        "description": "Send email via sendmail",
+        "category": "communication",
+        "capabilities": [
+          "email_sending"
+        ],
+        "test_result": null
+      },
+      {
+        "name": "sendmail_simple",
+        "description": "Simple email sending",
+        "category": "communication",
+        "capabilities": [
+          "email_sending"
+        ],
+        "test_result": null
+      }
+    ],
+    "calling_capabilities": false,
+    "communication_capabilities": true,
+    "system_capabilities": true
+  },
+  "capabilities": {
+    "calling": {
+      "available": false,
+      "tools": [],
+      "readiness": "needs_implementation"
+    },
+    "communication": {
+      "available": true,
+      "tools": [
+        "open_gmail",
+        "open_gmail_compose",
+        "sendmail",
+        "sendmail_simple"
+      ],
+      "readiness": "ready"
+    },
+    "system": {
+      "available": true,
+      "tools": [
+        "list_desktop_contents",
+        "get_desktop_path"
+      ],
+      "readiness": "ready"
+    },
+    "browser": {
+      "available": false,
+      "tools": [],
+      "readiness": "ready"
+    }
+  },
+  "recommendations": {
+    "calling_implementation": [
+      "Add calling tools to MCP server (e.g., make_call, dial_number)",
+      "Implement voice calling capabilities using Twilio or similar service",
+      "Add call management tools (answer_call, end_call, transfer_call)",
+      "Include call recording and transcription capabilities"
+    ],
+    "enhancements": [
+      "Email capabilities are ready - can integrate with calling",
+      "System tools available - can enhance calling with file operations"
+    ],
+    "integration_notes": [
+      "Server is healthy and responsive",
+      "Found 7 total tools",
+      "HTTP-based MCP server ready for integration"
+    ],
+    "next_steps": [
+      "1. Implement calling tools in MCP server",
+      "2. Test calling functionality",
+      "3. Integrate with existing communication tools",
+      "4. Create calling agent that uses MCP tools"
+    ]
+  },
+  "scan_timestamp": "2025-08-12T10:50:35.045636"
+}

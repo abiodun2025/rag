@@ -104,20 +104,12 @@ class SimpleMCPBridge:
                         "error": f"Failed to open Gmail compose: {e}"
                     }
             
-            elif tool_name in ["sendmail", "sendmail_simple"]:
-                return self._send_email(arguments)
+            elif tool_name == "sendmail":
+                return self._sendmail(arguments)
             
-            # Calling tools
-            elif tool_name in ["call_phone", "make_call", "dial_number"]:
-                return self._make_phone_call(arguments)
+            elif tool_name == "sendmail_simple":
+                return self._sendmail_simple(arguments)
             
-            elif tool_name in ["end_call", "hang_up", "terminate_call"]:
-                return self._end_phone_call(arguments)
-            
-            elif tool_name in ["call_status", "get_call_status", "check_call"]:
-                return self._get_call_status(arguments)
-            
-            # Desktop file operation tools
             elif tool_name == "list_desktop_files":
                 return self._list_desktop_files(arguments)
             
@@ -133,7 +125,6 @@ class SimpleMCPBridge:
             elif tool_name == "batch_ingest_desktop":
                 return self._batch_ingest_desktop(arguments)
             
-            # Code writing agent tools
             elif tool_name == "read_and_generate_code":
                 return self._read_and_generate_code(arguments)
             
@@ -142,6 +133,7 @@ class SimpleMCPBridge:
             
             elif tool_name == "code_writing_agent":
                 return self._code_writing_agent(arguments)
+            
             elif tool_name == "select_language_and_generate":
                 return self._select_language_and_generate(arguments)
             
@@ -150,6 +142,28 @@ class SimpleMCPBridge:
             
             elif tool_name == "read_and_execute_instruction":
                 return self._read_and_execute_instruction(arguments)
+            
+            # NEW SECRETS DETECTION TOOLS
+            elif tool_name == "scan_file_for_secrets":
+                return self._scan_file_for_secrets(arguments)
+            
+            elif tool_name == "scan_directory_for_secrets":
+                return self._scan_directory_for_secrets(arguments)
+            
+            elif tool_name == "detect_api_keys":
+                return self._detect_api_keys(arguments)
+            
+            elif tool_name == "detect_passwords":
+                return self._detect_passwords(arguments)
+            
+            elif tool_name == "detect_tokens":
+                return self._detect_tokens(arguments)
+            
+            elif tool_name == "scan_env_files":
+                return self._scan_env_files(arguments)
+            
+            elif tool_name == "generate_security_report":
+                return self._generate_security_report(arguments)
             
             else:
                 return {
@@ -161,18 +175,92 @@ class SimpleMCPBridge:
             logger.error(f"Error calling tool {tool_name}: {e}")
             return {
                 "success": False,
+                "tool_name": tool_name,
                 "error": str(e)
             }
 
-    def _send_email(self, arguments: dict) -> dict:
+    def _sendmail(self, arguments: dict) -> dict:
         """Send email using your Gmail SMTP configuration with improved error handling."""
+        try:
+            to_email = arguments.get("to_email", "")
+            subject = arguments.get("subject", "")
+            body = arguments.get("body", "")
+            from_email = arguments.get("from_email", "")
+            
+            logger.info(f"📧 SENDING EMAIL via Gmail SMTP:")
+            logger.info(f"   To: {to_email}")
+            logger.info(f"   Subject: {subject}")
+            logger.info(f"   Body length: {len(body)} characters")
+            logger.info(f"   Body preview: {body[:100]}...")
+            
+            if not self.gmail_sender:
+                return {
+                    "success": False,
+                    "error": "Gmail email sender not loaded. Check if count-r-server is properly configured."
+                }
+            
+            # Validate inputs
+            if not to_email:
+                return {
+                    "success": False,
+                    "error": "No recipient email address provided"
+                }
+            
+            if not subject:
+                return {
+                    "success": False,
+                    "error": "No email subject provided"
+                }
+            
+            if not body:
+                return {
+                    "success": False,
+                    "error": "No email body provided"
+                }
+            
+            # Change to the directory where the config file is located
+            original_cwd = os.getcwd()
+            os.chdir("/Users/ola/Desktop/working-mcp-server/count-r-server")
+            
+            try:
+                result = self.gmail_sender.send_email(to_email, subject, body, from_email)
+            finally:
+                # Restore original directory
+                os.chdir(original_cwd)
+            
+            if result.startswith("✅"):
+                logger.info(f"📧 EMAIL SENT SUCCESSFULLY to {to_email}")
+                return {
+                    "success": True,
+                    "tool_name": "sendmail",
+                    "result": result,
+                    "note": "Email sent via your configured Gmail SMTP"
+                }
+            else:
+                logger.error(f"📧 EMAIL FAILED: {result}")
+                return {
+                    "success": False,
+                    "tool_name": "sendmail",
+                    "error": result
+                }
+                
+        except Exception as e:
+            logger.error(f"📧 EMAIL FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "sendmail",
+                "error": f"Failed to send email: {str(e)}"
+            }
+
+    def _sendmail_simple(self, arguments: dict) -> dict:
+        """Simple email sending via Gmail SMTP."""
         try:
             to_email = arguments.get("to_email", "")
             subject = arguments.get("subject", "")
             body = arguments.get("body", "") or arguments.get("message", "")
             from_email = arguments.get("from_email", "")
 
-            logger.info(f"📧 SENDING EMAIL via Gmail SMTP:")
+            logger.info(f"📧 SENDING SIMPLE EMAIL via Gmail SMTP:")
             logger.info(f"   To: {to_email}")
             logger.info(f"   Subject: {subject}")
             logger.info(f"   Body length: {len(body)} characters")
@@ -208,33 +296,33 @@ class SimpleMCPBridge:
             os.chdir("/Users/ola/Desktop/working-mcp-server/count-r-server")
 
             try:
-                result = self.gmail_sender.send_email(to_email, subject, body, from_email)
+                result = self.gmail_sender.send_simple_email(to_email, subject, body, from_email)
             finally:
                 # Restore original directory
                 os.chdir(original_cwd)
 
             if result.startswith("✅"):
-                logger.info(f"📧 EMAIL SENT SUCCESSFULLY to {to_email}")
+                logger.info(f"📧 SIMPLE EMAIL SENT SUCCESSFULLY to {to_email}")
                 return {
                     "success": True,
-                    "tool_name": "sendmail",
+                    "tool_name": "sendmail_simple",
                     "result": result,
-                    "note": "Email sent via your configured Gmail SMTP"
+                    "note": "Simple email sent via your configured Gmail SMTP"
                 }
             else:
-                logger.error(f"📧 EMAIL FAILED: {result}")
+                logger.error(f"📧 SIMPLE EMAIL FAILED: {result}")
                 return {
                     "success": False,
-                    "tool_name": "sendmail",
+                    "tool_name": "sendmail_simple",
                     "error": result
                 }
 
         except Exception as e:
-            logger.error(f"📧 EMAIL FAILED: {e}")
+            logger.error(f"📧 SIMPLE EMAIL FAILED: {e}")
             return {
                 "success": False,
-                "tool_name": "sendmail",
-                "error": f"Failed to send email: {str(e)}"
+                "tool_name": "sendmail_simple",
+                "error": f"Failed to send simple email: {str(e)}"
             }
 
     def _make_phone_call(self, arguments: dict) -> dict:
@@ -242,7 +330,6 @@ class SimpleMCPBridge:
         try:
             phone_number = arguments.get("phone_number") or arguments.get("number")
             caller_name = arguments.get("caller_name") or arguments.get("name", "MCP Agent")
-            service = arguments.get("service", "google_voice")  # Default to Google Voice
             
             if not phone_number:
                 return {
@@ -251,24 +338,22 @@ class SimpleMCPBridge:
                     "error": "No phone number provided"
                 }
             
-            # Generate a call ID
-            call_id = f"call_{int(datetime.now().timestamp())}"
+            logger.info(f"📞 MAKING CALL: {phone_number}")
             
-            logger.info(f"📞 MAKING CALL:")
-            logger.info(f"   To: {phone_number}")
-            logger.info(f"   Caller: {caller_name}")
-            logger.info(f"   Service: {service}")
-            logger.info(f"   Call ID: {call_id}")
-            
-            # Use free calling services
-            if service == "google_voice":
-                return self._make_google_voice_call(phone_number, caller_name, call_id)
-            elif service == "whatsapp":
-                return self._make_whatsapp_call(phone_number, caller_name, call_id)
-            elif service == "twilio":
-                return self._make_twilio_call(phone_number, caller_name, call_id)
-            else:
-                return self._make_google_voice_call(phone_number, caller_name, call_id)  # Default
+            # For now, return instructions for manual calling
+            return {
+                "success": True,
+                "tool_name": "call_phone",
+                "result": f"Call instructions for {phone_number}",
+                "phone_number": phone_number,
+                "caller_name": caller_name,
+                "instructions": [
+                    "1. Use your phone to dial the number",
+                    "2. Or use a free calling service like Google Voice",
+                    "3. Or use WhatsApp/Skype for free calls"
+                ],
+                "note": "Phone calling requires manual action or integration with calling services"
+            }
             
         except Exception as e:
             logger.error(f"📞 CALL FAILED: {e}")
@@ -278,199 +363,12 @@ class SimpleMCPBridge:
                 "error": f"Failed to make call: {str(e)}"
             }
 
-    def _make_google_voice_call(self, phone_number: str, caller_name: str, call_id: str) -> dict:
-        """Make a REAL call using Google Voice."""
-        try:
-            import subprocess
-            import webbrowser
-            import time
-            
-            # Clean up phone number
-            digits = ''.join(filter(str.isdigit, phone_number))
-            if len(digits) == 10:
-                clean_number = f"+1{digits}"
-            elif len(digits) == 11 and digits.startswith('1'):
-                clean_number = f"+{digits}"
-            elif len(digits) >= 10:
-                clean_number = f"+{digits}"
-            else:
-                clean_number = phone_number
-            
-            # Method 1: Try to use system integration (macOS)
-            try:
-                # Use macOS system dialer with Google Voice integration
-                subprocess.run(['open', f'tel:{clean_number}'], check=True)
-                time.sleep(2)  # Wait for dialer to open
-                
-                logger.info(f"📞 REAL call initiated to {clean_number} via system dialer")
-                
-                return {
-                    "success": True,
-                    "tool_name": "call_phone",
-                    "result": f"📞 REAL call initiated to {clean_number} via system dialer",
-                    "call_id": call_id,
-                    "status": "initiated",
-                    "phone_number": clean_number,
-                    "caller_name": caller_name,
-                    "service": "google_voice",
-                    "method": "system_dialer",
-                    "instructions": [
-                        "1. System dialer should be open",
-                        "2. Select Google Voice as calling method",
-                        "3. Press call button",
-                        "4. Talk for FREE! 🎉"
-                    ],
-                    "note": "REAL call via system dialer - select Google Voice when prompted"
-                }
-            except:
-                pass
-            
-            # Method 2: Try to use Google Voice app directly
-            try:
-                # Try to open Google Voice app if installed
-                subprocess.run(['open', '-a', 'Google Voice', f'tel:{clean_number}'], check=True)
-                
-                logger.info(f"📞 REAL call initiated to {clean_number} via Google Voice app")
-                
-                return {
-                    "success": True,
-                    "tool_name": "call_phone",
-                    "result": f"📞 REAL call initiated to {clean_number} via Google Voice app",
-                    "call_id": call_id,
-                    "status": "initiated",
-                    "phone_number": clean_number,
-                    "caller_name": caller_name,
-                    "service": "google_voice",
-                    "method": "google_voice_app",
-                    "instructions": [
-                        "1. Google Voice app should be open",
-                        "2. Number should be pre-filled",
-                        "3. Press call button",
-                        "4. Talk for FREE! 🎉"
-                    ],
-                    "note": "REAL call via Google Voice app"
-                }
-            except:
-                pass
-            
-            # Method 3: Fallback to manual browser with instructions
-            webbrowser.open("https://voice.google.com/calls")
-            
-            logger.info(f"📞 Google Voice opened for REAL call to {clean_number}")
-            
-            return {
-                "success": True,
-                "tool_name": "call_phone",
-                "result": f"📞 Google Voice opened for REAL call to {clean_number}",
-                "call_id": call_id,
-                "status": "initiated",
-                "phone_number": clean_number,
-                "caller_name": caller_name,
-                "service": "google_voice",
-                "method": "manual_browser",
-                "instructions": [
-                    "1. Sign in to Google Voice",
-                    "2. Click 'Calls' tab",
-                    "3. Click phone icon for new call",
-                    "4. Enter number: " + clean_number,
-                    "5. Click 'Call' button",
-                    "6. Talk for FREE! 🎉"
-                ],
-                "note": "REAL call via Google Voice - follow instructions to complete call"
-            }
-            
-        except Exception as e:
-            logger.error(f"📞 Google Voice call failed: {e}")
-            return {
-                "success": False,
-                "tool_name": "call_phone",
-                "error": f"Google Voice call failed: {str(e)}"
-            }
-
-    def _make_whatsapp_call(self, phone_number: str, caller_name: str, call_id: str) -> dict:
-        """Make a call using WhatsApp (FREE)."""
-        try:
-            import webbrowser
-            
-            # Open WhatsApp Web
-            webbrowser.open("https://web.whatsapp.com")
-            
-            logger.info(f"📞 WhatsApp Web opened for call to {phone_number}")
-            
-            return {
-                "success": True,
-                "tool_name": "call_phone",
-                "result": f"WhatsApp Web opened for call to {phone_number}",
-                "call_id": call_id,
-                "status": "initiated",
-                "phone_number": phone_number,
-                "caller_name": caller_name,
-                "service": "whatsapp",
-                "url": "https://web.whatsapp.com",
-                "instructions": f"1. Scan QR code with phone\n2. Add {phone_number} as contact\n3. Click call button\n4. Talk for FREE!",
-                "note": "FREE calling via WhatsApp - browser opened automatically"
-            }
-            
-        except Exception as e:
-            logger.error(f"📞 WhatsApp call failed: {e}")
-            return {
-                "success": False,
-                "tool_name": "call_phone",
-                "error": f"WhatsApp call failed: {str(e)}"
-            }
-
-    def _make_twilio_call(self, phone_number: str, caller_name: str, call_id: str) -> dict:
-        """Make a call using Twilio (if configured)."""
-        try:
-            # Check if Twilio is configured
-            account_sid = os.getenv('TWILIO_ACCOUNT_SID')
-            auth_token = os.getenv('TWILIO_AUTH_TOKEN')
-            from_number = os.getenv('TWILIO_PHONE_NUMBER')
-            
-            if not all([account_sid, auth_token, from_number]):
-                # Fallback to Google Voice if Twilio not configured
-                logger.info("📞 Twilio not configured, falling back to Google Voice")
-                return self._make_google_voice_call(phone_number, caller_name, call_id)
-            
-            from twilio.rest import Client
-            client = Client(account_sid, auth_token)
-            
-            # Make the call
-            call = client.calls.create(
-                to=phone_number,
-                from_=from_number,
-                twiml=f'<Response><Say>Hello! This is a call from {caller_name} via your MCP agent.</Say></Response>'
-            )
-            
-            logger.info(f"📞 Twilio call initiated: {call.sid}")
-            
-            return {
-                "success": True,
-                "tool_name": "call_phone",
-                "result": f"Twilio call initiated to {phone_number}",
-                "call_id": f"twilio_{call.sid}",
-                "twilio_sid": call.sid,
-                "status": call.status,
-                "phone_number": phone_number,
-                "caller_name": caller_name,
-                "service": "twilio",
-                "from_number": from_number,
-                "note": "Real call via Twilio"
-            }
-            
-        except Exception as e:
-            logger.error(f"📞 Twilio call failed: {e}")
-            # Fallback to Google Voice
-            logger.info("📞 Falling back to Google Voice")
-            return self._make_google_voice_call(phone_number, caller_name, call_id)
-
     def _end_phone_call(self, arguments: dict) -> dict:
         """End a phone call."""
         try:
             call_id = arguments.get("call_id", "unknown")
             
-            logger.info(f"📞 ENDING CALL:")
-            logger.info(f"   Call ID: {call_id}")
+            logger.info(f"📞 ENDING CALL: {call_id}")
             
             return {
                 "success": True,
@@ -494,18 +392,15 @@ class SimpleMCPBridge:
         try:
             call_id = arguments.get("call_id", "unknown")
             
-            logger.info(f"📞 CHECKING CALL STATUS:")
-            logger.info(f"   Call ID: {call_id}")
+            logger.info(f"📞 CHECKING CALL STATUS: {call_id}")
             
-            # Simulate call status (in real implementation, this would check actual call status)
             return {
                 "success": True,
                 "tool_name": "call_status",
-                "result": f"Call {call_id} is active",
+                "result": f"Call {call_id} status checked",
                 "call_id": call_id,
-                "status": "active",
-                "duration": "00:02:30",  # Simulated duration
-                "note": "This is simulated call status for testing"
+                "status": "unknown",
+                "note": "Call status checking requires integration with calling services"
             }
             
         except Exception as e:
@@ -3492,9 +3387,532 @@ Constraints:
                 {"name": "code_writing_agent", "description": "Main code writing agent that orchestrates code generation"},
                 {"name": "select_language_and_generate", "description": "Interactive language selection and code generation with editor opening"},
                 {"name": "create_instruction_file", "description": "Create instruction files on desktop for other agents to read and execute"},
-                {"name": "read_and_execute_instruction", "description": "Read instruction files from desktop and execute the described actions"}
+                {"name": "read_and_execute_instruction", "description": "Read instruction files from desktop and execute the described actions"},
+                # NEW SECRETS DETECTION TOOLS
+                {"name": "scan_file_for_secrets", "description": "Scan a specific file for secrets, API keys, passwords, and tokens"},
+                {"name": "scan_directory_for_secrets", "description": "Scan a directory for files that might contain secrets"},
+                {"name": "detect_api_keys", "description": "Detect API keys in content using specific patterns"},
+                {"name": "detect_passwords", "description": "Detect passwords in content using specific patterns"},
+                {"name": "detect_tokens", "description": "Detect tokens in content using specific patterns"},
+                {"name": "scan_env_files", "description": "Scan environment files (.env, .env.local, etc.) for secrets"},
+                {"name": "generate_security_report", "description": "Generate a comprehensive security report for scanned files"}
             ]
         }
+
+    # NEW SECRETS DETECTION TOOLS
+    def _scan_file_for_secrets(self, arguments: dict) -> dict:
+        """Scan a specific file for secrets, API keys, passwords, and tokens."""
+        try:
+            file_path = arguments.get("file_path", "")
+            file_name = arguments.get("file_name", "")
+            
+            if not file_path and not file_name:
+                return {
+                    "success": False,
+                    "tool_name": "scan_file_for_secrets",
+                    "error": "No file path or name provided"
+                }
+            
+            # If only file name provided, construct full path
+            if not file_path:
+                desktop_path = os.path.expanduser("~/Desktop")
+                file_path = os.path.join(desktop_path, file_name)
+            
+            # Validate file exists
+            if not os.path.exists(file_path):
+                return {
+                    "success": False,
+                    "tool_name": "scan_file_for_secrets",
+                    "error": f"File not found: {file_path}"
+                }
+            
+            logger.info(f"🔍 SCANNING FILE FOR SECRETS: {os.path.basename(file_path)}")
+            
+            # Read file content
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Scan for secrets using regex patterns
+            secrets_found = self._detect_secrets_in_content(content)
+            
+            return {
+                "success": True,
+                "tool_name": "scan_file_for_secrets",
+                "file_path": file_path,
+                "file_name": os.path.basename(file_path),
+                "file_size": len(content),
+                "secrets_found": secrets_found,
+                "total_secrets": len(secrets_found),
+                "scan_summary": f"Found {len(secrets_found)} potential secrets in {os.path.basename(file_path)}"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ SCAN FILE FOR SECRETS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "scan_file_for_secrets",
+                "error": f"Failed to scan file for secrets: {str(e)}"
+            }
+
+    def _scan_directory_for_secrets(self, arguments: dict) -> dict:
+        """Scan a directory for files that might contain secrets."""
+        try:
+            directory_path = arguments.get("directory_path", "")
+            file_patterns = arguments.get("file_patterns", [".env", "config", "credentials", "secrets"])
+            recursive = arguments.get("recursive", True)
+            
+            if not directory_path:
+                directory_path = os.path.expanduser("~/Desktop")
+            
+            if not os.path.exists(directory_path):
+                return {
+                    "success": False,
+                    "tool_name": "scan_directory_for_secrets",
+                    "error": f"Directory not found: {directory_path}"
+                }
+            
+            logger.info(f"🔍 SCANNING DIRECTORY FOR SECRETS: {directory_path}")
+            
+            # Find files matching patterns
+            files_to_scan = []
+            for root, dirs, files in os.walk(directory_path):
+                if not recursive and root != directory_path:
+                    continue
+                    
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    # Check if file matches any of the patterns
+                    for pattern in file_patterns:
+                        if pattern.lower() in file.lower():
+                            files_to_scan.append(file_path)
+                            break
+            
+            # Scan each file for secrets
+            scan_results = []
+            total_secrets = 0
+            
+            for file_path in files_to_scan[:10]:  # Limit to first 10 files
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                    
+                    secrets_found = self._detect_secrets_in_content(content)
+                    if secrets_found:
+                        scan_results.append({
+                            "file_path": file_path,
+                            "file_name": os.path.basename(file_path),
+                            "secrets_found": secrets_found,
+                            "secret_count": len(secrets_found)
+                        })
+                        total_secrets += len(secrets_found)
+                except Exception as e:
+                    logger.warning(f"⚠️  Could not scan file {file_path}: {e}")
+            
+            return {
+                "success": True,
+                "tool_name": "scan_directory_for_secrets",
+                "directory_path": directory_path,
+                "files_scanned": len(files_to_scan),
+                "files_with_secrets": len(scan_results),
+                "total_secrets_found": total_secrets,
+                "scan_results": scan_results,
+                "scan_summary": f"Scanned {len(files_to_scan)} files, found secrets in {len(scan_results)} files"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ SCAN DIRECTORY FOR SECRETS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "scan_directory_for_secrets",
+                "error": f"Failed to scan directory for secrets: {str(e)}"
+            }
+
+    def _detect_api_keys(self, arguments: dict) -> dict:
+        """Detect API keys in content using specific patterns."""
+        try:
+            content = arguments.get("content", "")
+            file_path = arguments.get("file_path", "")
+            
+            if not content and not file_path:
+                return {
+                    "success": False,
+                    "tool_name": "detect_api_keys",
+                    "error": "No content or file path provided"
+                }
+            
+            # If file path provided, read content
+            if file_path and not content:
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "tool_name": "detect_api_keys",
+                        "error": f"Could not read file: {str(e)}"
+                    }
+            
+            # API key patterns
+            api_key_patterns = [
+                r'api[_-]?key["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'api[_-]?token["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'access[_-]?key["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'secret[_-]?key["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'private[_-]?key["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'["\']([a-zA-Z0-9]{32,})["\']',  # Generic long alphanumeric strings
+            ]
+            
+            api_keys_found = []
+            import re
+            
+            for pattern in api_key_patterns:
+                matches = re.finditer(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    api_keys_found.append({
+                        "pattern": pattern,
+                        "value": match.group(1) if len(match.groups()) > 0 else match.group(0),
+                        "line_number": content[:match.start()].count('\n') + 1,
+                        "context": content[max(0, match.start()-20):match.end()+20]
+                    })
+            
+            return {
+                "success": True,
+                "tool_name": "detect_api_keys",
+                "api_keys_found": api_keys_found,
+                "total_api_keys": len(api_keys_found),
+                "scan_summary": f"Found {len(api_keys_found)} potential API keys"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ DETECT API KEYS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "detect_api_keys",
+                "error": f"Failed to detect API keys: {str(e)}"
+            }
+
+    def _detect_passwords(self, arguments: dict) -> dict:
+        """Detect passwords in content using specific patterns."""
+        try:
+            content = arguments.get("content", "")
+            file_path = arguments.get("file_path", "")
+            
+            if not content and not file_path:
+                return {
+                    "success": False,
+                    "tool_name": "detect_passwords",
+                    "error": "No content or file path provided"
+                }
+            
+            # If file path provided, read content
+            if file_path and not content:
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "tool_name": "detect_passwords",
+                        "error": f"Could not read file: {str(e)}"
+                    }
+            
+            # Password patterns
+            password_patterns = [
+                r'password["\s]*[:=]\s*["\']?([^\s"\']{6,})["\']?',
+                r'passwd["\s]*[:=]\s*["\']?([^\s"\']{6,})["\']?',
+                r'pwd["\s]*[:=]\s*["\']?([^\s"\']{6,})["\']?',
+                r'secret["\s]*[:=]\s*["\']?([^\s"\']{6,})["\']?',
+                r'pass["\s]*[:=]\s*["\']?([^\s"\']{6,})["\']?',
+            ]
+            
+            passwords_found = []
+            import re
+            
+            for pattern in password_patterns:
+                matches = re.finditer(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    passwords_found.append({
+                        "pattern": pattern,
+                        "value": match.group(1) if len(match.groups()) > 0 else match.group(0),
+                        "line_number": content[:match.start()].count('\n') + 1,
+                        "context": content[max(0, match.start()-20):match.end()+20]
+                    })
+            
+            return {
+                "success": True,
+                "tool_name": "detect_passwords",
+                "passwords_found": passwords_found,
+                "total_passwords": len(passwords_found),
+                "scan_summary": f"Found {len(passwords_found)} potential passwords"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ DETECT PASSWORDS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "detect_passwords",
+                "error": f"Failed to detect passwords: {str(e)}"
+            }
+
+    def _detect_tokens(self, arguments: dict) -> dict:
+        """Detect tokens in content using specific patterns."""
+        try:
+            content = arguments.get("content", "")
+            file_path = arguments.get("file_path", "")
+            
+            if not content and not file_path:
+                return {
+                    "success": False,
+                    "tool_name": "detect_tokens",
+                    "error": "No content or file path provided"
+                }
+            
+            # If file path provided, read content
+            if file_path and not content:
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                except Exception as e:
+                    return {
+                        "success": False,
+                        "tool_name": "detect_tokens",
+                        "error": f"Could not read file: {str(e)}"
+                    }
+            
+            # Token patterns
+            token_patterns = [
+                r'token["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'jwt["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'bearer["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'oauth["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'access[_-]?token["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+                r'refresh[_-]?token["\s]*[:=]\s*["\']?([a-zA-Z0-9]{20,})["\']?',
+            ]
+            
+            tokens_found = []
+            import re
+            
+            for pattern in token_patterns:
+                matches = re.finditer(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    tokens_found.append({
+                        "pattern": pattern,
+                        "value": match.group(1) if len(match.groups()) > 0 else match.group(0),
+                        "line_number": content[:match.start()].count('\n') + 1,
+                        "context": content[max(0, match.start()-20):match.end()+20]
+                    })
+            
+            return {
+                "success": True,
+                "tool_name": "detect_tokens",
+                "tokens_found": tokens_found,
+                "total_tokens": len(tokens_found),
+                "scan_summary": f"Found {len(tokens_found)} potential tokens"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ DETECT TOKENS FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "detect_tokens",
+                "error": f"Failed to detect tokens: {str(e)}"
+            }
+
+    def _scan_env_files(self, arguments: dict) -> dict:
+        """Scan environment files (.env, .env.local, etc.) for secrets."""
+        try:
+            directory_path = arguments.get("directory_path", "")
+            if not directory_path:
+                directory_path = os.path.expanduser("~/Desktop")
+            
+            logger.info(f"🔍 SCANNING ENV FILES: {directory_path}")
+            
+            # Common env file patterns
+            env_file_patterns = [
+                ".env", ".env.local", ".env.production", ".env.development",
+                ".env.test", ".env.staging", "config.env", "secrets.env"
+            ]
+            
+            env_files_found = []
+            total_secrets = 0
+            
+            for root, dirs, files in os.walk(directory_path):
+                for file in files:
+                    if any(pattern in file.lower() for pattern in env_file_patterns):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                            
+                            secrets_found = self._detect_secrets_in_content(content)
+                            if secrets_found:
+                                env_files_found.append({
+                                    "file_path": file_path,
+                                    "file_name": os.path.basename(file_path),
+                                    "secrets_found": secrets_found,
+                                    "secret_count": len(secrets_found)
+                                })
+                                total_secrets += len(secrets_found)
+                        except Exception as e:
+                            logger.warning(f"⚠️  Could not scan env file {file_path}: {e}")
+            
+            return {
+                "success": True,
+                "tool_name": "scan_env_files",
+                "directory_path": directory_path,
+                "env_files_found": env_files_found,
+                "total_env_files": len(env_files_found),
+                "total_secrets_found": total_secrets,
+                "scan_summary": f"Found {len(env_files_found)} env files with {total_secrets} secrets"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ SCAN ENV FILES FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "scan_env_files",
+                "error": f"Failed to scan env files: {str(e)}"
+            }
+
+    def _generate_security_report(self, arguments: dict) -> dict:
+        """Generate a comprehensive security report for scanned files."""
+        try:
+            directory_path = arguments.get("directory_path", "")
+            if not directory_path:
+                directory_path = os.path.expanduser("~/Desktop")
+            
+            logger.info(f"📊 GENERATING SECURITY REPORT: {directory_path}")
+            
+            # Run comprehensive scan
+            directory_scan = self._scan_directory_for_secrets({
+                "directory_path": directory_path,
+                "recursive": True
+            })
+            
+            env_scan = self._scan_env_files({
+                "directory_path": directory_path
+            })
+            
+            # Generate report
+            report = {
+                "scan_timestamp": datetime.now().isoformat(),
+                "directory_scanned": directory_path,
+                "overall_summary": {
+                    "total_files_scanned": directory_scan.get("files_scanned", 0),
+                    "files_with_secrets": directory_scan.get("files_with_secrets", 0),
+                    "total_secrets_found": directory_scan.get("total_secrets_found", 0),
+                    "env_files_with_secrets": env_scan.get("total_env_files", 0)
+                },
+                "risk_assessment": self._assess_security_risk(directory_scan, env_scan),
+                "recommendations": self._generate_security_recommendations(directory_scan, env_scan),
+                "detailed_findings": {
+                    "directory_scan": directory_scan,
+                    "env_scan": env_scan
+                }
+            }
+            
+            return {
+                "success": True,
+                "tool_name": "generate_security_report",
+                "report": report,
+                "message": f"Security report generated for {directory_path}"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ GENERATE SECURITY REPORT FAILED: {e}")
+            return {
+                "success": False,
+                "tool_name": "generate_security_report",
+                "error": f"Failed to generate security report: {str(e)}"
+            }
+
+    def _detect_secrets_in_content(self, content: str) -> list:
+        """Detect secrets in content using multiple detection methods."""
+        secrets_found = []
+        
+        # Detect API keys
+        api_keys = self._detect_api_keys({"content": content})
+        if api_keys.get("success"):
+            secrets_found.extend(api_keys.get("api_keys_found", []))
+        
+        # Detect passwords
+        passwords = self._detect_passwords({"content": content})
+        if passwords.get("success"):
+            secrets_found.extend(passwords.get("passwords_found", []))
+        
+        # Detect tokens
+        tokens = self._detect_tokens({"content": content})
+        if tokens.get("success"):
+            secrets_found.extend(tokens.get("tokens_found", []))
+        
+        return secrets_found
+
+    def _assess_security_risk(self, directory_scan: dict, env_scan: dict) -> dict:
+        """Assess the overall security risk based on scan results."""
+        total_secrets = directory_scan.get("total_secrets_found", 0)
+        env_files_with_secrets = env_scan.get("total_env_files", 0)
+        
+        risk_level = "LOW"
+        risk_score = 0
+        
+        if total_secrets > 0:
+            risk_score += total_secrets * 10
+            if total_secrets > 5:
+                risk_level = "HIGH"
+            elif total_secrets > 2:
+                risk_level = "MEDIUM"
+        
+        if env_files_with_secrets > 0:
+            risk_score += env_files_with_secrets * 20
+            if env_files_with_secrets > 2:
+                risk_level = "HIGH"
+            elif env_files_with_secrets > 0:
+                risk_level = "MEDIUM"
+        
+        return {
+            "risk_level": risk_level,
+            "risk_score": risk_score,
+            "factors": {
+                "total_secrets": total_secrets,
+                "env_files_with_secrets": env_files_with_secrets
+            }
+        }
+
+    def _generate_security_recommendations(self, directory_scan: dict, env_scan: dict) -> list:
+        """Generate security recommendations based on scan results."""
+        recommendations = []
+        
+        total_secrets = directory_scan.get("total_secrets_found", 0)
+        env_files_with_secrets = env_scan.get("total_env_files", 0)
+        
+        if total_secrets > 0:
+            recommendations.append({
+                "priority": "HIGH",
+                "recommendation": f"Remove or secure {total_secrets} exposed secrets found in files",
+                "action": "Review all files with secrets and implement proper secret management"
+            })
+        
+        if env_files_with_secrets > 0:
+            recommendations.append({
+                "priority": "HIGH",
+                "recommendation": f"Secure {env_files_with_secrets} environment files containing secrets",
+                "action": "Use environment variables or secure secret management systems"
+            })
+        
+        if total_secrets == 0 and env_files_with_secrets == 0:
+            recommendations.append({
+                "priority": "LOW",
+                "recommendation": "No secrets detected - good security practices",
+                "action": "Continue monitoring and maintain current security practices"
+            })
+        
+        recommendations.append({
+            "priority": "MEDIUM",
+            "recommendation": "Implement regular security scanning",
+            "action": "Set up automated security scanning in CI/CD pipeline"
+        })
+        
+        return recommendations
 
 # Create bridge instance
 bridge = SimpleMCPBridge()
