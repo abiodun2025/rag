@@ -23,6 +23,7 @@ class IntentType(Enum):
     MCP_TOOLS = "mcp_tools"
     CALL = "call"
     GITHUB_COVERAGE = "github_coverage"
+    SECRETS_DETECTION = "secrets_detection"
     GENERAL = "general"
 
 @dataclass
@@ -273,6 +274,205 @@ class SmartMasterAgent:
                 r"@.*\.ls",
                 r"@.*\.sz",
                 r"@.*\.mz",
+                r"@.*\.mg",
+                r"@.*\.mu",
+                r"@.*\.sc",
+                r"@.*\.km",
+                r"@.*\.yt",
+                r"@.*\.re",
+                r"@.*\.dj",
+                r"@.*\.so",
+                r"@.*\.et",
+                r"@.*\.er",
+                r"@.*\.sd",
+                r"@.*\.ss",
+                r"@.*\.ke",
+                r"@.*\.ug",
+                r"@.*\.rw",
+                r"@.*\.bi",
+                r"@.*\.tz"
+            ],
+            IntentType.SAVE_PROJECT: [
+                r"save.*project",
+                r"remember.*project",
+                r"store.*project", 
+                r"note.*project",
+                r"project.*save",
+                r"project.*remember"
+            ],
+            IntentType.EMAIL: [
+                r"email.*to",
+                r"send.*email",
+                r"compose.*email",
+                r"mail.*to",
+                r"write.*email",
+                r"send.*mail",
+                r"send.*to",
+                r"@.*\.com",
+                r"@.*\.org",
+                r"@.*\.net",
+                r"@.*\.edu",
+                r"@.*\.gov",
+                r"@.*\.io",
+                r"@.*\.ai",
+                r"@.*\.co",
+                r"@.*\.uk",
+                r"@.*\.de",
+                r"@.*\.fr",
+                r"@.*\.jp",
+                r"@.*\.cn",
+                r"@.*\.in",
+                r"@.*\.br",
+                r"@.*\.ru",
+                r"@.*\.au",
+                r"@.*\.ca",
+                r"@.*\.mx",
+                r"@.*\.es",
+                r"@.*\.it",
+                r"@.*\.nl",
+                r"@.*\.se",
+                r"@.*\.no",
+                r"@.*\.dk",
+                r"@.*\.fi",
+                r"@.*\.pl",
+                r"@.*\.cz",
+                r"@.*\.hu",
+                r"@.*\.ro",
+                r"@.*\.bg",
+                r"@.*\.hr",
+                r"@.*\.si",
+                r"@.*\.sk",
+                r"@.*\.ee",
+                r"@.*\.lv",
+                r"@.*\.lt",
+                r"@.*\.mt",
+                r"@.*\.cy",
+                r"@.*\.gr",
+                r"@.*\.pt",
+                r"@.*\.ie",
+                r"@.*\.be",
+                r"@.*\.at",
+                r"@.*\.ch",
+                r"@.*\.li",
+                r"@.*\.lu",
+                r"@.*\.mc",
+                r"@.*\.ad",
+                r"@.*\.sm",
+                r"@.*\.va",
+                r"@.*\.mt",
+                r"@.*\.me",
+                r"@.*\.rs",
+                r"@.*\.ba",
+                r"@.*\.mk",
+                r"@.*\.al",
+                r"@.*\.xk",
+                r"@.*\.tr",
+                r"@.*\.ge",
+                r"@.*\.am",
+                r"@.*\.az",
+                r"@.*\.by",
+                r"@.*\.md",
+                r"@.*\.ua",
+                r"@.*\.kz",
+                r"@.*\.uz",
+                r"@.*\.kg",
+                r"@.*\.tj",
+                r"@.*\.tm",
+                r"@.*\.af",
+                r"@.*\.pk",
+                r"@.*\.bd",
+                r"@.*\.lk",
+                r"@.*\.np",
+                r"@.*\.bt",
+                r"@.*\.mm",
+                r"@.*\.kh",
+                r"@.*\.la",
+                r"@.*\.vn",
+                r"@.*\.th",
+                r"@.*\.my",
+                r"@.*\.sg",
+                r"@.*\.id",
+                r"@.*\.ph",
+                r"@.*\.tw",
+                r"@.*\.hk",
+                r"@.*\.mo",
+                r"@.*\.kr",
+                r"@.*\.jp",
+                r"@.*\.cn",
+                r"@.*\.mn",
+                r"@.*\.nz",
+                r"@.*\.fj",
+                r"@.*\.pg",
+                r"@.*\.sb",
+                r"@.*\.vu",
+                r"@.*\.nc",
+                r"@.*\.pf",
+                r"@.*\.wf",
+                r"@.*\.to",
+                r"@.*\.ws",
+                r"@.*\.ki",
+                r"@.*\.tv",
+                r"@.*\.nr",
+                r"@.*\.pw",
+                r"@.*\.fm",
+                r"@.*\.mh",
+                r"@.*\.ck",
+                r"@.*\.nu",
+                r"@.*\.tk",
+                r"@.*\.as",
+                r"@.*\.gu",
+                r"@.*\.mp",
+                r"@.*\.vi",
+                r"@.*\.pr",
+                r"@.*\.do",
+                r"@.*\.ht",
+                r"@.*\.jm",
+                r"@.*\.bb",
+                r"@.*\.tt",
+                r"@.*\.gd",
+                r"@.*\.lc",
+                r"@.*\.vc",
+                r"@.*\.ag",
+                r"@.*\.dm",
+                r"@.*\.kn",
+                r"@.*\.ai",
+                r"@.*\.ms",
+                r"@.*\.tc",
+                r"@.*\.vg",
+                r"@.*\.ky",
+                r"@.*\.bm",
+                r"@.*\.fk",
+                r"@.*\.gs",
+                r"@.*\.io",
+                r"@.*\.sh",
+                r"@.*\.ac",
+                r"@.*\.ta",
+                r"@.*\.st",
+                r"@.*\.cv",
+                r"@.*\.gw",
+                r"@.*\.gn",
+                r"@.*\.sl",
+                r"@.*\.lr",
+                r"@.*\.ci",
+                r"@.*\.gh",
+                r"@.*\.tg",
+                r"@.*\.bj",
+                r"@.*\.ng",
+                r"@.*\.cm",
+                r"@.*\.gq",
+                r"@.*\.ga",
+                r"@.*\.cg",
+                r"@.*\.cd",
+                r"@.*\.ao",
+                r"@.*\.zm",
+                r"@.*\.zw",
+                r"@.*\.mw",
+                r"@.*\.mz",
+                r"@.*\.sz",
+                r"@.*\.ls",
+                r"@.*\.bw",
+                r"@.*\.na",
+                r"@.*\.za",
                 r"@.*\.mg",
                 r"@.*\.mu",
                 r"@.*\.sc",
@@ -542,6 +742,147 @@ class SmartMasterAgent:
                 r"playoff",
                 r"mvp",
                 r"most.*valuable.*player"
+            ],
+            IntentType.SECRETS_DETECTION: [
+                r"secrets.*detection",
+                r"find.*secrets",
+                r"detect.*secrets",
+                r"check.*for.*secrets",
+                r"scan.*for.*secrets",
+                r"look.*for.*secrets",
+                r"analyze.*for.*secrets",
+                r"identify.*secrets",
+                r"reveal.*secrets",
+                r"expose.*secrets",
+                r"leak.*secrets",
+                r"^scan\s+[a-zA-Z0-9_\-\.\/]+$",  # scan <filename> (exact match)
+                r"^scan\s+[a-zA-Z0-9_\-\.\/]+\s+file$",  # scan <name> file (exact match)
+                r"^scan\s+[a-zA-Z0-9_\-\.\/]+\s+folder$",  # scan <name> folder (exact match)
+                r"^scan\s+[a-zA-Z0-9_\-\.\/]+\s+directory$",  # scan <name> directory (exact match)
+                r"^scan\s+the\s+[a-zA-Z0-9_\-\.\/]+$",  # scan the <location> (exact match)
+                r"^scan\s+current\s+[a-zA-Z0-9_\-\.\/]+$",  # scan current <location> (exact match)
+                r"^email\s+report\s+to\s+[\w\.-]+@[\w\.-]+\.\w+$",  # email report to user@example.com
+                r"^send\s+report\s+to\s+[\w\.-]+@[\w\.-]+\.\w+$",  # send report to user@example.com
+                r"^email\s+security\s+report\s+to\s+[\w\.-]+@[\w\.-]+\.\w+$",  # email security report to user@example.com
+                r"scan.*email",  # scan with email report
+                r"scan.*report.*email",  # scan and email report
+                r"reveal.*sensitive.*data",
+                r"expose.*sensitive.*data",
+                r"leak.*sensitive.*data",
+                r"detect.*sensitive.*data",
+                r"check.*sensitive.*data",
+                r"scan.*sensitive.*data",
+                r"look.*sensitive.*data",
+                r"analyze.*sensitive.*data",
+                r"identify.*sensitive.*data",
+                r"reveal.*private.*data",
+                r"expose.*private.*data",
+                r"leak.*private.*data",
+                r"detect.*private.*data",
+                r"check.*private.*data",
+                r"scan.*private.*data",
+                r"look.*private.*data",
+                r"analyze.*private.*data",
+                r"identify.*private.*data",
+                r"reveal.*credentials",
+                r"expose.*credentials",
+                r"leak.*credentials",
+                r"detect.*credentials",
+                r"check.*credentials",
+                r"scan.*credentials",
+                r"look.*credentials",
+                r"analyze.*credentials",
+                r"identify.*credentials",
+                r"reveal.*api.*keys",
+                r"expose.*api.*keys",
+                r"leak.*api.*keys",
+                r"detect.*api.*keys",
+                r"check.*api.*keys",
+                r"scan.*api.*keys",
+                r"look.*api.*keys",
+                r"analyze.*api.*keys",
+                r"identify.*api.*keys",
+                r"reveal.*passwords",
+                r"expose.*passwords",
+                r"leak.*passwords",
+                r"detect.*passwords",
+                r"check.*passwords",
+                r"scan.*passwords",
+                r"look.*passwords",
+                r"analyze.*passwords",
+                r"identify.*passwords",
+                r"reveal.*tokens",
+                r"expose.*tokens",
+                r"leak.*tokens",
+                r"detect.*tokens",
+                r"check.*tokens",
+                r"scan.*tokens",
+                r"look.*tokens",
+                r"analyze.*tokens",
+                r"identify.*tokens",
+                r"reveal.*secrets.*in.*file",
+                r"expose.*secrets.*in.*file",
+                r"leak.*secrets.*in.*file",
+                r"detect.*secrets.*in.*file",
+                r"check.*secrets.*in.*file",
+                r"scan.*secrets.*in.*file",
+                r"look.*secrets.*in.*file",
+                r"analyze.*secrets.*in.*file",
+                r"identify.*secrets.*in.*file",
+                r"reveal.*sensitive.*data.*in.*file",
+                r"expose.*sensitive.*data.*in.*file",
+                r"leak.*sensitive.*data.*in.*file",
+                r"detect.*sensitive.*data.*in.*file",
+                r"check.*sensitive.*data.*in.*file",
+                r"scan.*sensitive.*data.*in.*file",
+                r"look.*sensitive.*data.*in.*file",
+                r"analyze.*sensitive.*data.*in.*file",
+                r"identify.*sensitive.*data.*in.*file",
+                r"reveal.*private.*data.*in.*file",
+                r"expose.*private.*data.*in.*file",
+                r"leak.*private.*data.*in.*file",
+                r"detect.*private.*data.*in.*file",
+                r"check.*private.*data.*in.*file",
+                r"scan.*private.*data.*in.*file",
+                r"look.*private.*data.*in.*file",
+                r"analyze.*private.*data.*in.*file",
+                r"identify.*private.*data.*in.*file",
+                r"reveal.*credentials.*in.*file",
+                r"expose.*credentials.*in.*file",
+                r"leak.*credentials.*in.*file",
+                r"detect.*credentials.*in.*file",
+                r"check.*credentials.*in.*file",
+                r"scan.*credentials.*in.*file",
+                r"look.*credentials.*in.*file",
+                r"analyze.*credentials.*in.*file",
+                r"identify.*credentials.*in.*file",
+                r"reveal.*api.*keys.*in.*file",
+                r"expose.*api.*keys.*in.*file",
+                r"leak.*api.*keys.*in.*file",
+                r"detect.*api.*keys.*in.*file",
+                r"check.*api.*keys.*in.*file",
+                r"scan.*api.*keys.*in.*file",
+                r"look.*api.*keys.*in.*file",
+                r"analyze.*api.*keys.*in.*file",
+                r"identify.*api.*keys.*in.*file",
+                r"reveal.*passwords.*in.*file",
+                r"expose.*passwords.*in.*file",
+                r"leak.*passwords.*in.*file",
+                r"detect.*passwords.*in.*file",
+                r"check.*passwords.*in.*file",
+                r"scan.*passwords.*in.*file",
+                r"look.*passwords.*in.*file",
+                r"analyze.*passwords.*in.*file",
+                r"identify.*passwords.*in.*file",
+                r"reveal.*tokens.*in.*file",
+                r"expose.*tokens.*in.*file",
+                r"leak.*tokens.*in.*file",
+                r"detect.*tokens.*in.*file",
+                r"check.*tokens.*in.*file",
+                r"scan.*tokens.*in.*file",
+                r"look.*tokens.*in.*file",
+                r"analyze.*tokens.*in.*file",
+                r"identify.*tokens.*in.*file"
             ]
         }
         
@@ -592,7 +933,6 @@ class SmartMasterAgent:
         
         if intent == IntentType.EMAIL:
             # Extract email address
-            import re
             email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
             email_match = re.search(email_pattern, message)
             to_email = email_match.group(0) if email_match else None
@@ -706,7 +1046,6 @@ class SmartMasterAgent:
             
         elif intent == IntentType.MCP_TOOLS:
             # Extract code writing specific data
-            import re
             
             # Check for code writing patterns
             code_patterns = {
@@ -749,7 +1088,6 @@ class SmartMasterAgent:
             
         elif intent == IntentType.CALL:
             # Extract phone number from message
-            import re
             
             # Phone number patterns
             phone_patterns = [
@@ -792,7 +1130,6 @@ class SmartMasterAgent:
             
         elif intent == IntentType.GITHUB_COVERAGE:
             # Extract GitHub coverage analysis parameters
-            import re
             
             # Extract PR number if mentioned
             pr_match = re.search(r'pr\s*#?(\d+)', message_lower)
@@ -836,6 +1173,84 @@ class SmartMasterAgent:
                 "message": message
             }
             
+        elif intent == IntentType.SECRETS_DETECTION:
+            # Extract file path, directory path, or target for secrets detection
+            file_path = None
+            dir_path = None
+            target = None
+            
+            # Check for email report commands first
+            if 'email' in message_lower and 'report' in message_lower:
+                # This is an email report request
+                return {
+                    "email_report_request": True,
+                    "message": message
+                }
+            
+            # Check for simple scan commands first
+            if message_lower.startswith('scan '):
+                # Extract the target after "scan"
+                scan_target = message[5:].strip()  # Remove "scan " prefix
+                
+                # Check if it's a file scan
+                if 'file' in scan_target.lower():
+                    # Extract filename before "file"
+                    file_match = re.search(r'^(.+?)\s+file', scan_target.lower())
+                    if file_match:
+                        file_path = file_match.group(1).strip()
+                        if file_path.startswith('.'):
+                            file_path = file_path  # Keep as is for .env, .config, etc.
+                        else:
+                            file_path = f"./{file_path}"  # Add ./ prefix for relative paths
+                elif 'folder' in scan_target.lower() or 'directory' in scan_target.lower():
+                    # Extract directory name
+                    dir_match = re.search(r'^(.+?)\s+(?:folder|directory)', scan_target.lower())
+                    if dir_match:
+                        dir_path = dir_match.group(1).strip()
+                        if dir_path == 'current':
+                            dir_path = "."
+                        elif dir_path.startswith('.'):
+                            dir_path = dir_path
+                        else:
+                            dir_path = f"./{dir_path}"
+                elif scan_target.lower().startswith('for '):
+                    # This is a comprehensive scan (e.g., "scan for secrets", "scan for sensitive data")
+                    target = "."  # Scan current directory
+                elif len(scan_target.split()) == 1 and not scan_target.startswith('.'):
+                    # Single word scan (e.g., "scan secrete", "scan secrets") - treat as comprehensive scan
+                    target = "."  # Scan current directory
+                else:
+                    # Simple scan with target
+                    target = scan_target
+                    if target.startswith('.'):
+                        target = target
+                    else:
+                        target = f"./{target}"
+            
+            # Fallback to original patterns
+            if not file_path and not dir_path and not target:
+                file_match = re.search(r'file\s+(.+)', message_lower)
+                if file_match:
+                    file_path = file_match.group(1).strip()
+                
+                dir_match = re.search(r'(?:directory|folder)\s+(.+)', message_lower)
+                if dir_match:
+                    dir_path = dir_match.group(1).strip()
+            
+            # Extract language for secrets detection
+            language = "python" # Default
+            lang_match = re.search(r'(python|javascript|java|kotlin|typescript|go|rust|csharp|php|ruby|swift|js|py|kt|ts|cs)', message_lower)
+            if lang_match:
+                language = lang_match.group(1)
+            
+            return {
+                "file_path": file_path,
+                "dir_path": dir_path,
+                "target": target,
+                "language": language,
+                "message": message
+            }
+            
         else:  # IntentType.GENERAL
             return {
                 "message": message,
@@ -862,7 +1277,11 @@ class SmartMasterAgent:
             elif intent_result.intent == IntentType.SAVE_PROJECT:
                 result = await self._save_to_project(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.EMAIL:
-                result = await self._handle_email(intent_result.extracted_data, session_id, user_id)
+                # Check if this is an email report request
+                if 'report' in intent_result.original_message.lower():
+                    result = await self._send_manual_email_report(intent_result.extracted_data, session_id, user_id)
+                else:
+                    result = await self._handle_email(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.WEB_SEARCH:
                 result = await self._web_search(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.SEARCH:
@@ -875,6 +1294,8 @@ class SmartMasterAgent:
                 result = await self._handle_call(intent_result.extracted_data, session_id, user_id)
             elif intent_result.intent == IntentType.GITHUB_COVERAGE:
                 result = await self._handle_github_coverage(intent_result.extracted_data, session_id, user_id)
+            elif intent_result.intent == IntentType.SECRETS_DETECTION:
+                result = await self._handle_secrets_detection(intent_result.extracted_data, session_id, user_id)
             else:  # GENERAL
                 result = await self._general_response(intent_result.extracted_data, session_id, user_id)
             
@@ -1145,7 +1566,6 @@ class SmartMasterAgent:
             # Count R letters
             if "count" in message and "r" in message and "letter" in message:
                 # Extract word from message
-                import re
                 word_match = re.search(r'count.*r.*letters.*in.*the.*word\s+(\w+)', message)
                 if word_match:
                     word = word_match.group(1)
@@ -1170,7 +1590,6 @@ class SmartMasterAgent:
             
             # Search desktop files - more flexible patterns
             elif ("search" in message or "find" in message):
-                import re
                 # Try different patterns - more flexible
                 search_patterns = [
                     r'search.*desktop.*file.*for\s+(.+)',
@@ -1219,7 +1638,6 @@ class SmartMasterAgent:
             
             # Read desktop file
             elif "read" in message and "desktop" in message and "file" in message:
-                import re
                 file_match = re.search(r'read.*desktop.*file\s+(.+)', message)
                 if file_match:
                     filename = file_match.group(1).strip()
@@ -1235,7 +1653,6 @@ class SmartMasterAgent:
             
             # Ingest desktop file
             elif ("ingest" in message or "add" in message or "store" in message) and ("desktop" in message or "file" in message or "vector" in message):
-                import re
                 # Try different patterns for ingest
                 ingest_patterns = [
                     r'ingest.*desktop.*file\s+(.+)',
@@ -1653,6 +2070,275 @@ Constraints:
                 "note": "GitHub coverage analysis failed"
             }
 
+    async def _handle_secrets_detection(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Handle secrets detection requests using the Secrets Detection Agent."""
+        try:
+            from agent.secrets_detection_agent import SecretsDetectionAgent
+            import os
+            
+            # Initialize Secrets Detection Agent with MCP server
+            mcp_server_url = os.getenv('MCP_SERVER_URL', 'http://127.0.0.1:5000')
+            agent = SecretsDetectionAgent(mcp_server_url=mcp_server_url)
+            
+            # Check if this is an email report request
+            if data.get("email_report_request"):
+                return await self._send_manual_email_report(data, session_id, user_id)
+            
+            # Extract target from data using improved parsing
+            target = data.get("target", ".")
+            file_path = data.get("file_path")
+            dir_path = data.get("dir_path")
+            scan_type = "comprehensive"  # Default to comprehensive scan
+            
+            # Determine scan type based on extracted data
+            if file_path:
+                scan_type = "file"
+                target = file_path
+            elif dir_path:
+                scan_type = "directory"
+                target = dir_path
+            elif target and target != ".":
+                # If we have a specific target, determine type
+                if os.path.isfile(target):
+                    scan_type = "file"
+                elif os.path.isdir(target):
+                    scan_type = "directory"
+                else:
+                    # Assume it's a file if it has an extension, otherwise directory
+                    if "." in target and not target.startswith("."):
+                        scan_type = "file"
+                    else:
+                        scan_type = "directory"
+            
+            logger.info(f"🔍 Secrets Detection: {scan_type} scan on {target}")
+            
+            # Execute the appropriate scan
+            if scan_type == "file" and file_path:
+                result = await agent.scan_file_for_secrets(file_path)
+            elif scan_type == "directory" and dir_path:
+                result = await agent.scan_directory_for_secrets(dir_path)
+            else:
+                result = await agent.run_comprehensive_scan(target)
+            
+            if not result.get("success"):
+                return {
+                    "action": "secrets_detection_error",
+                    "error": result.get("error", "Unknown error"),
+                    "target": target,
+                    "scan_type": scan_type,
+                    "note": f"Failed to perform {scan_type} scan on {target}"
+                }
+            
+            # Extract key information for user-friendly response
+            # Handle different result structures from MCP bridge
+            if result.get("scan_type") == "comprehensive":
+                # Comprehensive scan returns nested results
+                scan_results = result.get("results", {})
+                directory_scan = scan_results.get("directory_scan", {})
+                env_scan = scan_results.get("env_scan", {})
+                
+                # Extract from nested results - need to go deeper into the results structure
+                if directory_scan.get("success"):
+                    dir_results = directory_scan.get("results", {})
+                    secrets_count = dir_results.get("total_secrets_found", 0)
+                    files_scanned = dir_results.get("files_scanned", 0)
+                else:
+                    secrets_count = 0
+                    files_scanned = 0
+                
+                # Add env scan secrets
+                if env_scan.get("success"):
+                    env_results = env_scan.get("results", {})
+                    secrets_count += env_results.get("total_secrets_found", 0)
+                
+                # Get risk level from security report if available
+                security_report = scan_results.get("security_report", {})
+                if security_report.get("success"):
+                    report_data = security_report.get("report", {})
+                    risk_assessment = report_data.get("risk_assessment", {})
+                    risk_level = risk_assessment.get("risk_level", "UNKNOWN")
+                    
+                    # Auto-send email report if email is configured
+                    email_recipient = os.getenv('SECURITY_REPORT_EMAIL')
+                    if email_recipient:
+                        try:
+                            await self._send_security_report_email(
+                                email_recipient, 
+                                target, 
+                                scan_type, 
+                                secrets_count, 
+                                files_scanned, 
+                                risk_level,
+                                security_report
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to send security report email: {e}")
+                else:
+                    risk_level = "UNKNOWN"
+            else:
+                # Direct scan results
+                secrets_count = result.get("total_secrets_found", result.get("total_secrets", 0))
+                files_scanned = result.get("files_scanned", 0)
+                risk_level = result.get("risk_level", "UNKNOWN")
+            
+            # Return the result
+            return {
+                "action": "secrets_detection_success",
+                "target": target,
+                "scan_type": scan_type,
+                "result": result,
+                "secrets_count": secrets_count,
+                "files_scanned": files_scanned,
+                "risk_level": risk_level,
+                "note": f"Successfully completed {scan_type} scan on {target}"
+            }
+            
+        except ImportError as e:
+            return {
+                "action": "secrets_detection_error",
+                "error": "Secrets Detection Agent not available",
+                "note": f"Import error: {str(e)}"
+            }
+        except Exception as e:
+            logger.error(f"Secrets detection failed: {e}")
+            return {
+                "action": "secrets_detection_error",
+                "error": str(e),
+                "note": "Secrets detection failed"
+            }
+    
+    async def _send_security_report_email(self, email_recipient: str, target: str, scan_type: str, 
+                                        secrets_count: int, files_scanned: int, risk_level: str, 
+                                        security_report: Dict[str, Any]) -> None:
+        """Send security scan report via email using MCP server tools."""
+        try:
+            from .mcp_tools import sendmail_tool, SendmailInput
+            
+            # Generate email subject
+            subject = f"🔐 Security Scan Report - {target} ({scan_type})"
+            
+            # Generate email body
+            body = f"""
+🔐 Security Scan Report
+{'=' * 50}
+
+📊 Scan Summary:
+• Target: {target}
+• Scan Type: {scan_type}
+• Files Scanned: {files_scanned}
+• Secrets Found: {secrets_count}
+• Risk Level: {risk_level}
+
+🚨 Security Findings:
+• Directory Scan: {security_report.get('directory_scan', {}).get('scan_summary', 'N/A')}
+• Environment Files: {security_report.get('env_scan', {}).get('scan_summary', 'N/A')}
+
+⚠️ Risk Assessment:
+• Overall Risk: {risk_level}
+• Files with Secrets: {security_report.get('directory_scan', {}).get('results', {}).get('files_with_secrets', 0)}
+• Environment Files with Secrets: {security_report.get('env_scan', {}).get('results', {}).get('total_env_files', 0)}
+
+📋 Recommendations:
+"""
+            
+            # Add recommendations from security report
+            report_data = security_report.get('report', {})
+            recommendations = report_data.get('recommendations', [])
+            for rec in recommendations:
+                body += f"• {rec.get('priority', 'MEDIUM')}: {rec.get('recommendation', 'N/A')}\n"
+            
+            body += f"""
+⏰ Scan completed at: {security_report.get('timestamp', 'N/A')}
+
+🔧 This report was generated automatically by the Master Agent Security Scanner.
+            """
+            
+            # Send email via MCP server
+            input_data = SendmailInput(
+                to_email=email_recipient,
+                subject=subject,
+                body=body.strip()
+            )
+            
+            result = await sendmail_tool(input_data)
+            
+            if result.get("success"):
+                logger.info(f"✅ Security report email sent to {email_recipient}")
+            else:
+                logger.warning(f"⚠️ Failed to send security report email: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error sending security report email: {e}")
+    
+    async def _send_manual_email_report(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
+        """Send a manual email report using MCP server tools."""
+        try:
+            logger.info("🔍 Starting manual email report...")
+            from .mcp_tools import sendmail_tool, SendmailInput
+            logger.info("✅ MCP tools imported successfully")
+            
+            # Extract email address from message
+            message = data.get("message", "")
+            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', message)
+            
+            if not email_match:
+                return {
+                    "action": "email_report_error",
+                    "error": "No email address found in message",
+                    "note": "Please provide an email address (e.g., 'email report to user@example.com')"
+                }
+            
+            email_recipient = email_match.group(0)
+            
+            # Generate a simple security report
+            subject = "🔐 Security Report - Manual Request"
+            body = f"""
+🔐 Security Report
+{'=' * 50}
+
+📊 This is a manually requested security report.
+
+📧 Sent to: {email_recipient}
+⏰ Requested at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+💡 To get a comprehensive security scan report, use:
+• 'scan for secrets' - Comprehensive security scan
+• 'scan .env file' - File-specific scan
+• 'scan agent folder' - Directory-specific scan
+
+🔧 This report was generated by the Master Agent Security Scanner.
+            """
+            
+            # Send email via MCP server
+            input_data = SendmailInput(
+                to_email=email_recipient,
+                subject=subject,
+                body=body.strip()
+            )
+            
+            result = await sendmail_tool(input_data)
+            
+            if result.get("success"):
+                return {
+                    "action": "email_report_sent",
+                    "to_email": email_recipient,
+                    "note": f"Security report email sent to {email_recipient}"
+                }
+            else:
+                return {
+                    "action": "email_report_error",
+                    "error": result.get("error", "Unknown error"),
+                    "note": f"Failed to send email report to {email_recipient}"
+                }
+                
+        except Exception as e:
+            logger.error(f"Email report failed: {e}")
+            return {
+                "action": "email_report_error",
+                "error": str(e),
+                "note": "Email report failed - MCP server may not be running"
+            }
+    
     async def _general_response(self, data: Dict[str, Any], session_id: str, user_id: str) -> Dict[str, Any]:
         """Handle general conversation."""
         return {
@@ -1741,6 +2427,26 @@ Constraints:
             else:
                 count = result.get('total_results', 0)
                 return f"✅ 🔍 Found {count} internal results for your search"
+        elif intent == IntentType.SECRETS_DETECTION:
+                if result.get('action') == 'secrets_detection_success':
+                    target = result.get('target', 'unknown')
+                    scan_type = result.get('scan_type', 'scan')
+                    secrets_count = result.get('secrets_count', 0)
+                    files_scanned = result.get('files_scanned', 0)
+                    risk_level = result.get('risk_level', 'UNKNOWN')
+                    
+                    if scan_type == 'file':
+                        return f"🔑 File Scan: Found {secrets_count} secrets in {target}"
+                    elif scan_type == 'directory':
+                        return f"🔑 Directory Scan: Found {secrets_count} secrets in {files_scanned} files from {target}"
+                    else:
+                        return f"🔑 Comprehensive Scan: Found {secrets_count} secrets in {files_scanned} files. Risk Level: {risk_level}"
+                elif result.get('action') == 'secrets_detection_error':
+                    error = result.get('error', 'Unknown error')
+                    target = result.get('target', 'unknown')
+                    return f"❌ Scan Error for {target}: {error}"
+                else:
+                    return f"🔑 Scan: {result.get('note', 'Scan completed')}"
         else:
             return result.get('message', 'Operation completed')
     
