@@ -1601,6 +1601,22 @@ class GitHubCodeReviewer:
                     'message': 'Authentication tokens hardcoded in source',
                     'suggestion': 'Use environment variables for tokens and implement proper token lifecycle management. Consider using short-lived tokens with automatic renewal and proper scoping.'
                 })
+            elif 'password' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Hardcoded password detected',
+                    'suggestion': 'Use secure password hashing (bcrypt, Argon2) and store hashes in secure databases. Implement password policies, complexity requirements, and secure reset mechanisms.'
+                })
+            elif 'secret' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Hardcoded secret detected',
+                    'suggestion': 'Use environment variables or secrets management services. Implement proper access controls, audit logging, and consider using hardware security modules (HSMs) for critical secrets.'
+                })
             else:
                 issues.append({
                     'line': line_num,
@@ -1609,6 +1625,35 @@ class GitHubCodeReviewer:
                     'message': 'Hardcoded sensitive information detected',
                     'suggestion': 'Extract to environment variables or secure configuration files. Use tools like python-dotenv for local development and encrypted configs for production. Implement proper access controls.'
                 })
+        
+        # Additional security checks
+        if 'sql' in line_content.lower() and any(sql_keyword in line_content.lower() for sql_keyword in ['select', 'insert', 'update', 'delete']):
+            if not any(safe_pattern in line_content.lower() for safe_pattern in ['prepared', 'stmt', 'parameter', '?', '%s', 'execute']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Potential SQL injection vulnerability',
+                    'suggestion': 'Use parameterized queries or ORM methods. Never concatenate user input directly into SQL strings. Consider using SQLAlchemy, Prisma, or similar ORMs with built-in protection.'
+                })
+        
+        if any(xss_pattern in line_content.lower() for xss_pattern in ['innerhtml', 'document.write', 'eval(', 'settimeout(0']):
+            issues.append({
+                'line': line_num,
+                'severity': 'critical',
+                'category': 'security',
+                'message': 'XSS vulnerability risk detected',
+                'suggestion': 'Use textContent for plain text or createElement/appendChild for safe DOM manipulation. Implement proper input sanitization and consider using Content Security Policy (CSP) headers.'
+            })
+        
+        if 'http://' in line_content.lower() and not any(safe_context in line_content.lower() for safe_context in ['localhost', '127.0.0.1', 'example.com', 'test']):
+            issues.append({
+                'line': line_num,
+                'severity': 'high',
+                'category': 'security',
+                'message': 'Insecure HTTP protocol detected',
+                'suggestion': 'Use HTTPS for all external communications. Implement proper SSL/TLS configuration, certificate validation, and consider using HTTP Strict Transport Security (HSTS) headers.'
+            })
         
         # SQL injection prevention
         if any(sql_pattern in line_content.lower() for sql_pattern in ['execute(', 'executescript(', 'executemany(']):
@@ -1691,6 +1736,22 @@ class GitHubCodeReviewer:
                         'message': 'HTTP POST request missing error handling',
                         'suggestion': 'Implement proper error handling for network failures, validation errors, and server responses. Add request/response logging and consider implementing idempotency for critical operations.'
                     })
+                elif 'put(' in line_content.lower() or 'patch(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'HTTP PUT/PATCH request missing error handling',
+                        'suggestion': 'Handle optimistic locking conflicts, validation errors, and partial update failures. Implement proper error responses and consider using ETags for concurrency control.'
+                    })
+                elif 'delete(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'HTTP DELETE request missing error handling',
+                        'suggestion': 'Handle cascading delete failures, permission errors, and resource not found scenarios. Implement soft delete patterns and proper cleanup procedures.'
+                    })
                 else:
                     issues.append({
                         'line': line_num,
@@ -1699,6 +1760,32 @@ class GitHubCodeReviewer:
                         'message': 'HTTP request missing error handling',
                         'suggestion': 'Add comprehensive error handling including timeouts, retries, and proper HTTP status code checking. Consider using HTTP client libraries with built-in error handling and connection pooling.'
                     })
+        
+        # Database operations
+        if any(db_op in line_content.lower() for db_op in ['execute(', 'query(', 'cursor.execute', 'db.execute']):
+            if 'try:' in line_content or 'except' in line_content:
+                pass  # Has error handling
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'error_handling',
+                    'message': 'Database operation missing error handling',
+                    'suggestion': 'Handle database connection errors, constraint violations, and transaction failures. Implement proper rollback mechanisms and consider using database connection pooling.'
+                })
+        
+        # JSON parsing
+        if 'json.loads(' in line_content.lower() or 'json.load(' in line_content.lower():
+            if 'try:' in line_content or 'except' in line_content:
+                pass  # Has error handling
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'error_handling',
+                    'message': 'JSON parsing without error handling',
+                    'suggestion': 'Handle malformed JSON, encoding issues, and parsing errors. Validate JSON structure before processing and provide meaningful error messages for debugging.'
+                })
         
         # Performance issues
         if 'setinterval(' in line_content.lower() or 'settimeout(' in line_content.lower():
@@ -1731,6 +1818,58 @@ class GitHubCodeReviewer:
                 'suggestion': 'Use JSON.parse() for data, Function constructor for limited code execution, or refactor to avoid dynamic code execution entirely.'
             })
         
+        # Memory management
+        if any(memory_pattern in line_content.lower() for memory_pattern in ['addlistener', 'onevent', 'addEventListener']):
+            if any(cleanup_pattern in line_content.lower() for cleanup_pattern in ['removelistener', 'removeevent', 'removeEventListener']):
+                pass  # Properly managed
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'performance',
+                    'message': 'Event listener without cleanup mechanism',
+                    'suggestion': 'Store event listener references and remove them in cleanup functions. Consider using AbortController or implementing proper lifecycle management for event handlers.'
+                })
+        
+        # Resource management
+        if any(resource_pattern in line_content.lower() for resource_pattern in ['new file', 'new socket', 'new connection']):
+            if 'using' in line_content.lower() or 'with ' in line_content.lower() or 'try:' in line_content.lower():
+                pass  # Properly managed
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'resource_management',
+                    'message': 'Resource creation without proper disposal',
+                    'suggestion': 'Use context managers, try-finally blocks, or implement IDisposable pattern. Ensure resources are properly closed, disposed, or returned to pools.'
+                })
+        
+        # Concurrency issues
+        if any(concurrency_pattern in line_content.lower() for concurrency_pattern in ['thread', 'async', 'promise', 'future']):
+            if any(safe_pattern in line_content.lower() for safe_pattern in ['await', 'async', 'lock', 'mutex', 'semaphore']):
+                pass  # Properly handled
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'concurrency',
+                    'message': 'Potential concurrency issue detected',
+                    'suggestion': 'Use proper synchronization primitives, async/await patterns, or consider using thread-safe data structures. Implement proper error handling for concurrent operations.'
+                })
+        
+        # Input validation
+        if any(input_pattern in line_content.lower() for input_pattern in ['input(', 'readline(', 'gets(', 'scanf(']):
+            if any(validation_pattern in line_content.lower() for validation_pattern in ['validate', 'check', 'verify', 'sanitize']):
+                pass  # Has validation
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'input_validation',
+                    'message': 'User input without validation',
+                    'suggestion': 'Implement input validation, sanitization, and type checking. Consider using schema validation libraries and implement proper error handling for invalid input.'
+                })
+        
         # Code quality
         if re.search(r'\b\d{4,}\b', line_content):  # Magic numbers 1000+
             # Provide different suggestions based on the context
@@ -1749,6 +1888,22 @@ class GitHubCodeReviewer:
                     'category': 'code_quality',
                     'message': 'Magic number detected in size configuration',
                     'suggestion': 'Define size constants with clear naming conventions. Consider using enums or configuration objects for related constants and document the reasoning behind specific values.'
+                })
+            elif any(port_indicator in line_content.lower() for port_indicator in ['port', 'socket', 'bind']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded port number detected',
+                    'suggestion': 'Use configuration files or environment variables for port numbers. Consider implementing port scanning to find available ports or using well-known port ranges.'
+                })
+            elif any(version_indicator in line_content.lower() for version_indicator in ['version', 'build', 'release']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded version number detected',
+                    'suggestion': 'Extract version information to a dedicated version file or use semantic versioning. Consider automating version bumping through CI/CD pipelines.'
                 })
             else:
                 issues.append({
@@ -1777,6 +1932,22 @@ class GitHubCodeReviewer:
                     'message': 'Complex validation logic detected',
                     'suggestion': 'Use validation libraries or create dedicated validator classes. Consider implementing the chain of responsibility pattern for complex validation workflows.'
                 })
+            elif 'status' in line_content.lower() or 'state' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex state checking logic detected',
+                    'suggestion': 'Consider using state machines, enums, or the command pattern for complex state transitions. Extract state logic to dedicated state management classes.'
+                })
+            elif 'error' in line_content.lower() or 'exception' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex error handling logic detected',
+                    'suggestion': 'Use custom exception hierarchies and error codes. Consider implementing the strategy pattern for different error handling approaches based on context.'
+                })
             else:
                 issues.append({
                     'line': line_num,
@@ -1804,6 +1975,22 @@ class GitHubCodeReviewer:
                     'message': 'Long query method chain detected',
                     'suggestion': 'Extract query building logic to dedicated query builder classes. Consider using the repository pattern or query objects for complex data access operations.'
                 })
+            elif 'transform' in line_content.lower() or 'map' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Long data transformation chain detected',
+                    'suggestion': 'Break transformations into separate functions or use the pipeline pattern. Consider implementing the builder pattern for complex object construction.'
+                })
+            elif 'config' in line_content.lower() or 'setting' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Long configuration method chain detected',
+                    'suggestion': 'Use configuration builder pattern or fluent configuration APIs. Consider using configuration objects with validation and default values.'
+                })
             else:
                 issues.append({
                     'line': line_num,
@@ -1830,6 +2017,22 @@ class GitHubCodeReviewer:
                     'category': 'code_quality',
                     'message': 'Hardcoded user directory path detected',
                     'suggestion': 'Use os.path.expanduser("~") or pathlib.Path.home() for user directories. Consider using XDG base directories or platform-specific user data locations.'
+                })
+            elif 'log' in line_content.lower() or 'output' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded log/output directory path detected',
+                    'suggestion': 'Use environment variables or configuration for log directories. Consider implementing log rotation and centralized logging with proper permissions.'
+                })
+            elif 'data' in line_content.lower() or 'storage' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded data storage path detected',
+                    'suggestion': 'Use configuration files or environment variables for data paths. Consider implementing data migration strategies and backup/restore procedures.'
                 })
             else:
                 issues.append({
