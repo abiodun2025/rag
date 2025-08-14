@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
 """
-Quick Cybersecurity Test Script
-Test specific cybersecurity features with command-line arguments.
+Simple Prompt Test for Master Agent
+Test the master agent with a single cybersecurity prompt.
 """
 
 import asyncio
 import sys
-import logging
 from agent.smart_master_agent import smart_master_agent
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-async def quick_test(message: str):
-    """Quick test of a specific cybersecurity message."""
+async def test_prompt(prompt: str):
+    """Test the master agent with a single prompt."""
     
-    print(f"🔒 Testing: {message}")
-    print("=" * 50)
+    print(f"🤖 Testing Master Agent with: '{prompt}'")
+    print("=" * 60)
     
-    session_id = "quick_test_session"
-    user_id = "quick_test_user"
+    session_id = "single_test_session"
+    user_id = "single_test_user"
     
     try:
-        # Process the message through the smart master agent
-        result = await smart_master_agent.process_message(message, session_id, user_id)
+        # Process the prompt through the master agent
+        result = await smart_master_agent.process_message(prompt, session_id, user_id)
         
         # Display results
         intent = result["intent_analysis"]["intent"]
@@ -35,8 +30,11 @@ async def quick_test(message: str):
         print(f"🎯 Intent: {intent}")
         print(f"📊 Confidence: {confidence:.2f}")
         print(f"🔍 Extracted Data: {extracted_data}")
-        print(f"✅ Execution Result: {execution_result.get('action', 'Unknown')}")
-        print(f"📝 Note: {execution_result.get('note', 'No note')}")
+        # Get the actual result from the handler
+        actual_result = execution_result.get('result', {})
+        print(f"✅ Execution Result: {actual_result.get('action', 'Unknown')}")
+        print(f"📝 Note: {actual_result.get('note', 'No note')}")
+        print(f"📝 Message: {execution_result.get('message', 'No message')}")
         
         # Show specific cybersecurity features if applicable
         if intent == "cybersecurity_scan":
@@ -71,29 +69,28 @@ async def quick_test(message: str):
                 print(f"📝 PR Number: {pr_number}")
             print(f"🌿 Branch: {branch}")
         
-        print()
+        print("\n✅ Test completed successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Test failed: {e}")
         return False
 
 def main():
-    """Main function for command-line testing."""
-    
+    """Main function."""
     if len(sys.argv) < 2:
-        print("🔒 Quick Cybersecurity Test")
-        print("Usage: python quick_test.py 'your cybersecurity request'")
+        print("🤖 Simple Master Agent Test")
+        print("Usage: python test_prompt.py 'your cybersecurity prompt'")
         print("\nExamples:")
-        print("  python quick_test.py 'scan dependencies for vulnerabilities'")
-        print("  python quick_test.py 'perform SAST security analysis'")
-        print("  python quick_test.py 'check license compliance'")
-        print("  python quick_test.py 'run comprehensive cybersecurity scan'")
-        print("  python quick_test.py 'scan for secrets in my files'")
+        print("  python test_prompt.py 'scan dependencies for vulnerabilities'")
+        print("  python test_prompt.py 'perform SAST security analysis'")
+        print("  python test_prompt.py 'check license compliance'")
+        print("  python test_prompt.py 'run comprehensive cybersecurity scan'")
+        print("  python test_prompt.py 'scan for secrets in my files'")
         return
     
-    message = " ".join(sys.argv[1:])
-    asyncio.run(quick_test(message))
+    prompt = " ".join(sys.argv[1:])
+    asyncio.run(test_prompt(prompt))
 
 if __name__ == "__main__":
-    main() 
+    main()
