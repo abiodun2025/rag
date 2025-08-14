@@ -1288,6 +1288,7 @@ class GitHubCodeReviewer:
                 
                 # Collect all comments for the review
                 all_comments = []
+                review_created = False  # Track if a review has been created
                 
                 # Create thoughtful senior developer comments
                 for analysis_result in analysis_results:
@@ -1379,11 +1380,16 @@ class GitHubCodeReviewer:
                         review_url = review_result["review"]["html_url"]
                         print(f"✅ Senior developer review with {comments_added} thoughtful comments added successfully!")
                         print(f"🔗 Review URL: {review_url}")
+                        # Primary method succeeded, no need for fallback
+                        fallback_needed = False
+                        review_created = True
                     else:
                         print(f"⚠️  Failed to add review with comments: {review_result['error']}")
-                        print("🔄 Trying fallback method with individual comments...")
+                        print("🔄 Primary method failed, attempting fallback with individual comments...")
+                        fallback_needed = True
                         
                         # Fallback: create individual comments using review API
+                        # Only run this if the primary method failed
                         comments_added = 0
                         for comment_data in all_comments:
                             # Create a review with just this one comment
@@ -1403,6 +1409,7 @@ class GitHubCodeReviewer:
                         
                         if comments_added > 0:
                             print(f"✅ Created {comments_added} review comments as fallback")
+                            review_created = True
                         else:
                             print("❌ Failed to create review comments as fallback")
                 else:
@@ -1415,11 +1422,17 @@ class GitHubCodeReviewer:
                         review_url = review_result["review"]["html_url"]
                         print(f"✅ Review summary added successfully!")
                         print(f"🔗 Review URL: {review_url}")
+                        review_created = True
                     else:
                         print(f"⚠️  Failed to add review summary: {review_result['error']}")
                 
-                # Mark files as viewed by creating a review without comments
-                self._mark_files_as_viewed(owner, repo, pr_number, files, latest_commit_sha)
+                # Only mark files as viewed if we haven't already created a review with comments
+                # This prevents duplicate reviews
+                if not review_created:
+                    print("👁️  No review created yet, marking files as viewed with separate review...")
+                    self._mark_files_as_viewed(owner, repo, pr_number, files, latest_commit_sha)
+                else:
+                    print("👁️  Review already created, skipping separate 'mark as viewed' review to prevent duplicates...")
             
             # Save report if output file is specified
             if output_file:
@@ -1471,8 +1484,9 @@ class GitHubCodeReviewer:
             print("👁️  Marking files as viewed...")
             
             # Create a review with no comments to mark files as viewed
+            # Use a different event type to avoid confusion with comment reviews
             review_result = self.create_pull_request_review(
-                owner, repo, pr_number, "COMMENT", "Files reviewed", [], commit_sha
+                owner, repo, pr_number, "COMMENT", "Files reviewed (no issues found)", [], commit_sha
             )
             
             if review_result["success"]:
