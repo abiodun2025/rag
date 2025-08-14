@@ -1570,13 +1570,23 @@ class GitHubCodeReviewer:
         # Security issues
         if any(secret in line_content.lower() for secret in ['password', 'secret', 'key', 'token', 'credential']):
             if 'private_key' in line_content.lower() or '-----begin' in line_content.lower():
-                issues.append({
-                    'line': line_num,
-                    'severity': 'critical',
-                    'category': 'security',
-                    'message': 'Private key material exposed in code',
-                    'suggestion': 'Store private keys in environment variables, AWS Secrets Manager, or HashiCorp Vault. Never commit cryptographic material to version control. Consider using key rotation policies.'
-                })
+                # Vary the suggestion based on context
+                if 'rsa' in line_content.lower() or 'ecdsa' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'Cryptographic private key material exposed in code',
+                        'suggestion': 'Store cryptographic keys in hardware security modules (HSMs) or cloud KMS services. Implement proper key lifecycle management including rotation, backup, and secure disposal procedures.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'Private key material exposed in code',
+                        'suggestion': 'Store private keys in environment variables, AWS Secrets Manager, or HashiCorp Vault. Never commit cryptographic material to version control. Consider using key rotation policies.'
+                    })
             elif any(env_var in line_content.lower() for env_var in ['process.env', 'dotenv', 'config']):
                 issues.append({
                     'line': line_num,
@@ -1586,29 +1596,56 @@ class GitHubCodeReviewer:
                     'suggestion': 'Use environment variables with proper validation and encryption. Consider using a secrets management service like AWS Parameter Store or Azure Key Vault for production deployments.'
                 })
             elif 'api_key' in line_content.lower() or 'sk-' in line_content.lower():
-                issues.append({
-                    'line': line_num,
-                    'severity': 'critical',
-                    'category': 'security',
-                    'message': 'API keys or secrets exposed in code',
-                    'suggestion': 'Store API keys in secure environment variables or use OAuth2 flows. Implement proper key rotation and monitor for unauthorized usage. Consider using service accounts with minimal permissions.'
-                })
+                if 'openai' in line_content.lower() or 'anthropic' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'AI service API key exposed in code',
+                        'suggestion': 'Store AI service keys in environment variables with proper rate limiting. Consider using API key rotation and monitoring for unusual usage patterns. Implement proper access controls for AI service consumption.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'API keys or secrets exposed in code',
+                        'suggestion': 'Store API keys in secure environment variables or use OAuth2 flows. Implement proper key rotation and monitor for unauthorized usage. Consider using service accounts with minimal permissions.'
+                    })
             elif 'token' in line_content.lower() or 'ghp_' in line_content.lower():
-                issues.append({
-                    'line': line_num,
-                    'severity': 'critical',
-                    'category': 'security',
-                    'message': 'Authentication tokens hardcoded in source',
-                    'suggestion': 'Use environment variables for tokens and implement proper token lifecycle management. Consider using short-lived tokens with automatic renewal and proper scoping.'
-                })
+                if 'github' in line_content.lower() or 'ghp_' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'GitHub personal access token hardcoded in source',
+                        'suggestion': 'Use GitHub Actions secrets, environment variables, or OAuth apps instead of PATs. Implement proper token scoping with minimal required permissions and enable token expiration.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'Authentication tokens hardcoded in source',
+                        'suggestion': 'Use environment variables for tokens and implement proper token lifecycle management. Consider using short-lived tokens with automatic renewal and proper scoping.'
+                    })
             elif 'password' in line_content.lower():
-                issues.append({
-                    'line': line_num,
-                    'severity': 'critical',
-                    'category': 'security',
-                    'message': 'Hardcoded password detected',
-                    'suggestion': 'Use secure password hashing (bcrypt, Argon2) and store hashes in secure databases. Implement password policies, complexity requirements, and secure reset mechanisms.'
-                })
+                if 'admin' in line_content.lower() or 'root' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'Admin/root password hardcoded in source',
+                        'suggestion': 'Use secure password hashing (bcrypt, Argon2) and implement multi-factor authentication. Consider using certificate-based authentication or OAuth2 for administrative access.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'security',
+                        'message': 'Hardcoded password detected',
+                        'suggestion': 'Use secure password hashing (bcrypt, Argon2) and store hashes in secure databases. Implement password policies, complexity requirements, and secure reset mechanisms.'
+                    })
             elif 'secret' in line_content.lower():
                 issues.append({
                     'line': line_num,
@@ -1683,37 +1720,91 @@ class GitHubCodeReviewer:
             if 'with open(' in line_content:
                 pass  # Context manager handles cleanup
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'error_handling',
-                    'message': 'File operation without proper error handling',
-                    'suggestion': 'Use context managers (with open()) or try-finally blocks. Handle FileNotFoundError, PermissionError, and other I/O exceptions appropriately. Consider using pathlib for modern path operations.'
-                })
+                # Vary suggestions based on file operation type
+                if 'w' in line_content.lower() and '+' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File read-write operation without proper error handling',
+                        'suggestion': 'Use context managers (with open()) and implement proper file locking for concurrent access. Handle potential corruption scenarios and implement atomic write operations with backup strategies.'
+                    })
+                elif 'a' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File append operation without proper error handling',
+                        'suggestion': 'Use context managers (with open()) and implement proper error handling for append operations. Consider using file rotation and backup strategies for log files.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File operation without proper error handling',
+                        'suggestion': 'Use context managers (with open()) or try-finally blocks. Handle FileNotFoundError, PermissionError, and other I/O exceptions appropriately. Consider using pathlib for modern path operations.'
+                    })
         
         if any(read_op in line_content.lower() for read_op in ['.read()', '.readline()', '.readlines()']):
             if 'try:' in line_content or 'with ' in line_content:
                 pass  # Has error handling
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'error_handling',
-                    'message': 'File read operation missing error handling',
-                    'suggestion': 'Wrap file operations in try-catch blocks. Handle potential encoding issues, file corruption, and I/O errors gracefully. Consider using pathlib.read_text() with encoding specification.'
-                })
+                # Vary suggestions based on read operation
+                if '.readlines()' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File readlines operation missing error handling',
+                        'suggestion': 'Wrap readlines operations in try-catch blocks. Handle memory issues for large files, encoding errors, and consider using generators for memory-efficient line processing.'
+                    })
+                elif '.readline()' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File readline operation missing error handling',
+                        'suggestion': 'Implement proper error handling for readline operations. Handle end-of-file conditions, encoding issues, and consider using iterators for more robust line processing.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File read operation missing error handling',
+                        'suggestion': 'Wrap file operations in try-catch blocks. Handle potential encoding issues, file corruption, and I/O errors gracefully. Consider using pathlib.read_text() with encoding specification.'
+                    })
         
         if any(write_op in line_content.lower() for write_op in ['.write(', '.writelines(', '.flush(']):
             if 'try:' in line_content or 'with ' in line_content:
                 pass  # Has error handling
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'error_handling',
-                    'message': 'File write operation without error handling',
-                    'suggestion': 'Handle disk space issues, permission errors, and write failures. Use atomic write operations when possible to prevent data corruption. Consider using tempfile for safe temporary file creation.'
-                })
+                # Vary suggestions based on write operation
+                if '.writelines(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File writelines operation without error handling',
+                        'suggestion': 'Handle potential encoding issues and implement proper error handling for batch write operations. Consider using atomic writes and implementing rollback mechanisms for failed batch operations.'
+                    })
+                elif '.flush(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File flush operation without error handling',
+                        'suggestion': 'Handle flush failures and implement proper error handling for buffer operations. Consider the impact of flush failures on data integrity and implement appropriate recovery mechanisms.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'File write operation without error handling',
+                        'suggestion': 'Handle disk space issues, permission errors, and write failures. Use atomic write operations when possible to prevent data corruption. Consider using tempfile for safe temporary file creation.'
+                    })
         
         # Network operations
         if any(net_op in line_content.lower() for net_op in ['requests.get(', 'requests.post(', 'urllib.request', 'http.client']):
@@ -1721,21 +1812,39 @@ class GitHubCodeReviewer:
                 pass  # Has error handling or timeout
             else:
                 if 'get(' in line_content.lower():
-                    issues.append({
-                        'line': line_num,
-                        'severity': 'high',
-                        'category': 'error_handling',
-                        'message': 'HTTP GET request missing error handling',
-                        'suggestion': 'Add timeout parameters, handle connection errors, HTTP status codes, and network timeouts. Consider using retry mechanisms with exponential backoff and circuit breaker patterns.'
-                    })
+                    if 'json' in line_content.lower():
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'error_handling',
+                            'message': 'JSON API GET request missing error handling',
+                            'suggestion': 'Add timeout parameters, handle JSON parsing errors, HTTP status codes, and network timeouts. Implement proper error handling for malformed JSON responses and consider using retry mechanisms with exponential backoff.'
+                        })
+                    else:
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'error_handling',
+                            'message': 'HTTP GET request missing error handling',
+                            'suggestion': 'Add timeout parameters, handle connection errors, HTTP status codes, and network timeouts. Consider using retry mechanisms with exponential backoff and circuit breaker patterns.'
+                        })
                 elif 'post(' in line_content.lower():
-                    issues.append({
-                        'line': line_num,
-                        'severity': 'high',
-                        'category': 'error_handling',
-                        'message': 'HTTP POST request missing error handling',
-                        'suggestion': 'Implement proper error handling for network failures, validation errors, and server responses. Add request/response logging and consider implementing idempotency for critical operations.'
-                    })
+                    if 'json' in line_content.lower():
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'error_handling',
+                            'message': 'JSON API POST request missing error handling',
+                            'suggestion': 'Implement proper error handling for JSON serialization failures, network errors, and server responses. Add request/response logging and consider implementing idempotency for critical operations.'
+                        })
+                    else:
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'error_handling',
+                            'message': 'HTTP POST request missing error handling',
+                            'suggestion': 'Implement proper error handling for network failures, validation errors, and server responses. Add request/response logging and consider implementing idempotency for critical operations.'
+                        })
                 elif 'put(' in line_content.lower() or 'patch(' in line_content.lower():
                     issues.append({
                         'line': line_num,
@@ -1766,39 +1875,85 @@ class GitHubCodeReviewer:
             if 'try:' in line_content or 'except' in line_content:
                 pass  # Has error handling
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'error_handling',
-                    'message': 'Database operation missing error handling',
-                    'suggestion': 'Handle database connection errors, constraint violations, and transaction failures. Implement proper rollback mechanisms and consider using database connection pooling.'
-                })
+                # Vary suggestions based on database operation type
+                if 'select' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'Database SELECT operation missing error handling',
+                        'suggestion': 'Handle database connection errors, query syntax errors, and result set processing failures. Implement proper connection pooling and consider using query timeouts for long-running operations.'
+                    })
+                elif 'insert' in line_content.lower() or 'update' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'Database INSERT/UPDATE operation missing error handling',
+                        'suggestion': 'Handle constraint violations, duplicate key errors, and transaction failures. Implement proper rollback mechanisms and consider using database connection pooling with retry logic.'
+                    })
+                elif 'delete' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'Database DELETE operation missing error handling',
+                        'suggestion': 'Handle foreign key constraint violations, permission errors, and cascade delete failures. Implement proper rollback mechanisms and consider using soft delete patterns.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'Database operation missing error handling',
+                        'suggestion': 'Handle database connection errors, constraint violations, and transaction failures. Implement proper rollback mechanisms and consider using database connection pooling.'
+                    })
         
         # JSON parsing
         if 'json.loads(' in line_content.lower() or 'json.load(' in line_content.lower():
             if 'try:' in line_content or 'except' in line_content:
                 pass  # Has error handling
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'medium',
-                    'category': 'error_handling',
-                    'message': 'JSON parsing without error handling',
-                    'suggestion': 'Handle malformed JSON, encoding issues, and parsing errors. Validate JSON structure before processing and provide meaningful error messages for debugging.'
-                })
+                # Vary suggestions based on JSON operation
+                if 'json.loads(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'JSON string parsing without error handling',
+                        'suggestion': 'Handle malformed JSON strings, encoding issues, and parsing errors. Validate JSON structure before processing and provide meaningful error messages for debugging. Consider using JSON schema validation.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'JSON file parsing without error handling',
+                        'suggestion': 'Handle file I/O errors, malformed JSON content, and encoding issues. Validate JSON structure before processing and provide meaningful error messages for debugging.'
+                    })
         
         # Performance issues
         if 'setinterval(' in line_content.lower() or 'settimeout(' in line_content.lower():
             if 'clearinterval(' in line_content or 'cleartimeout(' in line_content:
                 pass  # Properly managed
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'medium',
-                    'category': 'performance',
-                    'message': 'Timer/interval without cleanup mechanism',
-                    'suggestion': 'Store timer references and clear them in cleanup functions or component unmount. Consider using AbortController for modern JavaScript applications.'
-                })
+                # Vary suggestions based on timer type
+                if 'setinterval(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'performance',
+                        'message': 'setInterval without cleanup mechanism detected',
+                        'suggestion': 'Store interval references and clear them in cleanup functions or component unmount. Consider using requestAnimationFrame for UI updates or implementing proper lifecycle management for background tasks.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'performance',
+                        'message': 'setTimeout without cleanup mechanism detected',
+                        'suggestion': 'Store timeout references and clear them in cleanup functions or component unmount. Consider using AbortController for modern JavaScript applications or implementing proper cleanup strategies.'
+                    })
         
         if 'innerhtml' in line_content.lower():
             issues.append({
@@ -1823,52 +1978,124 @@ class GitHubCodeReviewer:
             if any(cleanup_pattern in line_content.lower() for cleanup_pattern in ['removelistener', 'removeevent', 'removeEventListener']):
                 pass  # Properly managed
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'medium',
-                    'category': 'performance',
-                    'message': 'Event listener without cleanup mechanism',
-                    'suggestion': 'Store event listener references and remove them in cleanup functions. Consider using AbortController or implementing proper lifecycle management for event handlers.'
-                })
+                # Vary suggestions based on event type
+                if 'click' in line_content.lower() or 'submit' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'performance',
+                        'message': 'UI event listener without cleanup mechanism',
+                        'suggestion': 'Store event listener references and remove them in cleanup functions. Consider using event delegation for dynamic content or implementing proper lifecycle management for UI components.'
+                    })
+                elif 'scroll' in line_content.lower() or 'resize' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'performance',
+                        'message': 'High-frequency event listener without cleanup mechanism',
+                        'suggestion': 'Store event listener references and remove them in cleanup functions. Consider using throttling/debouncing for high-frequency events and implement proper cleanup for performance-critical operations.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'performance',
+                        'message': 'Event listener without cleanup mechanism',
+                        'suggestion': 'Store event listener references and remove them in cleanup functions. Consider using AbortController or implementing proper lifecycle management for event handlers.'
+                    })
         
         # Resource management
         if any(resource_pattern in line_content.lower() for resource_pattern in ['new file', 'new socket', 'new connection']):
             if 'using' in line_content.lower() or 'with ' in line_content.lower() or 'try:' in line_content.lower():
                 pass  # Properly managed
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'medium',
-                    'category': 'resource_management',
-                    'message': 'Resource creation without proper disposal',
-                    'suggestion': 'Use context managers, try-finally blocks, or implement IDisposable pattern. Ensure resources are properly closed, disposed, or returned to pools.'
-                })
+                # Vary suggestions based on resource type
+                if 'socket' in line_content.lower() or 'connection' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'resource_management',
+                        'message': 'Network resource creation without proper disposal',
+                        'suggestion': 'Use context managers, try-finally blocks, or implement IDisposable pattern. Ensure network connections are properly closed, disposed, or returned to connection pools with proper timeout handling.'
+                    })
+                elif 'file' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'resource_management',
+                        'message': 'File resource creation without proper disposal',
+                        'suggestion': 'Use context managers, try-finally blocks, or implement IDisposable pattern. Ensure file handles are properly closed, disposed, and consider using file locking for concurrent access scenarios.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'resource_management',
+                        'message': 'Resource creation without proper disposal',
+                        'suggestion': 'Use context managers, try-finally blocks, or implement IDisposable pattern. Ensure resources are properly closed, disposed, or returned to pools.'
+                    })
         
         # Concurrency issues
         if any(concurrency_pattern in line_content.lower() for concurrency_pattern in ['thread', 'async', 'promise', 'future']):
             if any(safe_pattern in line_content.lower() for safe_pattern in ['await', 'async', 'lock', 'mutex', 'semaphore']):
                 pass  # Properly handled
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'high',
-                    'category': 'concurrency',
-                    'message': 'Potential concurrency issue detected',
-                    'suggestion': 'Use proper synchronization primitives, async/await patterns, or consider using thread-safe data structures. Implement proper error handling for concurrent operations.'
-                })
+                # Vary suggestions based on concurrency type
+                if 'thread' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'concurrency',
+                        'message': 'Thread creation without proper synchronization',
+                        'suggestion': 'Use proper synchronization primitives like locks, mutexes, or semaphores. Consider using thread pools, async/await patterns, or thread-safe data structures. Implement proper error handling for concurrent operations.'
+                    })
+                elif 'promise' in line_content.lower() or 'future' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'concurrency',
+                        'message': 'Promise/Future without proper error handling',
+                        'suggestion': 'Use proper async/await patterns with try-catch blocks. Handle promise rejections, implement proper error propagation, and consider using Promise.allSettled for multiple concurrent operations.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'concurrency',
+                        'message': 'Potential concurrency issue detected',
+                        'suggestion': 'Use proper synchronization primitives, async/await patterns, or consider using thread-safe data structures. Implement proper error handling for concurrent operations.'
+                    })
         
         # Input validation
         if any(input_pattern in line_content.lower() for input_pattern in ['input(', 'readline(', 'gets(', 'scanf(']):
             if any(validation_pattern in line_content.lower() for validation_pattern in ['validate', 'check', 'verify', 'sanitize']):
                 pass  # Has validation
             else:
-                issues.append({
-                    'line': line_num,
-                    'severity': 'medium',
-                    'category': 'input_validation',
-                    'message': 'User input without validation',
-                    'suggestion': 'Implement input validation, sanitization, and type checking. Consider using schema validation libraries and implement proper error handling for invalid input.'
-                })
+                # Vary suggestions based on input type
+                if 'input(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'input_validation',
+                        'message': 'User input without validation',
+                        'suggestion': 'Implement input validation, sanitization, and type checking. Consider using schema validation libraries and implement proper error handling for invalid input with user-friendly error messages.'
+                    })
+                elif 'readline(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'input_validation',
+                        'message': 'Command line input without validation',
+                        'suggestion': 'Implement proper command line argument validation, sanitization, and help text. Consider using argument parsing libraries and implement proper error handling for invalid command line inputs.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'input_validation',
+                        'message': 'User input without validation',
+                        'suggestion': 'Implement input validation, sanitization, and type checking. Consider using schema validation libraries and implement proper error handling for invalid input.'
+                    })
         
         # Code quality
         if re.search(r'\b\d{4,}\b', line_content):  # Magic numbers 1000+
