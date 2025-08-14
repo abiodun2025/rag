@@ -18,7 +18,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # MCP Server Configuration
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:5000")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://127.0.0.1:5001")
 MCP_SERVER_NAME = os.getenv("MCP_SERVER_NAME", "count-r-server")
 
 class MCPClient:
