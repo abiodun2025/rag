@@ -574,17 +574,32 @@ class GraphitiClient:
             logger.warning("Reinitialized Graphiti client (fresh indices created)")
 
 
-# Global Graphiti client instance
-graph_client = GraphitiClient()
+# Global Graphiti client instance - only create if environment is properly configured
+try:
+    # Check if required environment variables are set
+    if os.getenv("EMBEDDING_API_KEY") and os.getenv("LLM_API_KEY"):
+        graph_client = GraphitiClient()
+    else:
+        graph_client = None
+        logger.warning("Graphiti client not initialized - missing environment variables")
+except Exception as e:
+    graph_client = None
+    logger.warning(f"Graphiti client not initialized - error: {e}")
 
 
 async def initialize_graph():
     """Initialize graph client."""
+    if graph_client is None:
+        logger.warning("Graphiti client not initialized - cannot initialize")
+        return
     await graph_client.initialize()
 
 
 async def close_graph():
     """Close graph client."""
+    if graph_client is None:
+        logger.warning("Graphiti client not initialized - cannot close")
+        return
     await graph_client.close()
 
 
@@ -607,6 +622,9 @@ async def add_to_knowledge_graph(
     Returns:
         Episode ID
     """
+    if graph_client is None:
+        raise RuntimeError("Graphiti client not initialized - check environment variables")
+    
     if not episode_id:
         episode_id = f"episode_{datetime.now(timezone.utc).isoformat()}"
     
@@ -632,6 +650,9 @@ async def search_knowledge_graph(
     Returns:
         Search results
     """
+    if graph_client is None:
+        raise RuntimeError("Graphiti client not initialized - check environment variables")
+    
     # Ensure the global client is initialized
     if not graph_client._initialized:
         await graph_client.initialize()
@@ -653,6 +674,9 @@ async def get_entity_relationships(
     Returns:
         Entity relationships
     """
+    if graph_client is None:
+        raise RuntimeError("Graphiti client not initialized - check environment variables")
+    
     return await graph_client.get_related_entities(entity, depth=depth)
 
 
@@ -663,6 +687,10 @@ async def test_graph_connection() -> bool:
     Returns:
         True if connection successful
     """
+    if graph_client is None:
+        logger.warning("Graphiti client not initialized - cannot test connection")
+        return False
+    
     try:
         await graph_client.initialize()
         stats = await graph_client.get_graph_statistics()
