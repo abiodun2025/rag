@@ -1706,6 +1706,136 @@ class GitHubCodeReviewer:
                 'suggestion': 'Use HTTPS for all external communications. Implement proper SSL/TLS configuration, certificate validation, and consider using HTTP Strict Transport Security (HSTS) headers.'
             })
         
+        # Advanced security patterns
+        if any(crypto_pattern in line_content.lower() for crypto_pattern in ['md5(', 'sha1(', 'crc32(']):
+            if 'md5(' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'MD5 hash function usage detected',
+                    'suggestion': 'MD5 is cryptographically broken. Use SHA-256, SHA-3, or Argon2 for hashing. For password hashing, use bcrypt, Argon2, or PBKDF2 with appropriate salt rounds.'
+                })
+            elif 'sha1(' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'SHA-1 hash function usage detected',
+                    'suggestion': 'SHA-1 is cryptographically weak. Use SHA-256, SHA-3, or Blake2 for hashing. For password hashing, use bcrypt, Argon2, or PBKDF2 with appropriate salt rounds.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'security',
+                    'message': 'Weak cryptographic hash function detected',
+                    'suggestion': 'Use modern cryptographic hash functions like SHA-256, SHA-3, or Blake2. For password hashing, use bcrypt, Argon2, or PBKDF2 with appropriate salt rounds.'
+                })
+        
+        # Authentication bypass patterns
+        if any(auth_bypass in line_content.lower() for auth_bypass in ['admin = true', 'role = "admin"', 'is_admin = 1', 'bypass_auth', 'skip_auth', 'auth = false']):
+            if 'admin' in line_content.lower() or 'role' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Hardcoded admin access detected',
+                    'suggestion': 'Implement proper role-based access control (RBAC). Use JWT tokens, OAuth, or session-based authentication with proper authorization checks. Consider using policy-based authorization.'
+                })
+            elif 'bypass' in line_content.lower() or 'skip' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Authentication bypass mechanism detected',
+                    'suggestion': 'Remove all authentication bypass mechanisms. Implement proper authentication flows with secure session management. Use multi-factor authentication for sensitive operations.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Hardcoded authentication override detected',
+                    'suggestion': 'Implement proper authentication and authorization systems. Use secure token-based authentication with proper expiration and refresh mechanisms.'
+                })
+        
+        # Session management issues
+        if any(session_pattern in line_content.lower() for session_pattern in ['session_timeout = 0', 'session_lifetime = -1', 'remember_me = true']):
+            if 'timeout' in line_content.lower() or 'lifetime' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'Infinite or excessive session lifetime detected',
+                    'suggestion': 'Set reasonable session timeouts (15-30 minutes for web apps, 8 hours max for mobile). Implement session refresh mechanisms and automatic logout for inactive sessions.'
+                })
+            elif 'remember_me' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'security',
+                    'message': 'Remember me functionality without proper security',
+                    'suggestion': 'Implement secure remember me tokens with limited scope and expiration. Use secure, random tokens and consider implementing device fingerprinting.'
+                })
+        
+        # File upload security
+        if any(upload_pattern in line_content.lower() for upload_pattern in ['file.upload', 'multipart/form-data', 'enctype="multipart"']):
+            if 'validation' not in line_content.lower() and 'type' not in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'File upload without proper validation',
+                    'suggestion': 'Implement file type validation, size limits, and content scanning. Use allowlists for file extensions and consider implementing virus scanning for uploaded files.'
+                })
+        
+        # Command injection patterns
+        if any(cmd_pattern in line_content.lower() for cmd_pattern in ['os.system', 'subprocess.call', 'subprocess.run', 'subprocess.popen']):
+            if any(user_input in line_content.lower() for user_input in ['input(', 'request.', 'argv', 'args']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Command injection vulnerability detected',
+                    'suggestion': 'Avoid shell commands when possible. Use subprocess.run with shell=False and validate all inputs. Consider using higher-level APIs or libraries instead of shell commands.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'security',
+                    'message': 'Shell command execution detected',
+                    'suggestion': 'Use subprocess.run with shell=False for better security. Validate all command arguments and consider using higher-level APIs when possible.'
+                })
+        
+        # Deserialization security
+        if any(deserial_pattern in line_content.lower() for deserial_pattern in ['pickle.loads', 'yaml.load(', 'marshal.loads']):
+            if 'pickle.loads' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'critical',
+                    'category': 'security',
+                    'message': 'Unsafe pickle deserialization detected',
+                    'suggestion': 'Pickle is inherently unsafe. Use JSON, MessagePack, or Protocol Buffers for data serialization. If pickle is required, implement strict allowlists for allowed classes.'
+                })
+            elif 'yaml.load(' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'Unsafe YAML deserialization detected',
+                    'suggestion': 'Use yaml.safe_load() instead of yaml.load(). Implement proper input validation and consider using schema validation for YAML documents.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'Unsafe deserialization detected',
+                    'suggestion': 'Use safe deserialization methods with proper input validation. Implement allowlists for allowed types and consider using schema validation.'
+                })
+        
         # SQL injection prevention
         if any(sql_pattern in line_content.lower() for sql_pattern in ['execute(', 'executescript(', 'executemany(']):
             if any(safe_pattern in line_content.lower() for safe_pattern in ['prepared', 'stmt', 'parameter', '?', '%s']):
@@ -1946,6 +2076,119 @@ class GitHubCodeReviewer:
                         'suggestion': 'Handle file I/O errors, malformed JSON content, and encoding issues. Validate JSON structure before processing and provide meaningful error messages for debugging.'
                     })
         
+        # Advanced error handling patterns
+        if any(parse_pattern in line_content.lower() for parse_pattern in ['xml.parse', 'yaml.load', 'toml.load', 'ini.read']):
+            if 'try:' in line_content or 'except' in line_content:
+                pass  # Has error handling
+            else:
+                if 'xml.parse' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'XML parsing without error handling',
+                        'suggestion': 'Handle malformed XML, DTD validation errors, and entity expansion attacks. Use defusedxml for safe XML parsing and implement proper error handling for parsing failures.'
+                    })
+                elif 'yaml.load' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'YAML parsing without error handling',
+                        'suggestion': 'Handle malformed YAML, anchor/alias issues, and parsing errors. Use yaml.safe_load() and implement proper error handling for parsing failures with user-friendly error messages.'
+                    })
+                elif 'toml.load' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'TOML parsing without error handling',
+                        'suggestion': 'Handle malformed TOML, parsing errors, and validation failures. Implement proper error handling for configuration parsing with fallback to default values.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'Configuration parsing without error handling',
+                        'suggestion': 'Handle parsing errors, validation failures, and malformed configuration. Implement proper error handling with fallback to default values and user-friendly error messages.'
+                    })
+        
+        # Network timeout and retry patterns
+        if any(timeout_pattern in line_content.lower() for timeout_pattern in ['timeout=', 'retry=', 'max_retries']):
+            if 'timeout=' in line_content.lower():
+                if 'timeout=0' in line_content.lower() or 'timeout=None' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'error_handling',
+                        'message': 'Infinite timeout detected in network operation',
+                        'suggestion': 'Set reasonable timeouts (30s for web requests, 60s for file uploads). Implement exponential backoff retry strategies and circuit breaker patterns for network resilience.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'Network timeout configuration detected',
+                        'suggestion': 'Ensure timeouts are appropriate for the operation. Consider implementing retry mechanisms with exponential backoff and circuit breaker patterns for network resilience.'
+                    })
+            elif 'retry=' in line_content.lower():
+                if 'retry=0' in line_content.lower() or 'retry=False' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'error_handling',
+                        'message': 'Retry mechanism disabled for network operation',
+                        'suggestion': 'Enable retry mechanisms with exponential backoff for transient failures. Implement circuit breaker patterns and consider using libraries like tenacity for robust retry logic.'
+                    })
+        
+        # Exception handling patterns
+        if 'except Exception:' in line_content or 'except:' in line_content:
+            if 'except Exception:' in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'error_handling',
+                    'message': 'Generic exception handling detected',
+                    'suggestion': 'Catch specific exception types instead of generic Exception. Implement proper error logging, user-friendly error messages, and consider using custom exception hierarchies.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'error_handling',
+                    'message': 'Bare except clause detected',
+                    'suggestion': 'Specify the exception type to catch. Implement proper error logging, user-friendly error messages, and consider using custom exception hierarchies for better error handling.'
+                })
+        
+        # Logging and monitoring patterns
+        if any(log_pattern in line_content.lower() for log_pattern in ['print(', 'console.log', 'echo', 'printf']):
+            if 'print(' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'style',
+                    'message': 'print() statement detected in production code',
+                    'suggestion': 'Replace with proper logging (logging module in Python, winston in Node.js). Implement structured logging with appropriate log levels and consider using correlation IDs for request tracing.'
+                })
+            elif 'console.log' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'style',
+                    'message': 'console.log detected in production code',
+                    'suggestion': 'Replace with proper logging library (winston, pino). Implement structured logging with appropriate log levels and consider using correlation IDs for request tracing.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'style',
+                    'message': 'Debug output statement detected',
+                    'suggestion': 'Replace with proper logging mechanisms. Implement structured logging with appropriate log levels and consider using correlation IDs for request tracing.'
+                })
+        
         # Performance issues
         if 'setinterval(' in line_content.lower() or 'settimeout(' in line_content.lower():
             if 'clearinterval(' in line_content or 'cleartimeout(' in line_content:
@@ -2080,6 +2323,145 @@ class GitHubCodeReviewer:
                         'suggestion': 'Use proper synchronization primitives, async/await patterns, or consider using thread-safe data structures. Implement proper error handling for concurrent operations.'
                     })
         
+        # Advanced concurrency patterns
+        if any(race_pattern in line_content.lower() for race_pattern in ['global ', 'static ', 'shared_', 'common_']):
+            if any(safe_pattern in line_content.lower() for safe_pattern in ['lock', 'mutex', 'atomic', 'volatile']):
+                pass  # Properly protected
+            else:
+                if 'global ' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'concurrency',
+                        'message': 'Global variable access without synchronization',
+                        'suggestion': 'Use thread-local storage, dependency injection, or pass variables as parameters. Consider using immutable data structures or proper synchronization primitives for shared state.'
+                    })
+                elif 'static ' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'concurrency',
+                        'message': 'Static variable access without synchronization',
+                        'suggestion': 'Use thread-local storage, dependency injection, or pass variables as parameters. Consider using immutable data structures or proper synchronization primitives for shared state.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'concurrency',
+                        'message': 'Shared variable access without synchronization',
+                        'suggestion': 'Use proper synchronization primitives, immutable data structures, or consider using thread-local storage. Implement proper error handling for concurrent access.'
+                    })
+        
+        # Memory management patterns
+        if any(memory_pattern in line_content.lower() for memory_pattern in ['new ', 'malloc', 'alloc', 'create']):
+            if any(cleanup_pattern in line_content.lower() for cleanup_pattern in ['delete', 'free', 'dispose', 'close']):
+                pass  # Properly managed
+            else:
+                if 'new ' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'memory_management',
+                        'message': 'Object creation without cleanup mechanism',
+                        'suggestion': 'Use smart pointers, RAII patterns, or ensure proper cleanup in destructors. Consider using factory patterns or dependency injection for object lifecycle management.'
+                    })
+                elif 'malloc' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'memory_management',
+                        'message': 'Manual memory allocation without cleanup',
+                        'suggestion': 'Use smart pointers, RAII patterns, or ensure proper cleanup with free(). Consider using standard containers or smart pointers for automatic memory management.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'memory_management',
+                        'message': 'Resource creation without cleanup mechanism',
+                        'suggestion': 'Use smart pointers, RAII patterns, or ensure proper cleanup. Consider using factory patterns or dependency injection for resource lifecycle management.'
+                    })
+        
+        # Modern development practices
+        if any(modern_pattern in line_content.lower() for modern_pattern in ['var ', 'let ', 'const ', 'function ', 'def ']):
+            if 'var ' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'modern_practices',
+                    'message': 'var keyword usage detected',
+                    'suggestion': 'Use let or const instead of var. Prefer const for values that won\'t be reassigned, and let for variables that will change. This provides better block scoping and prevents hoisting issues.'
+                })
+            elif 'function ' in line_content.lower() and '=>' not in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'modern_practices',
+                    'message': 'Function declaration syntax detected',
+                    'suggestion': 'Consider using arrow functions for callbacks and short functions. Use function declarations for named functions that need hoisting. Consider using async/await for asynchronous operations.'
+                })
+            elif 'def ' in line_content.lower() and '->' not in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'modern_practices',
+                    'message': 'Function definition without type hints',
+                    'suggestion': 'Add type hints for better code documentation and IDE support. Use mypy for static type checking and consider using dataclasses for simple data structures.'
+                })
+        
+        # Testing and quality patterns
+        if any(test_pattern in line_content.lower() for test_pattern in ['test_', 'spec_', 'describe(', 'it(']):
+            if 'assert' in line_content.lower() or 'expect' in line_content.lower():
+                pass  # Has assertions
+            else:
+                if 'test_' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'testing',
+                        'message': 'Test function without assertions',
+                        'suggestion': 'Add proper assertions to verify expected behavior. Use descriptive test names and consider using test data builders or factories for complex test setup.'
+                    })
+                elif 'describe(' in line_content.lower() or 'it(' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'testing',
+                        'message': 'Test description without assertions',
+                        'suggestion': 'Add proper assertions to verify expected behavior. Use descriptive test names and consider using test data builders or factories for complex test setup.'
+                    })
+        
+        # Documentation patterns
+        if line_content.strip().startswith(('def ', 'class ', 'function ')):
+            if '"""' in line_content or "'''" in line_content or '///' in line_content:
+                pass  # Has documentation
+            else:
+                if 'def ' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'documentation',
+                        'message': 'Function definition without docstring',
+                        'suggestion': 'Add comprehensive docstrings following PEP 257. Include parameter descriptions, return values, exceptions, and usage examples. Consider using type hints for better documentation.'
+                    })
+                elif 'class ' in line_content.lower():
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'documentation',
+                        'message': 'Class definition without docstring',
+                        'suggestion': 'Add comprehensive class docstrings explaining purpose, responsibilities, and usage. Document public methods and consider using dataclasses for simple data structures.'
+                    })
+                else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'documentation',
+                        'message': 'Function/class definition without documentation',
+                        'suggestion': 'Add comprehensive documentation explaining purpose, parameters, return values, and usage examples. Consider using type hints and following language-specific documentation standards.'
+                    })
+        
         # Input validation
         if any(input_pattern in line_content.lower() for input_pattern in ['input(', 'readline(', 'gets(', 'scanf(']):
             if any(validation_pattern in line_content.lower() for validation_pattern in ['validate', 'check', 'verify', 'sanitize']):
@@ -2110,6 +2492,140 @@ class GitHubCodeReviewer:
                         'message': 'User input without validation',
                         'suggestion': 'Implement input validation, sanitization, and type checking. Consider using schema validation libraries and implement proper error handling for invalid input.'
                     })
+        
+        # Advanced input validation patterns
+        if any(web_input in line_content.lower() for web_input in ['request.', 'req.', 'params.', 'query.', 'body.']):
+            if any(validation_pattern in line_content.lower() for validation_pattern in ['validate', 'check', 'verify', 'sanitize', 'escape']):
+                pass  # Has validation
+            else:
+                if 'request.' in line_content.lower():
+                    if 'json' in line_content.lower():
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'input_validation',
+                            'message': 'JSON request body without validation',
+                            'suggestion': 'Implement JSON schema validation, type checking, and sanitization. Use libraries like Pydantic, Marshmallow, or Joi for robust validation. Consider implementing input sanitization for XSS prevention.'
+                        })
+                    elif 'form' in line_content.lower() or 'multipart' in line_content.lower():
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'high',
+                            'category': 'input_validation',
+                            'message': 'Form data without validation',
+                            'suggestion': 'Implement form validation, file type checking, and size limits. Use validation libraries and implement proper error handling for invalid form submissions. Consider CSRF protection.'
+                        })
+                    else:
+                        issues.append({
+                            'line': line_num,
+                            'severity': 'medium',
+                            'category': 'input_validation',
+                            'message': 'Web request data without validation',
+                            'suggestion': 'Implement proper input validation, sanitization, and type checking. Use validation libraries and implement proper error handling for invalid requests. Consider implementing rate limiting.'
+                        })
+        
+        # Framework-specific patterns
+        if any(framework_pattern in line_content.lower() for framework_pattern in ['django', 'flask', 'fastapi', 'express', 'react', 'vue', 'angular']):
+            if 'django' in line_content.lower():
+                if 'models.CharField' in line_content and 'max_length' not in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'framework_best_practices',
+                        'message': 'Django CharField without max_length',
+                        'suggestion': 'Always specify max_length for CharField to prevent database issues and improve performance. Consider using TextField for longer content and implement proper validation.'
+                    })
+                elif 'models.DateTimeField' in line_content and 'auto_now' not in line_content and 'auto_now_add' not in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'framework_best_practices',
+                        'message': 'DateTimeField without auto timestamps',
+                        'suggestion': 'Consider using auto_now_add for creation timestamps and auto_now for modification timestamps. This provides automatic audit trail functionality.'
+                    })
+            elif 'flask' in line_content.lower():
+                if 'app.run(' in line_content and 'debug=True' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'high',
+                        'category': 'framework_best_practices',
+                        'message': 'Flask debug mode enabled in production code',
+                        'suggestion': 'Remove debug=True from production code. Use environment variables to control debug mode and implement proper logging and error handling for production environments.'
+                    })
+            elif 'react' in line_content.lower():
+                if 'useState(' in line_content and 'useEffect(' not in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'framework_best_practices',
+                        'message': 'useState without useEffect for side effects',
+                        'suggestion': 'Use useEffect for side effects when state changes. Consider using useCallback and useMemo for performance optimization. Implement proper cleanup in useEffect.'
+                    })
+        
+        # Database and ORM patterns
+        if any(db_pattern in line_content.lower() for db_pattern in ['select *', 'select count(*)', 'n+1', 'lazy loading']):
+            if 'select *' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'database',
+                    'message': 'SELECT * query detected',
+                    'suggestion': 'Specify only required columns to improve performance and reduce network transfer. Use column aliases for clarity and consider implementing pagination for large result sets.'
+                })
+            elif 'select count(*)' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'database',
+                    'message': 'COUNT(*) query for large tables',
+                    'suggestion': 'Consider using approximate counts, cached counts, or pagination for large tables. Use database-specific optimizations like COUNT(1) or indexed columns for better performance.'
+                })
+            elif 'n+1' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'database',
+                    'message': 'N+1 query problem detected',
+                    'suggestion': 'Use eager loading, JOIN queries, or batch loading to avoid N+1 queries. Consider using ORM features like select_related, prefetch_related, or implementing data access patterns.'
+                })
+        
+        # API design patterns
+        if any(api_pattern in line_content.lower() for api_pattern in ['api/v1', 'version', 'endpoint', 'route']):
+            if 'api/v1' in line_content.lower() or 'v1/' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'api_design',
+                    'message': 'API versioning in URL path',
+                    'suggestion': 'Consider using header-based versioning (Accept header) or content negotiation for better API versioning. Implement proper version deprecation strategies and backward compatibility.'
+                })
+            elif 'endpoint' in line_content.lower() and 'auth' not in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'api_design',
+                    'message': 'API endpoint without authentication',
+                    'suggestion': 'Implement proper authentication and authorization for API endpoints. Use JWT tokens, OAuth2, or API keys with proper scoping and rate limiting.'
+                })
+        
+        # Configuration and environment patterns
+        if any(config_pattern in line_content.lower() for config_pattern in ['config.', 'settings.', 'env.', 'process.env']):
+            if 'hardcoded' in line_content.lower() or 'localhost' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'configuration',
+                    'message': 'Hardcoded configuration values',
+                    'suggestion': 'Use environment variables, configuration files, or configuration management systems. Implement configuration validation and consider using configuration management tools for different environments.'
+                })
+            elif 'dev' in line_content.lower() and 'prod' not in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'configuration',
+                    'message': 'Development-only configuration',
+                    'suggestion': 'Ensure configuration works across all environments. Use environment-specific configuration files and implement proper configuration validation for production deployments.'
+                })
         
         # Code quality
         if re.search(r'\b\d{4,}\b', line_content):  # Magic numbers 1000+
@@ -2153,6 +2669,114 @@ class GitHubCodeReviewer:
                     'category': 'code_quality',
                     'message': 'Magic number detected',
                     'suggestion': 'Extract to named constants with descriptive names. Consider using enums or configuration objects for related constants. Document the business logic behind these values.'
+                })
+        
+        # Advanced code quality patterns
+        if re.search(r'\b\d{2,3}\b', line_content):  # Magic numbers 10-999
+            if any(rate_indicator in line_content.lower() for rate_indicator in ['rate', 'frequency', 'interval', 'period']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Magic number detected in rate configuration',
+                    'suggestion': 'Extract rate values to named constants. Consider using configuration files for different environments and document the business reasoning behind specific rates.'
+                })
+            elif any(threshold_indicator in line_content.lower() for threshold_indicator in ['threshold', 'limit', 'max', 'min']):
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Magic number detected in threshold configuration',
+                    'suggestion': 'Extract threshold values to named constants. Consider using configuration files and document the business logic behind specific threshold values.'
+                })
+        
+        # String concatenation patterns
+        if line_content.count('+') > 2 and any(string_indicator in line_content for string_indicator in ['"', "'"]):
+            if 'sql' in line_content.lower() or 'query' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'SQL query construction with string concatenation',
+                    'suggestion': 'Use parameterized queries or query builders. Never concatenate user input into SQL strings. Consider using ORMs or query builders with built-in SQL injection protection.'
+                })
+            elif 'url' in line_content.lower() or 'http' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'URL construction with string concatenation',
+                    'suggestion': 'Use URL builders or urllib.parse.urljoin() for safe URL construction. Validate and sanitize URL components before concatenation.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Multiple string concatenations detected',
+                    'suggestion': 'Use f-strings, .format(), or join() for better performance and readability. Consider using string builders for complex string construction.'
+                })
+        
+        # Variable naming patterns
+        if re.search(r'\b[a-z][a-z0-9_]*\s*=', line_content):
+            var_name = re.search(r'\b([a-z][a-z0-9_]*)\s*=', line_content).group(1)
+            if len(var_name) < 3:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'readability',
+                    'message': 'Variable name too short',
+                    'suggestion': 'Use descriptive variable names that clearly indicate purpose. Avoid single letters except for loop counters or mathematical formulas.'
+                })
+            elif var_name in ['data', 'info', 'stuff', 'temp', 'tmp']:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'readability',
+                    'message': 'Generic variable name detected',
+                    'suggestion': 'Use specific, descriptive variable names that indicate the data type and purpose. Consider using domain-specific terminology.'
+                })
+        
+        # Function complexity patterns
+        if line_content.count('(') > 3 and line_content.count(')') > 3:
+            if 'if' in line_content and 'and' in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Complex function call with multiple conditions',
+                    'suggestion': 'Extract complex conditions to well-named boolean methods. Consider using early returns or guard clauses to reduce nesting and improve readability.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Function call with many parameters',
+                    'suggestion': 'Consider using parameter objects, builder pattern, or default parameters. Group related parameters into configuration objects for better maintainability.'
+                })
+        
+        # Loop and iteration patterns
+        if any(loop_pattern in line_content.lower() for loop_pattern in ['for ', 'while ', 'foreach', 'map(', 'filter(']):
+            if 'range(' in line_content.lower() and 'len(' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Index-based loop with len()',
+                    'suggestion': 'Use enumerate() for index-based loops or direct iteration for value-based loops. Consider using list comprehensions or generator expressions for simple transformations.'
+                })
+            elif 'enumerate(' in line_content.lower():
+                pass  # Good practice
+            elif 'in ' in line_content.lower():
+                pass  # Good practice
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Loop pattern detected',
+                    'suggestion': 'Consider using list comprehensions, generator expressions, or functional programming patterns when appropriate. Ensure loops have clear termination conditions.'
                 })
         
         # Nested conditionals
@@ -2275,13 +2899,212 @@ class GitHubCodeReviewer:
                     'message': 'Hardcoded data storage path detected',
                     'suggestion': 'Use configuration files or environment variables for data paths. Consider implementing data migration strategies and backup/restore procedures.'
                 })
-            else:
+                            else:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'code_quality',
+                        'message': 'Hardcoded file path detected',
+                        'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate. Consider using pathlib for modern path operations.'
+                    })
+        
+        # Final specialized patterns for 100+ unique comment types
+        
+        # TODO/FIXME comment analysis with context-aware suggestions
+        if any(todo_pattern in line_content.lower() for todo_pattern in ['todo:', 'fixme:', 'hack:', 'note:', 'xxx:', 'bug:']):
+            todo_content = line_content.lower()
+            if 'error' in todo_content or 'exception' in todo_content:
                 issues.append({
                     'line': line_num,
                     'severity': 'medium',
                     'category': 'code_quality',
-                    'message': 'Hardcoded file path detected',
-                    'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate. Consider using pathlib for modern path operations.'
+                    'message': 'TODO comment for error handling',
+                    'suggestion': 'Implement comprehensive error handling with proper logging, user-friendly error messages, and graceful degradation. Consider using custom exception hierarchies and error codes.'
+                })
+            elif 'test' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'testing',
+                    'message': 'TODO comment for testing',
+                    'suggestion': 'Write comprehensive unit tests covering edge cases, error conditions, and integration scenarios. Use mocking for external dependencies and aim for high test coverage.'
+                })
+            elif 'log' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'monitoring',
+                    'message': 'TODO comment for logging',
+                    'suggestion': 'Implement structured logging with appropriate log levels, correlation IDs, and context information. Consider using centralized logging and log aggregation for production environments.'
+                })
+            elif 'validate' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'input_validation',
+                    'message': 'TODO comment for validation',
+                    'suggestion': 'Implement comprehensive input validation, sanitization, and schema validation. Use validation libraries and provide user-friendly error messages for invalid input.'
+                })
+            elif 'performance' in todo_content or 'optimize' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'performance',
+                    'message': 'TODO comment for performance optimization',
+                    'suggestion': 'Profile the code to identify bottlenecks, implement caching strategies, and optimize algorithms. Consider using performance monitoring tools and implementing metrics collection.'
+                })
+            elif 'refactor' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'TODO comment for refactoring',
+                    'suggestion': 'Break down complex functions, extract common patterns, and improve naming conventions. Consider using design patterns and implementing code review guidelines.'
+                })
+            elif 'security' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'high',
+                    'category': 'security',
+                    'message': 'TODO comment for security improvements',
+                    'suggestion': 'Conduct security review following OWASP guidelines, implement proper authentication and authorization, and consider using security scanning tools.'
+                })
+            elif 'document' in todo_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'documentation',
+                    'message': 'TODO comment for documentation',
+                    'suggestion': 'Write comprehensive API documentation, code comments, and user guides. Consider using automated documentation generation tools and maintaining up-to-date examples.'
+                })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'code_quality',
+                    'message': 'Generic TODO comment detected',
+                    'suggestion': 'Provide specific details about what needs to be implemented. Include acceptance criteria, implementation notes, and consider creating proper issue tickets for tracking.'
+                })
+        
+        # Language-specific best practices
+        if any(lang_pattern in line_content.lower() for lang_pattern in ['python', 'javascript', 'java', 'c++', 'go', 'rust']):
+            if 'python' in line_content.lower():
+                if 'import *' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'python_best_practices',
+                        'message': 'Wildcard import detected',
+                        'suggestion': 'Import only specific modules to avoid namespace pollution and improve code clarity. Use absolute imports and consider using __all__ to control public API.'
+                    })
+                elif 'lambda' in line_content and len(line_content) > 80:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'python_best_practices',
+                        'message': 'Complex lambda expression detected',
+                        'suggestion': 'Extract complex lambda expressions to named functions for better readability and testability. Use list comprehensions or generator expressions when appropriate.'
+                    })
+            elif 'javascript' in line_content.lower():
+                if 'var ' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'javascript_best_practices',
+                        'message': 'var keyword usage in modern JavaScript',
+                        'suggestion': 'Use const for values that won\'t be reassigned, let for variables that will change. This provides better block scoping and prevents hoisting issues.'
+                    })
+                elif '===' not in line_content and '==' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'javascript_best_practices',
+                        'message': 'Loose equality comparison detected',
+                        'suggestion': 'Use strict equality (===) and strict inequality (!==) to avoid type coercion issues. Consider using explicit type conversion when needed.'
+                    })
+            elif 'java' in line_content.lower():
+                if 'public static void main' in line_content and 'args' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'java_best_practices',
+                        'message': 'Main method without proper argument handling',
+                        'suggestion': 'Implement proper command line argument parsing and validation. Use argument parsing libraries and provide help text for command line usage.'
+                    })
+        
+        # Cloud and deployment patterns
+        if any(cloud_pattern in line_content.lower() for cloud_pattern in ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform']):
+            if 'aws' in line_content.lower():
+                if 'access_key' in line_content or 'secret_key' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'critical',
+                        'category': 'cloud_security',
+                        'message': 'AWS credentials hardcoded in source',
+                        'suggestion': 'Use IAM roles, environment variables, or AWS Secrets Manager. Implement proper credential rotation and use least privilege access policies.'
+                    })
+                elif 'region' in line_content and 'us-east-1' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'low',
+                        'category': 'cloud_configuration',
+                        'message': 'Hardcoded AWS region detected',
+                        'suggestion': 'Use environment variables or configuration files for region selection. Consider implementing multi-region deployment strategies for high availability.'
+                    })
+            elif 'docker' in line_content.lower():
+                if 'FROM ubuntu:latest' in line_content or 'FROM debian:latest' in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'container_security',
+                        'message': 'Latest tag in Docker base image',
+                        'suggestion': 'Use specific version tags for reproducible builds and security. Implement image scanning and consider using minimal base images like Alpine Linux.'
+                    })
+                elif 'RUN apt-get update' in line_content and 'apt-get clean' not in line_content:
+                    issues.append({
+                        'line': line_num,
+                        'severity': 'medium',
+                        'category': 'container_optimization',
+                        'message': 'Docker layer optimization opportunity',
+                        'suggestion': 'Combine RUN commands, clean package caches, and remove unnecessary files in the same layer. Use multi-stage builds to reduce final image size.'
+                    })
+        
+        # Monitoring and observability patterns
+        if any(monitor_pattern in line_content.lower() for monitor_pattern in ['metrics', 'logging', 'tracing', 'monitoring', 'alerting']):
+            if 'metrics' in line_content.lower() and 'counter' not in line_content.lower() and 'gauge' not in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'monitoring',
+                    'message': 'Generic metrics collection detected',
+                    'suggestion': 'Use specific metric types (counters, gauges, histograms) with proper labels and documentation. Implement metric aggregation and consider using Prometheus or similar monitoring systems.'
+                })
+            elif 'logging' in line_content.lower() and 'level' not in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'monitoring',
+                    'message': 'Logging without level specification',
+                    'suggestion': 'Use appropriate log levels (DEBUG, INFO, WARN, ERROR) and implement structured logging with correlation IDs. Consider log aggregation and retention policies.'
+                })
+        
+        # Accessibility and internationalization patterns
+        if any(accessibility_pattern in line_content.lower() for accessibility_pattern in ['alt=', 'aria-', 'lang=', 'translate', 'i18n']):
+            if 'alt=' in line_content.lower() and 'alt=""' in line_content:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'accessibility',
+                    'message': 'Empty alt attribute for image',
+                    'suggestion': 'Provide descriptive alt text for images or use alt="" for decorative images. Consider using aria-label for complex images and implementing proper accessibility testing.'
+                })
+            elif 'lang=' in line_content.lower() and 'en' in line_content.lower():
+                issues.append({
+                    'line': line_num,
+                    'severity': 'low',
+                    'category': 'internationalization',
+                    'message': 'Hardcoded language attribute',
+                    'suggestion': 'Use dynamic language detection or configuration-based language selection. Implement proper internationalization (i18n) and localization (l10n) support.'
                 })
         
         return issues
