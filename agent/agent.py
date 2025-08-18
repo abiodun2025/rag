@@ -151,59 +151,11 @@ def get_agent_model():
         # For other providers, use the model name directly
         return model_choice
 
-# Tool registry for lazy initialization
-class ToolRegistry:
-    """Registry for tools that will be registered with the agent when it's created."""
-    
-    def __init__(self):
-        self.tools = []
-    
-    def tool(self, func):
-        """Decorator to register a tool function."""
-        self.tools.append(func)
-        return func
-    
-    def register_with_agent(self, agent):
-        """Register all collected tools with the agent."""
-        for tool_func in self.tools:
-            agent.tool(tool_func)
-        logger.info(f"Registered {len(self.tools)} tools with agent")
-
-# Create tool registry
-tool_registry = ToolRegistry()
-
-# Lazy agent initialization
-class LazyAgent:
-    """Lazy agent that only initializes when first accessed."""
-    
-    def __init__(self):
-        self._agent = None
-        self._initialized = False
-    
-    def _ensure_initialized(self):
-        """Ensure the agent is initialized."""
-        if not self._initialized:
-            try:
-                self._agent = Agent(
-                    get_agent_model(),
-                    deps_type=AgentDependencies,
-                    system_prompt=SYSTEM_PROMPT
-                )
-                # Register all tools
-                tool_registry.register_with_agent(self._agent)
-                self._initialized = True
-                logger.info("RAG agent initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to create RAG agent: {e}")
-                raise
-    
-    def __getattr__(self, name):
-        """Delegate attribute access to the underlying agent."""
-        self._ensure_initialized()
-        return getattr(self._agent, name)
-
-# Create lazy agent instance
-rag_agent = LazyAgent()
+rag_agent = Agent(
+    get_agent_model(),
+    deps_type=AgentDependencies,
+    system_prompt=SYSTEM_PROMPT
+)
 
 # Patch all tool schemas for Cohere compatibility after all tools are registered
 def patch_all_tool_schemas_for_cohere():
@@ -241,7 +193,7 @@ def initialize_cohere_schema_patching():
 # Schema patching removed - fixed at model level
 
 # Register tools with proper docstrings (no description parameter)
-@tool_registry.tool
+@rag_agent.tool
 async def vector_search(
     ctx: RunContext[AgentDependencies],
     query: str,
@@ -300,7 +252,7 @@ async def vector_search(
         raise
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def graph_search(
     ctx: RunContext[AgentDependencies],
     query: str
@@ -364,7 +316,7 @@ async def graph_search(
         raise
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def hybrid_search(
     ctx: RunContext[AgentDependencies],
     query: str,
@@ -426,7 +378,7 @@ async def hybrid_search(
         raise
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def get_document(
     ctx: RunContext[AgentDependencies],
     document_id: str
@@ -462,7 +414,7 @@ async def get_document(
     return None
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_documents(
     ctx: RunContext[AgentDependencies],
     limit: int = 20,
@@ -499,7 +451,7 @@ async def list_documents(
     ]
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def get_entity_relationships(
     ctx: RunContext[AgentDependencies],
     entity_name: str,
@@ -527,7 +479,7 @@ async def get_entity_relationships(
     return await get_entity_relationships_tool(input_data)
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def get_entity_timeline(
     ctx: RunContext[AgentDependencies],
     entity_name: str,
@@ -558,7 +510,7 @@ async def get_entity_timeline(
     return await get_entity_timeline_tool(input_data)
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def web_search(
     ctx: RunContext[AgentDependencies],
     query: str,
@@ -595,7 +547,7 @@ async def web_search(
         return []
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def compose_email(
     ctx: RunContext[AgentDependencies],
     to: str,
@@ -623,7 +575,7 @@ async def compose_email(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def save_message(
     ctx: RunContext[AgentDependencies],
     message: str,
@@ -659,7 +611,7 @@ async def save_message(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def save_conversation(
     ctx: RunContext[AgentDependencies],
     user_message: str,
@@ -695,7 +647,7 @@ async def save_conversation(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_messages(
     ctx: RunContext[AgentDependencies],
     user_id: str = "",
@@ -732,7 +684,7 @@ async def list_messages(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_emails(
     ctx: RunContext[AgentDependencies],
     max_results: int = 10,
@@ -758,7 +710,7 @@ async def list_emails(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def read_email(
     ctx: RunContext[AgentDependencies],
     email_id: str
@@ -782,7 +734,7 @@ async def read_email(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def search_emails(
     ctx: RunContext[AgentDependencies],
     query: str,
@@ -809,7 +761,7 @@ async def search_emails(
 
 
 # Desktop Message Tools
-@tool_registry.tool
+@rag_agent.tool
 async def save_desktop_message(
     ctx: RunContext[AgentDependencies],
     message: str,
@@ -848,7 +800,7 @@ async def save_desktop_message(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def save_to_desktop(
     ctx: RunContext[AgentDependencies],
     message: str,
@@ -887,7 +839,7 @@ async def save_to_desktop(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def save_to_project(
     ctx: RunContext[AgentDependencies],
     message: str,
@@ -926,7 +878,7 @@ async def save_to_project(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def save_desktop_conversation(
     ctx: RunContext[AgentDependencies],
     user_message: str,
@@ -965,7 +917,7 @@ async def save_desktop_conversation(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_desktop_messages(
     ctx: RunContext[AgentDependencies],
     user_id: str = "",
@@ -1004,7 +956,7 @@ async def list_desktop_messages(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def show_desktop_messages(
     ctx: RunContext[AgentDependencies],
     limit: int = 10
@@ -1039,7 +991,7 @@ async def show_desktop_messages(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def show_project_messages(
     ctx: RunContext[AgentDependencies],
     limit: int = 10
@@ -1078,7 +1030,7 @@ async def show_project_messages(
 # MCP (Model Context Protocol) Tools Integration
 # ============================================================================
 
-@tool_registry.tool
+@rag_agent.tool
 async def count_r_letters(
     ctx: RunContext[AgentDependencies],
     word: str
@@ -1109,7 +1061,7 @@ async def count_r_letters(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_desktop_files(
     ctx: RunContext[AgentDependencies],
     random_string: str = "dummy"
@@ -1140,7 +1092,7 @@ async def list_desktop_files(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def get_desktop_directory(
     ctx: RunContext[AgentDependencies],
     random_string: str = "dummy"
@@ -1171,7 +1123,7 @@ async def get_desktop_directory(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def open_gmail_browser(
     ctx: RunContext[AgentDependencies],
     random_string: str = "dummy"
@@ -1202,7 +1154,7 @@ async def open_gmail_browser(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def open_gmail_compose_window(
     ctx: RunContext[AgentDependencies],
     random_string: str = "dummy"
@@ -1234,7 +1186,7 @@ async def open_gmail_compose_window(
 
 
 # Temporarily disabled due to schema issues
-# @tool_registry.tool
+# @rag_agent.tool
 # async def send_email_via_sendmail(
 #     ctx: RunContext[AgentDependencies],
 #     to_email: str,
@@ -1277,7 +1229,7 @@ async def open_gmail_compose_window(
 
 
 # Temporarily disabled due to schema issues
-# @tool_registry.tool
+# @rag_agent.tool
 # async def send_simple_email(
 #     ctx: RunContext[AgentDependencies],
 #     to_email: str,
@@ -1316,7 +1268,7 @@ async def open_gmail_compose_window(
 #         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def call_mcp_tool(
     ctx: RunContext[AgentDependencies],
     tool_name: str,
@@ -1352,7 +1304,7 @@ async def call_mcp_tool(
         return {"status": "error", "error": str(e)}
 
 
-@tool_registry.tool
+@rag_agent.tool
 async def list_available_mcp_tools(
     ctx: RunContext[AgentDependencies]
 ) -> Dict[str, Any]:

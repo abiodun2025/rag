@@ -1,0 +1,12 @@
+{
+  "message_id": "52e60f5d-315c-4384-88b5-c2304d2df892",
+  "timestamp": "2025-08-14T15:53:00.912188",
+  "message_type": "user_message",
+  "content": "Save this test message to the project",
+  "user_id": null,
+  "session_id": null,
+  "metadata": {
+    "source": "smart_master_agent",
+    "session_id": "e88f1d04-14e9-439d-9d9d-8f5ecc165759"
+  }
+}
