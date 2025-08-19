@@ -2899,14 +2899,14 @@ class GitHubCodeReviewer:
                     'message': 'Hardcoded data storage path detected',
                     'suggestion': 'Use configuration files or environment variables for data paths. Consider implementing data migration strategies and backup/restore procedures.'
                 })
-                            else:
-                    issues.append({
-                        'line': line_num,
-                        'severity': 'medium',
-                        'category': 'code_quality',
-                        'message': 'Hardcoded file path detected',
-                        'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate. Consider using pathlib for modern path operations.'
-                    })
+            else:
+                issues.append({
+                    'line': line_num,
+                    'severity': 'medium',
+                    'category': 'code_quality',
+                    'message': 'Hardcoded file path detected',
+                    'suggestion': 'Use path.join() for cross-platform compatibility, environment variables for configurable paths, or relative paths when appropriate. Consider using pathlib for modern path operations.'
+                })
         
         # Final specialized patterns for 100+ unique comment types
         
