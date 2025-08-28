@@ -1,0 +1,65 @@
+{
+  "jira": {
+    "base_url": "https://your-domain.atlassian.net",
+    "username": "your-email@example.com",
+    "api_token": "your-api-token-here",
+    "project_key": "PROJ",
+    "verify_ssl": true,
+    "timeout": 30,
+    "max_results": 100
+  },
+  "trello": {
+    "api_key": "your-trello-api-key",
+    "token": "your-trello-token",
+    "board_id": "your-board-id"
+  },
+  "asana": {
+    "access_token": "your-asana-access-token",
+    "workspace_id": "your-workspace-id"
+  },
+  "linear": {
+    "api_key": "your-linear-api-key",
+    "team_id": "your-team-id"
+  },
+  "sync_settings": {
+    "auto_sync": true,
+    "sync_interval_minutes": 15,
+    "sync_history_retention_days": 30,
+    "cross_platform_mapping": {
+      "jira_to_trello": {
+        "status_mapping": {
+          "To Do": "Backlog",
+          "In Progress": "In Development",
+          "Done": "Deployment"
+        }
+      },
+      "jira_to_asana": {
+        "status_mapping": {
+          "To Do": "Not Started",
+          "In Progress": "In Progress",
+          "Done": "Completed"
+        }
+      }
+    }
+  },
+  "notifications": {
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "your-email@gmail.com",
+      "password": "your-app-password"
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "your-slack-webhook-url",
+      "channel": "#project-updates"
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "jira_integration.log",
+    "max_size_mb": 10,
+    "backup_count": 5
+  }
+}
