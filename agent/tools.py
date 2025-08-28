@@ -30,6 +30,18 @@ from duckduckgo_search import DDGS  # <-- Add this import
 from agent.email_tools import compose_email, list_emails, read_email, search_emails
 from agent.message_tools import message_storage
 from agent.desktop_message_tools import desktop_storage
+from agent.github_merge_agent import (
+    list_pull_requests_tool,
+    get_pr_details_tool,
+    check_merge_eligibility_tool,
+    merge_pr_tool,
+    auto_merge_eligible_prs_tool,
+    ListPRsInput,
+    GetPRDetailsInput,
+    CheckMergeEligibilityInput,
+    MergePRInput,
+    AutoMergeInput
+)
 
 # Load environment variables
 load_dotenv()
@@ -851,3 +863,69 @@ async def list_desktop_messages_tool(input_data: ListMessagesInput) -> Dict[str,
     except Exception as e:
         logger.error("Error in list_desktop_messages_tool: %s", e)
         return {"status": "error", "error": str(e)}
+
+
+# GitHub Merge Tools
+async def github_list_prs_tool(input_data: ListPRsInput) -> Dict[str, Any]:
+    """
+    List pull requests in a GitHub repository.
+    
+    Args:
+        input_data: Parameters for listing PRs
+    
+    Returns:
+        List of pull requests
+    """
+    return await list_pull_requests_tool(input_data)
+
+
+async def github_get_pr_details_tool(input_data: GetPRDetailsInput) -> Dict[str, Any]:
+    """
+    Get detailed information about a specific pull request.
+    
+    Args:
+        input_data: PR number and repository info
+    
+    Returns:
+        Detailed PR information
+    """
+    return await get_pr_details_tool(input_data)
+
+
+async def github_check_merge_eligibility_tool(input_data: CheckMergeEligibilityInput) -> Dict[str, Any]:
+    """
+    Check if a pull request is eligible for merging.
+    
+    Args:
+        input_data: PR number and repository info
+    
+    Returns:
+        Merge eligibility status and details
+    """
+    return await check_merge_eligibility_tool(input_data)
+
+
+async def github_merge_pr_tool(input_data: MergePRInput) -> Dict[str, Any]:
+    """
+    Merge a pull request if it's eligible.
+    
+    Args:
+        input_data: PR number, merge method, and optional commit details
+    
+    Returns:
+        Merge result
+    """
+    return await merge_pr_tool(input_data)
+
+
+async def github_auto_merge_eligible_prs_tool(input_data: AutoMergeInput) -> Dict[str, Any]:
+    """
+    Automatically merge all eligible pull requests.
+    
+    Args:
+        input_data: Optional auto-merge label and repository info
+    
+    Returns:
+        Auto-merge results summary
+    """
+    return await auto_merge_eligible_prs_tool(input_data)

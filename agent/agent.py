@@ -47,7 +47,18 @@ from .tools import (
     search_emails_tool,
     save_desktop_message_tool,  # <-- Import the desktop message save tool
     save_desktop_conversation_tool, # <-- Import the desktop conversation save tool
-    list_desktop_messages_tool  # <-- Import the desktop message list tool
+    list_desktop_messages_tool,  # <-- Import the desktop message list tool
+    # GitHub Merge Tools
+    github_list_prs_tool,
+    github_get_pr_details_tool,
+    github_check_merge_eligibility_tool,
+    github_merge_pr_tool,
+    github_auto_merge_eligible_prs_tool,
+    ListPRsInput,
+    GetPRDetailsInput,
+    CheckMergeEligibilityInput,
+    MergePRInput,
+    AutoMergeInput
 )
 from .mcp_tools import (
     count_r_tool,
@@ -1327,3 +1338,198 @@ async def list_available_mcp_tools(
     except Exception as e:
         logger.error("List available MCP tools failed: %s", e)
         return {"status": "error", "error": str(e)}
+
+
+# GitHub Merge Tools
+@rag_agent.tool
+async def list_github_pull_requests(
+    ctx: RunContext[AgentDependencies],
+    state: str = "open",
+    limit: int = 50,
+    repo_name: str = None
+) -> Dict[str, Any]:
+    """
+    List pull requests in a GitHub repository.
+    
+    This tool lists pull requests with their current status, review counts,
+    and mergeability information. Useful for monitoring repository activity.
+    
+    Args:
+        state: PR state filter ('open', 'closed', or 'all')
+        limit: Maximum number of PRs to return (1-100)
+        repo_name: Repository name in format 'owner/repo' (uses GITHUB_REPO env var if not provided)
+    
+    Returns:
+        Dictionary with list of pull requests and count
+    """
+    logger.debug("List GitHub PRs tool called: state=%s, limit=%d, repo=%s", state, limit, repo_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = ListPRsInput(
+        state=state,
+        limit=limit,
+        repo_name=repo_name
+    )
+    
+    try:
+        result = await github_list_prs_tool(input_data)
+        logger.debug("List GitHub PRs result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("List GitHub PRs failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@rag_agent.tool
+async def get_github_pr_details(
+    ctx: RunContext[AgentDependencies],
+    pr_number: int,
+    repo_name: str = None
+) -> Dict[str, Any]:
+    """
+    Get detailed information about a specific GitHub pull request.
+    
+    This tool provides comprehensive information about a PR including
+    reviews, status checks, branch protection rules, and merge eligibility.
+    
+    Args:
+        pr_number: Pull request number
+        repo_name: Repository name in format 'owner/repo' (uses GITHUB_REPO env var if not provided)
+    
+    Returns:
+        Dictionary with detailed PR information
+    """
+    logger.debug("Get GitHub PR details tool called: PR #%d, repo=%s", pr_number, repo_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = GetPRDetailsInput(
+        pr_number=pr_number,
+        repo_name=repo_name
+    )
+    
+    try:
+        result = await github_get_pr_details_tool(input_data)
+        logger.debug("Get GitHub PR details result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Get GitHub PR details failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@rag_agent.tool
+async def check_github_pr_merge_eligibility(
+    ctx: RunContext[AgentDependencies],
+    pr_number: int,
+    repo_name: str = None
+) -> Dict[str, Any]:
+    """
+    Check if a GitHub pull request is eligible for merging.
+    
+    This tool analyzes a PR's status including reviews, status checks,
+    branch protection rules, and mergeability to determine if it can be merged.
+    
+    Args:
+        pr_number: Pull request number
+        repo_name: Repository name in format 'owner/repo' (uses GITHUB_REPO env var if not provided)
+    
+    Returns:
+        Dictionary with merge eligibility status and detailed analysis
+    """
+    logger.debug("Check GitHub PR merge eligibility tool called: PR #%d, repo=%s", pr_number, repo_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = CheckMergeEligibilityInput(
+        pr_number=pr_number,
+        repo_name=repo_name
+    )
+    
+    try:
+        result = await github_check_merge_eligibility_tool(input_data)
+        logger.debug("Check GitHub PR merge eligibility result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Check GitHub PR merge eligibility failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@rag_agent.tool
+async def merge_github_pr(
+    ctx: RunContext[AgentDependencies],
+    pr_number: int,
+    merge_method: str = "merge",
+    commit_title: str = None,
+    commit_message: str = None,
+    repo_name: str = None
+) -> Dict[str, Any]:
+    """
+    Merge a GitHub pull request if it's eligible.
+    
+    This tool automatically merges a PR after checking all requirements
+    including reviews, status checks, and branch protection rules.
+    Only merges PRs that meet all criteria.
+    
+    Args:
+        pr_number: Pull request number
+        merge_method: Merge method ('merge', 'squash', or 'rebase')
+        commit_title: Custom commit title (optional)
+        commit_message: Custom commit message (optional)
+        repo_name: Repository name in format 'owner/repo' (uses GITHUB_REPO env var if not provided)
+    
+    Returns:
+        Dictionary with merge result and details
+    """
+    logger.debug("Merge GitHub PR tool called: PR #%d, method=%s, repo=%s", pr_number, merge_method, repo_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = MergePRInput(
+        pr_number=pr_number,
+        merge_method=merge_method,
+        commit_title=commit_title,
+        commit_message=commit_message,
+        repo_name=repo_name
+    )
+    
+    try:
+        result = await github_merge_pr_tool(input_data)
+        logger.debug("Merge GitHub PR result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Merge GitHub PR failed: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@rag_agent.tool
+async def auto_merge_github_prs(
+    ctx: RunContext[AgentDependencies],
+    auto_merge_label: str = None,
+    repo_name: str = None
+) -> Dict[str, Any]:
+    """
+    Automatically merge all eligible GitHub pull requests.
+    
+    This tool scans all open PRs and automatically merges those that
+    meet all requirements including reviews, status checks, and branch protection.
+    Optionally filters by a specific label for controlled auto-merging.
+    
+    Args:
+        auto_merge_label: Only merge PRs with this label (optional, for controlled auto-merging)
+        repo_name: Repository name in format 'owner/repo' (uses GITHUB_REPO env var if not provided)
+    
+    Returns:
+        Dictionary with auto-merge results summary
+    """
+    logger.debug("Auto-merge GitHub PRs tool called: label=%s, repo=%s", auto_merge_label, repo_name)
+    logger.debug("Session ID: %s", ctx.deps.session_id)
+    
+    input_data = AutoMergeInput(
+        auto_merge_label=auto_merge_label,
+        repo_name=repo_name
+    )
+    
+    try:
+        result = await github_auto_merge_eligible_prs_tool(input_data)
+        logger.debug("Auto-merge GitHub PRs result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Auto-merge GitHub PRs failed: %s", e)
+        return {"success": False, "error": str(e)}
