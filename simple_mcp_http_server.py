@@ -31,7 +31,11 @@ class SimpleMCPServer:
             "open_gmail": self.open_gmail,
             "open_gmail_compose": self.open_gmail_compose,
             "sendmail": self.sendmail,
-            "sendmail_simple": self.sendmail_simple
+            "sendmail_simple": self.sendmail_simple,
+            # New Slack tools - safely added without breaking existing functionality
+            "slack_post_alert": self.slack_post_alert,
+            "slack_post_message": self.slack_post_message,
+            "slack_post_rich_message": self.slack_post_rich_message
         }
         logger.info("Simple MCP Server initialized")
     
@@ -239,6 +243,234 @@ Subject: {msg['Subject']}
         """Send simple email."""
         return self.sendmail(to_email, subject, message)
     
+    # New Slack tools - safely implemented without breaking existing functionality
+    def slack_post_alert(self, channel: str, title: str, message: str, severity: str = "info") -> Dict[str, Any]:
+        """Post alert to Slack channel."""
+        try:
+            # Get Slack webhook URL from environment variable
+            slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+            
+            if not slack_webhook_url:
+                logger.warning("📢 SLACK: No webhook URL configured, logging alert instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_alert",
+                    "error": "SLACK_WEBHOOK_URL environment variable not set",
+                    "note": "Set SLACK_WEBHOOK_URL to enable Slack integration",
+                    "alert_data": {
+                        "channel": channel,
+                        "title": title,
+                        "message": message,
+                        "severity": severity
+                    }
+                }
+            
+            # Try to import requests for HTTP calls
+            try:
+                import requests
+            except ImportError:
+                logger.warning("📢 SLACK: requests library not available, logging alert instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_alert",
+                    "error": "requests library not installed",
+                    "note": "Install requests: pip install requests",
+                    "alert_data": {
+                        "channel": channel,
+                        "title": title,
+                        "message": message,
+                        "severity": severity
+                    }
+                }
+            
+            # Format Slack message
+            severity_colors = {
+                "error": "#FF0000",      # Red for critical/error
+                "warning": "#FFA500",    # Orange for warning
+                "info": "#0000FF",       # Blue for info
+                "success": "#00FF00"     # Green for success
+            }
+            
+            slack_data = {
+                "channel": channel,
+                "attachments": [{
+                    "color": severity_colors.get(severity, "#0000FF"),
+                    "title": title,
+                    "text": message,
+                    "footer": "Agentic RAG Alert System",
+                    "ts": int(datetime.now().timestamp())
+                }]
+            }
+            
+            # Send to Slack
+            response = requests.post(slack_webhook_url, json=slack_data, timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"📢 SLACK: Alert sent to {channel}: {title}")
+                return {
+                    "success": True,
+                    "tool_name": "slack_post_alert",
+                    "result": f"Alert sent to Slack channel {channel}",
+                    "slack_response": "ok"
+                }
+            else:
+                logger.warning(f"📢 SLACK: Failed to send alert, status {response.status_code}")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_alert",
+                    "error": f"Slack API returned status {response.status_code}",
+                    "slack_response": response.text
+                }
+                
+        except Exception as e:
+            logger.error(f"📢 SLACK ERROR: {e}")
+            return {
+                "success": False,
+                "tool_name": "slack_post_alert",
+                "error": f"Error sending Slack alert: {str(e)}",
+                "note": "Check Slack webhook configuration and network connectivity"
+            }
+    
+    def slack_post_message(self, channel: str, message: str) -> Dict[str, Any]:
+        """Post simple message to Slack channel."""
+        try:
+            # Get Slack webhook URL from environment variable
+            slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+            
+            if not slack_webhook_url:
+                logger.warning("📢 SLACK: No webhook URL configured, logging message instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_message",
+                    "error": "SLACK_WEBHOOK_URL environment variable not set",
+                    "note": "Set SLACK_WEBHOOK_URL to enable Slack integration",
+                    "message_data": {
+                        "channel": channel,
+                        "message": message
+                    }
+                }
+            
+            # Try to import requests for HTTP calls
+            try:
+                import requests
+            except ImportError:
+                logger.warning("📢 SLACK: requests library not available, logging message instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_message",
+                    "error": "requests library not installed",
+                    "note": "Install requests: pip install requests",
+                    "message_data": {
+                        "channel": channel,
+                        "message": message
+                    }
+                }
+            
+            # Format Slack message
+            slack_data = {
+                "channel": channel,
+                "text": message
+            }
+            
+            # Send to Slack
+            response = requests.post(slack_webhook_url, json=slack_data, timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"📢 SLACK: Message sent to {channel}")
+                return {
+                    "success": True,
+                    "tool_name": "slack_post_message",
+                    "result": f"Message sent to Slack channel {channel}",
+                    "slack_response": "ok"
+                }
+            else:
+                logger.warning(f"📢 SLACK: Failed to send message, status {response.status_code}")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_message",
+                    "error": f"Slack API returned status {response.status_code}",
+                    "slack_response": response.text
+                }
+                
+        except Exception as e:
+            logger.error(f"📢 SLACK ERROR: {e}")
+            return {
+                "success": False,
+                "tool_name": "slack_post_message",
+                "error": f"Error sending Slack message: {str(e)}",
+                "note": "Check Slack webhook configuration and network connectivity"
+            }
+    
+    def slack_post_rich_message(self, channel: str, blocks: list) -> Dict[str, Any]:
+        """Post rich formatted message with Slack blocks to channel."""
+        try:
+            # Get Slack webhook URL from environment variable
+            slack_webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+            
+            if not slack_webhook_url:
+                logger.warning("📢 SLACK: No webhook URL configured, logging rich message instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_rich_message",
+                    "error": "SLACK_WEBHOOK_URL environment variable not set",
+                    "note": "Set SLACK_WEBHOOK_URL to enable Slack integration",
+                    "message_data": {
+                        "channel": channel,
+                        "blocks": blocks
+                    }
+                }
+            
+            # Try to import requests for HTTP calls
+            try:
+                import requests
+            except ImportError:
+                logger.warning("📢 SLACK: requests library not available, logging rich message instead")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_rich_message",
+                    "error": "requests library not installed",
+                    "note": "Install requests: pip install requests",
+                    "message_data": {
+                        "channel": channel,
+                        "blocks": blocks
+                    }
+                }
+            
+            # Format Slack message with blocks
+            slack_data = {
+                "channel": channel,
+                "blocks": blocks
+            }
+            
+            # Send to Slack
+            response = requests.post(slack_webhook_url, json=slack_data, timeout=10)
+            
+            if response.status_code == 200:
+                logger.info(f"📢 SLACK: Rich message sent to {channel}")
+                return {
+                    "success": True,
+                    "tool_name": "slack_post_rich_message",
+                    "result": f"Rich message sent to Slack channel {channel}",
+                    "slack_response": "ok"
+                }
+            else:
+                logger.warning(f"📢 SLACK: Failed to send rich message, status {response.status_code}")
+                return {
+                    "success": False,
+                    "tool_name": "slack_post_rich_message",
+                    "error": f"Slack API returned status {response.status_code}",
+                    "slack_response": response.text
+                }
+                
+        except Exception as e:
+            logger.error(f"📢 SLACK ERROR: {e}")
+            return {
+                "success": False,
+                "tool_name": "slack_post_rich_message",
+                "error": f"Error sending Slack rich message: {str(e)}",
+                "note": "Check Slack webhook configuration and network connectivity"
+            }
+
     def handle_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle MCP tool request."""
         try:
@@ -270,6 +502,24 @@ Subject: {msg['Subject']}
                     arguments.get("subject", ""),
                     arguments.get("message", "")
                 )
+            # New Slack tool handlers - safely added without breaking existing functionality
+            elif tool_name == "slack_post_alert":
+                return tool_func(
+                    arguments.get("channel", "#general"),
+                    arguments.get("title", "Alert"),
+                    arguments.get("message", ""),
+                    arguments.get("severity", "info")
+                )
+            elif tool_name == "slack_post_message":
+                return tool_func(
+                    arguments.get("channel", "#general"),
+                    arguments.get("message", "")
+                )
+            elif tool_name == "slack_post_rich_message":
+                return tool_func(
+                    arguments.get("channel", "#general"),
+                    arguments.get("blocks", [])
+                )
             else:
                 # For tools with no parameters
                 return tool_func()
@@ -300,7 +550,10 @@ Subject: {msg['Subject']}
                 {"name": "open_gmail", "description": "Open Gmail in browser"},
                 {"name": "open_gmail_compose", "description": "Open Gmail compose window"},
                 {"name": "sendmail", "description": "Send email via sendmail"},
-                {"name": "sendmail_simple", "description": "Simple email sending"}
+                {"name": "sendmail_simple", "description": "Simple email sending"},
+                {"name": "slack_post_alert", "description": "Post alert to Slack channel"},
+                {"name": "slack_post_message", "description": "Post simple message to Slack channel"},
+                {"name": "slack_post_rich_message", "description": "Post rich formatted message with Slack blocks"}
             ]
         }
 
